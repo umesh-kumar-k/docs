@@ -14,35 +14,73 @@
         "tab": "Guides",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Design Patterns",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "patterns/overview"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Asynchronous Messaging",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "async-messaging/overview",
+              "async-messaging/kafka",
+              "async-messaging/kafka-rabbitmq",
+              "async-messaging/message-brokers",
+              "async-messaging/queue-brokers",
+              "async-messaging/queue",
+              "async-messaging/message-bus"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Database",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "database/sql-nosql",
+              "database/acid",
+              "database/bloom-filter",
+              "database/caching",
+              "database/consistent-hashing",
+              "database/federation",
+              "database/modeling",
+              "database/failure-recovery",
+              "database/normalization-denormalization",
+              "database/rdbms",
+              "database/replication",
+              "database/tuning",
+              "database/sharding",
+              "database/wal",
+              "database/nosql",
+              "database/cassandra",
+              "database/document-db",
+              "database/key-value"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "System Design",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "system-design/high-availability",
+              "system-design/high-availability-summary",
+              "system-design/cdn",
+              "system-design/cdn-summary",
+              "system-design/caching",
+              "system-design/caching-summary",
+              "system-design/background-jobs",
+              "system-design/background-jobs-summary",
+              "system-design/data-partition",
+              "system-design/cloud-storage",
+              "system-design/clustering",
+              "system-design/consensus-algorithm",
+              "system-design/consistency-patterns",
+              "system-design/dns",
+              "system-design/cap",
+              "system-design/distributed-transaction",
+              "system-design/latency-throughput",
+              "system-design/load-balancer",
+              "system-design/nginx",
+              "system-design/performance-scalability",
+              "system-design/reverse-proxy",
+              "system-design/scalability",
+              "system-design/communication",
+              "system-design/protocols"
             ]
           }
         ]
@@ -120,3 +158,7 @@
     }
   }
 }
+
+
+
+

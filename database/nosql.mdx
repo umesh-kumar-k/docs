@@ -1,0 +1,161 @@
+## Interview Summary
+NoSQL databases relax the rigid schema and join-centric model of RDBMS to achieve high scalability, availability, and flexible data modeling, typically by tailoring storage around specific access patterns. Senior architects should know the main NoSQL types (key‑value, document, wide‑column, graph, time‑series), their strengths/weaknesses, and how to justify choosing (or rejecting) NoSQL in terms of consistency, query capability, latency, and operational complexity.[1][2][3]
+
+***
+
+## Keywords & Patterns
+
+- **Core ideas**
+  - “Not only SQL”: Polyglot persistence; use NoSQL alongside RDBMS where it fits best.[2][3]
+  - Schema‑flexible / schema‑on‑read vs strict schemas; often designed for horizontal sharding and replication from day one.[4][5]
+  - CAP/BASE mindset: prefer availability and partition tolerance with eventual consistency for many workloads.[3][2]
+
+- **Main NoSQL types**
+  - **Key‑Value**: Simple `{key → value}` lookups; super low latency.[6][2]
+    - Examples: Redis, DynamoDB (KV side), Riak.[7][8]
+  - **Document**: JSON/BSON documents, nested structures, rich queries and indexes.[6][3]
+    - Examples: MongoDB, Couchbase, CouchDB.[8][7]
+  - **Wide‑Column**: Column families, partition + clustering keys; tuned for huge, distributed, write‑heavy workloads.[4][6]
+    - Examples: Cassandra, HBase, Bigtable‑style stores.[9][8]
+  - **Graph**: Nodes + edges + properties for relationship‑heavy queries (traversals, paths).[3][6]
+    - Examples: Neo4j, Amazon Neptune, JanusGraph.[10][4]
+  - **Others sometimes called out**: Time‑series (InfluxDB, Timescale), search (Elasticsearch), etc., as specialized NoSQL.[11][3]
+
+- **Access‑pattern driven modeling**
+  - Model “per query”: design collections/tables/rows around how data is read (e.g., one document per page/feed) rather than pure normalization.[1][3]
+  - Heavy denormalization and duplication are common to avoid cross‑partition joins.[2][1]
+
+***
+
+## Common Trade‑offs + Example Questions
+
+### Trade‑offs
+
+- **Flexibility vs consistency & joins**
+  - Pro: Easy schema evolution, nested structures; great fit for evolving domains and microservices.[5][4]
+  - Con: Often limited multi‑document transactions and joins compared to RDBMS (improving in some systems but with caveats).[2][3]
+
+- **Horizontal scale vs complex queries**
+  - Key‑value / wide‑column excel at simple, high‑throughput access on partition keys; complex ad‑hoc queries or secondary indexes can be limited or operationally heavy.[12][6]
+
+- **Availability vs consistency**
+  - Many NoSQL systems prioritize availability and low latency with tunable/eventual consistency; strict linearizability can be costly or limited to single partitions.[13][2]
+
+- **Operational complexity**
+  - Distributed NoSQL clusters require care around data modeling, partition keys, compaction, repair, and multi‑region replication; managed versions (DynamoDB, Cosmos DB, Atlas) trade cost for simpler operations.[7][10]
+
+### Example interview questions
+
+- For a large‑scale user session store, would you choose Redis, DynamoDB, or Postgres? Explain the trade‑offs.[7][2]
+- How would you model an e‑commerce catalog in MongoDB vs in a relational database? Where do you duplicate data and why?[3][7]
+- When does Cassandra outperform MongoDB, and what data modeling constraints does Cassandra impose (partition key, clustering key)?[12][9]
+- Where is a graph database a better fit than a relational schema with join tables?[6][3]
+
+***
+
+## Use Cases
+
+- **Key‑Value**
+  - Caching, sessions, feature flags, rate limiting, leaderboards (Redis, DynamoDB for serverless backends).[8][6][7]
+
+- **Document**
+  - CMS, product catalogs, user profiles, event payloads where attributes vary and evolve quickly (MongoDB, Couchbase).[9][3]
+
+- **Wide‑Column**
+  - High‑write event streams, time‑series metrics, telecom/IoT data, messaging timelines; linear scalability and high availability (Cassandra, HBase).[12][9][8]
+
+- **Graph**
+  - Social graph, fraud detection, recommendation, network topology (Neo4j, Neptune), where traversals and relationships dominate.[8][6][3]
+
+- **Big‑tech style**
+  - eBay uses MongoDB for flexible product metadata at scale.[9]
+  - Many web‑scale companies use Cassandra for globally distributed, write‑intensive workloads with near‑zero downtime.[10][9]
+  - DynamoDB powers large AWS customers’ geo‑distributed, serverless applications with auto‑scaling and global tables.[14][7]
+
+***
+
+## Cheat‑sheet, Q&A Style
+
+- **Q: Why NoSQL instead of SQL?**  
+  - A: When you need massive horizontal scale, flexible schemas, or low‑latency key‑based access where full SQL joins/transactions are less important.[5][2][3]
+
+- **Q: What are the four main NoSQL types?**  
+  - A: Key‑value, document, wide‑column (column‑family), and graph.[6][3]
+
+- **Q: When is key‑value the right choice?**  
+  - A: Access is always by key, values are opaque blobs or simple structures, and low latency + scale matter more than complex querying.[8][6]
+
+- **Q: When to choose a document DB?**  
+  - A: When you have hierarchical data (e.g., orders + items + shipping), need flexible attributes, and want rich filters/indexes over document fields.[7][3]
+
+- **Q: Why use wide‑column (Cassandra/HBase)?**  
+  - A: For write‑heavy, large datasets where you can design queries around partition+clustering keys and need multi‑region availability.[12][9]
+
+- **Q: When is a graph DB superior?**  
+  - A: When queries require deep/complex relationship traversals (friends‑of‑friends, fraud rings, path finding) that are expensive as joins.[3][6]
+
+- **Q: What are typical NoSQL consistency models?**  
+  - A: Eventual consistency with tunable consistency (e.g., Cassandra’s ONE/QUORUM/ALL), sometimes strong or per‑document transactional guarantees (MongoDB’s newer transactions).[13][7]
+
+- **Q: What are common pitfalls?**  
+  - A: Poor partition key choice leading to hot partitions, over‑denormalization without a plan for updates, and assuming RDBMS‑style joins/transactions exist.[4][12]
+
+***
+
+## Data Structures & Algorithms Used
+
+- **Data structures**
+  - LSM trees (log‑structured merge trees) in Cassandra, HBase, many key‑value stores for high write throughput.[4][12]
+  - Hash tables / partition maps for key routing in key‑value and wide‑column systems.[13][2]
+  - B‑trees/B+‑trees in some document and secondary index implementations.[13][3]
+  - Graph adjacency lists and index structures for graph stores.[4][3]
+
+- **Algorithms**
+  - Consistent hashing for partitioning keys across nodes (Cassandra, Dynamo‑family).[15][13]
+  - Gossip protocols and quorum algorithms for replication and membership (Cassandra).[12][13]
+  - Compaction/merge algorithms for LSM trees (flush memtables to SSTables, then compact).[12][4]
+  - Graph traversal (BFS/DFS, shortest path) in graph DBs.[3][4]
+
+***
+
+## Tools / Frameworks / Software
+
+| Category      | Examples                            | Notes |
+|---------------|--------------------------------------|-------|
+| Key‑Value     | Redis, Amazon DynamoDB, Riak        | In‑memory or managed KV; great for caching, sessions, serverless backends.[7][8][14] |
+| Document      | MongoDB, Couchbase, CouchDB         | JSON/BSON docs, flexible schema, powerful querying + indexing.[7][3] |
+| Wide‑Column   | Apache Cassandra, HBase, Bigtable   | Partition+clustering keys, high write throughput, global availability.[12][9] |
+| Graph         | Neo4j, Amazon Neptune, JanusGraph   | Optimized for relationships and traversals.[6][3][10] |
+| Time‑Series & Search | InfluxDB, TimescaleDB, Elasticsearch | Specialized for metrics, logs, full‑text search, analytics.[11][3] |
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- NoSQL, “not only SQL”, polyglot persistence.[5][3]
+- Key‑value store, document store, wide‑column (column‑family) store, graph database.[2][6]
+- Schema‑flexible, denormalization, access‑pattern‑driven design.[1][4]
+- Partition key, sharding, replication, tunable consistency, eventual consistency, quorum.[13][12]
+- LSM tree, consistent hashing, gossip, compaction.[15][4][12]
+- Typical tools: Redis, DynamoDB, MongoDB, Cassandra, HBase, Neo4j, Elasticsearch, Couchbase.[9][7][8]
+
+[1](https://hackernoon.com/nosql-system-design-cheat-sheet)
+[2](https://www.geeksforgeeks.org/system-design/types-of-databases-in-system-design/)
+[3](https://www.altexsoft.com/blog/nosql-databases/)
+[4](https://memgraph.com/blog/types-of-nosql-databases-deep-dive)
+[5](https://www.mongodb.com/resources/basics/databases/nosql-explained)
+[6](https://verpex.com/blog/website-tips/what-are-the-four-types-of-nosql-databases)
+[7](https://blog.idineshkrishnan.com/2024/03/decoding-nosql-dynamodb-mongodb-and.html)
+[8](https://www.linkedin.com/posts/vanaja2_nosql-database-mongodb-activity-7361396129009192961-AnWC)
+[9](https://dzone.com/articles/top-nosql-databases-and-use-cases)
+[10](https://www.instaclustr.com/education/nosql-database/nosql-databases-types-use-cases-and-8-databases-to-try/)
+[11](https://www.youtube.com/watch?v=YTKxGG0YlZ4)
+[12](https://blazeclan.com/blog/dive-deep-types-nosql-databases/)
+[13](https://cheatsheets.davidveksler.com/databases.html)
+[14](https://docs.aws.amazon.com/whitepapers/latest/choosing-an-aws-nosql-database/types-of-nosql-databases.html)
+[15](https://www.yugabyte.com/blog/dynamodb-vs-mongodb-vs-cassandra-for-fast-growing-geo-distributed-apps/)
+[16](https://www.datacamp.com/blog/types-of-databases-overview)
+[17](https://www.linkedin.com/posts/dalia-original-5380b31ab_nosql-cheat-sheet-the-ultimate-guide-activity-7393935647302045696-jwRd)
+[18](https://www.scribd.com/document/653512745/SQL-NOSQL-CHEAT-Sheet)
+[19](https://github.com/cherkavi/cheat-sheet/blob/master/nosql.md)
+[20](https://www.reddit.com/r/dataengineering/comments/13h30py/nosql_database_use_cases/)

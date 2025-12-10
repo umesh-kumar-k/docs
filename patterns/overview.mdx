@@ -1,0 +1,175 @@
+Here’s a compact, interview‑oriented cheat sheet of the highest‑impact distributed‑systems patterns you’re most likely to need to talk about for scalability, availability, performance, and reliability.[1][2]
+
+***
+
+## Interview Summary
+
+Across big‑tech style architectures, the same core patterns recur: **stateless services + load balancing**, **caching**, **database sharding/replication**, **asynchronous messaging/event‑driven design**, and **resilience patterns** (circuit breaker, bulkhead, retry, timeouts, saga). Senior‑level interviewers expect you to (a) name these patterns, (b) map them to SLOs (latency, throughput, availability), (c) show awareness of their trade‑offs (consistency, complexity, cost), and (d) connect them to real‑world usage at companies like Netflix, Amazon, and Azure.[3][4][5][6][7][1]
+
+***
+
+## Keywords & Patterns (Bucketed)
+
+### Core scalability & performance
+
+- **Horizontal scaling & stateless services**  
+  - Scale out behind a **load balancer**; keep app servers stateless, store session/state in external stores (Redis, DB).[8][4]
+  - Tools: NGINX/Envoy/ALB, Kubernetes HPA, service meshes.[4][8]
+
+- **Caching patterns**  
+  - **Client‑side cache**, **CDN**, **reverse proxy cache**, **read‑through/write‑through/write‑back**, **cache‑aside**.[2][8]
+  - Tools: Redis/Memcached, CloudFront/Akamai, Varnish/NGINX.[8][4]
+
+- **Data partitioning (sharding)**  
+  - Horizontal partitioning by key (userId, tenantId, time); range/hash/consistent hashing.[6][9]
+  - Applied to DBs, caches, search, queues, even microservices.[6][8]
+
+### Availability & reliability
+
+- **Replication patterns**  
+  - Multi‑AZ/region replicas; leader–follower, leaderless quorum, async vs sync.[10][2]
+  - RPO/RTO awareness; failover and health checks.[7][3]
+
+- **Resilience patterns (microservices)**  
+  - **Circuit Breaker** – open/half‑open/closed; stop hammering unhealthy dependencies.[11][12][13]
+  - **Bulkhead** – isolate resource pools per dependency (threads/connection pools) to prevent cascade.[11][6]
+  - **Retry + timeout + backoff + jitter** – avoid thundering herds and tail latency spikes.[5][2]
+  - **Fallback / graceful degradation** – cached/default responses when dependencies fail.[5][11]
+
+- **Consistency & long‑running workflows**  
+  - **Saga** – sequence of local transactions with compensating actions; orchestration vs choreography.[13][11]
+  - **CQRS** – separate command and query models; write‑optimized vs read‑optimized stores.[11][5]
+
+### Architecture & messaging
+
+- **Microservices & bounded contexts**  
+  - Decompose by business capability; independent deployments; strong contracts.[14][5]
+  - Trade: agility and independent scaling vs operational and consistency complexity.[5]
+
+- **Event‑driven architecture**  
+  - Producers emit domain events; consumers build projections, send notifications, trigger workflows.[2][5]
+  - Tools: Kafka, Pulsar, Kinesis, Azure Event Hubs/Event Grid.[9][2]
+
+- **Message‑centric patterns**  
+  - **Message queues** vs **event streams** (RabbitMQ/SQS vs Kafka‑style logs).[15][16]
+  - Back‑pressure, DLQs, idempotent consumers, at‑least‑once semantics.[13][15]
+
+***
+
+## Common Trade‑offs + Example Questions
+
+### Trade‑offs (high‑yield)
+
+- **Scalability vs consistency**  
+  - Sharding, replication, and async messaging often trade strict consistency for availability and throughput (CAP/BASE).[10][6]
+  - Expect to talk about eventual consistency, read‑your‑writes, and where you still need strong invariants.
+
+- **Performance vs complexity/cost**  
+  - Caching and denormalization improve latency but add invalidation and storage costs.[8][6]
+  - Microservices and EDA improve agility but require more infra: discovery, tracing, centralized config, observability.[14][5]
+
+- **Availability vs latency & resource usage**  
+  - Synchronous replication and quorum reads/writes increase durability but hurt latency and capacity.[7][10]
+  - Circuit breakers/bulkheads protect availability but can degrade features (degraded responses).[12][11]
+
+### Example questions to be ready for
+
+- Design a highly available, low‑latency **news feed / timeline** – where do you apply caching, sharding, replication, and async processing? What trade‑offs in consistency do you accept?[9][6]
+- Design a **payment/order pipeline** across multiple services and databases – how do you keep it consistent (saga), resilient (circuit breaker/bulkhead), and observable?[13][11]
+- Your **search/analytics** queries are slow under load – which patterns (caching, CQRS, read replicas, pre‑aggregation) would you introduce and why?[6][8]
+
+***
+
+## Use Cases & Big‑Tech Blog References
+
+- **Netflix**  
+  - Uses microservices, Hystrix‑style circuit breakers, fallback, and bulkheads plus client‑side load balancing for resilience.[4][2]
+  - Migrated from monolith to AWS‑based distributed systems, with auto‑scaling groups, Zuul/API‑Gateway, Eureka discovery, and heavy use of caches/CDNs to meet global SLAs.[17][4]
+
+- **AWS / Azure cloud patterns**  
+  - Azure’s Cloud Design Patterns: circuit breaker, retry, bulkhead, queue‑based load leveling, throttling, cache‑aside, sharding, event sourcing, CQRS, and sidecar are canonical references.[3][2]
+  - AWS Architecture Blog stresses “reliable scalability”: stateless services, multi‑AZ, autoscaling, health checks, and queues for load leveling.[18][7]
+
+- **ByteByteGo / HighScalability style content**  
+  - Showcases sharding, caching, replication, and EDA patterns in real services like Twitter feed, YouTube, Uber, etc., with concrete diagrams and bottleneck analysis.[17][9][6]
+
+***
+
+## Cheat‑sheet, Q&A Style
+
+- **Q: What are the highest‑impact patterns for scalability?**  
+  - A: Stateless microservices + horizontal scaling, load balancing, caching at multiple layers, and data sharding/partitioning.[1][8]
+
+- **Q: How do you make a system highly available and resilient?**  
+  - A: Multi‑AZ/region deployment, replication, health checks + auto‑healing, plus circuit breakers, bulkheads, retries with backoff, and graceful degradation.[10][2][11]
+
+- **Q: How do you handle cross‑service consistency in microservices?**  
+  - A: Use sagas for long‑running workflows, idempotent operations, outbox/CDC for reliable event publishing, and choose where you need strong vs eventual consistency.[11][6][13]
+
+- **Q: When do you introduce event‑driven architecture?**  
+  - A: When many services need to react to the same domain events, or when you must decouple producers/consumers for scale and resilience, and can tolerate eventual consistency.[2][5]
+
+- **Q: How do you avoid cascading failures?**  
+  - A: Combine timeouts, circuit breakers, bulkheads, rate limiting, and backoff retries; test via chaos/latency injection.[12][6][11]
+
+***
+
+## Data Structures & Algorithms Involved
+
+- **Data structures**  
+  - **B‑trees/B+‑trees** – DB indexes for efficient queries at scale (SQL/NoSQL secondary indexes).[6][2]
+  - **LSM trees (SSTables + memtables)** – backing high‑write stores (Cassandra, HBase, RocksDB, many logs).[6]
+  - **Consistent hashing rings** – partitioning keys across shards/nodes while minimizing rebalancing.[9][6]
+  - **Queues & logs** – message queues (RabbitMQ/SQS) and partitioned logs (Kafka) as core async primitives.[15][2]
+
+- **Algorithms**  
+  - Load‑balancing strategies (round‑robin, least‑connections, consistent hashing).[8][9]
+  - Quorum algorithms (read/write majority) and leader election for replicated state.[10][13]
+  - Retry with exponential backoff + jitter; rate limiting (token bucket, leaky bucket).[5][2]
+  - Gossip and failure‑detection protocols for cluster membership.[13][6]
+
+***
+
+## Tools / Frameworks / Software
+
+- **Scaling & statelessness** – Kubernetes, ECS, service meshes (Istio/Linkerd), Envoy/NGINX/HAProxy, API gateways.[4][8]
+- **Caching** – Redis, Memcached, CDN providers, app‑level cache libraries.[2][8]
+- **Datastores** – Sharded/replicated Postgres/MySQL; Cassandra, DynamoDB, MongoDB for distributed persistence.[9][6]
+- **Messaging & events** – Kafka, Pulsar, Kinesis, SQS/SNS, Event Hubs/Event Grid, RabbitMQ.[18][2]
+- **Resilience libraries** – Resilience4j, Netflix OSS (Hystrix legacy, Ribbon, Eureka), service‑mesh policies for retries/circuit‑breaking.[4][5]
+- **Observability** – Prometheus + Grafana, OpenTelemetry, Jaeger/Zipkin, cloud‑native monitoring (CloudWatch, Azure Monitor).[19][2]
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- Scalability, availability, reliability, performance (4 pillars).[1]
+- Stateless services, horizontal scaling, load balancing, auto‑scaling.[7][8]
+- Caching (cache‑aside, read‑through, write‑through, write‑back), CDN, reverse proxy.[8][2]
+- Sharding/partitioning, replication, quorum, consistent hashing, multi‑AZ/region.[9][6]
+- Microservices, bounded context, API gateway, service mesh.[14][5]
+- Event‑driven architecture, message queues vs event streams, Kafka‑style logs.[15][2]
+- Circuit breaker, bulkhead, retry/backoff, timeout, fallback, saga, CQRS.[12][11][13]
+
+[1](https://www.designgurus.io/blog/4-basic-pillars-of-system-design)
+[2](https://learn.microsoft.com/en-us/azure/architecture/patterns/)
+[3](https://learn.microsoft.com/en-us/archive/msdn-magazine/2009/may/patterns-for-high-availability-scalability-and-computing-power-with-microsoft-azure)
+[4](https://www.netguru.com/blog/cloud-native-patterns-examples)
+[5](https://dev.to/tutorialq/mastering-distributed-systems-essential-design-patterns-for-scalability-and-resilience-35ck)
+[6](https://www.freecodecamp.org/news/design-patterns-for-distributed-systems/)
+[7](https://aws.amazon.com/blogs/architecture/architecting-for-reliable-scalability/)
+[8](https://www.imaginarycloud.com/blog/scalability-patterns-for-distributed-systems-guide)
+[9](https://blog.bytebytego.com/p/scalability-patterns-for-modern-distributed)
+[10](https://www.geeksforgeeks.org/system-design/reliability-vs-scalability/)
+[11](https://dev.to/geampiere/mastering-microservices-patterns-circuit-breaker-fallback-bulkhead-saga-and-cqrs-4h55)
+[12](https://www.geeksforgeeks.org/system-design/distributed-system-patterns/)
+[13](https://codemia.io/knowledge-hub/path/Distributed-System-Design-Patterns)
+[14](https://marutitech.com/software-architecture-patterns/)
+[15](https://www.geeksforgeeks.org/system-design/message-queues-vs-event-streams-in-system-design/)
+[16](https://www.systemdesignhandbook.com/guides/message-queue-system-design/)
+[17](https://highscalability.com)
+[18](https://workat.tech/system-design/article/best-engineering-blogs-articles-videos-system-design-tvwa05b8bzzr)
+[19](https://signiance.com/system-design-principles/)
+[20](https://dev.to/fahimulhaq/complete-guide-to-system-design-oc7)
+[21](https://namastedev.com/blog/scalable-system-architecture-patterns/)
+[22](https://vfunction.com/blog/application-scalability/)

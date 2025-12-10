@@ -1,0 +1,78 @@
+## Interview Summary
+Database recovery ensures ACID properties (atomicity, durability) post-failure via logs, checkpoints, and backups, restoring consistency without data loss. Senior architects justify techniques like log-based undo/redo, shadow paging, and ARIES based on failure types (crash, disk), RPO/RTO, and scale trade-offs.[1][2]
+
+## Keywords & Patterns
+- **Techniques**: Log-Based (Undo/Redo, Deferred Update), Shadow Paging, Checkpointing (Fuzzy/Consistent), Backup/Restore (Full/Differential/Log).[1]
+- **Logs**: Write-Ahead Logging (WAL), Transaction Log (before-image/after-image), Commit/Redo, Rollback/Undo.[1]
+- **ARIES Algorithm**: Analysis (scan log), Redo (reapply committed), Undo (reverse uncommitted).[3]
+- **Failure Types**: Transaction (abort), System Crash, Media (disk), Catastrophic.[1]
+- **Optimizations**: Checkpoints (minimize log scan), Replication (HA/DR).[2]
+
+## Common Trade-offs + Example Questions
+**Trade-offs**:
+- Log-based: Fast recovery but log I/O overhead; shadow paging: No logs but storage fragmentation.[1]
+- WAL: Durability vs. write amplification; checkpoints: Faster recovery vs. periodic pauses.[1]
+- Backups: Point-in-time recovery vs. storage/network cost.[2]
+
+**Example Questions**:
+- Explain ARIES recovery phases for crash with dirty pages?[3]
+- When to use shadow paging over WAL?[1]
+- Design DR for 99.99% uptime with RPO<1min?[4]
+
+## Use Cases
+- **OLTP Systems**: WAL + Checkpoints for frequent txns (e.g., banking ACID).[1]
+- **Analytics**: Log backups for PITR after batch failures.[2]
+- **High-Scale**: Continuous restore testing (Uber MySQL/Cassandra).[2]
+- **Cloud HA**: Multi-AZ replication + snapshots (AWS RDS).[4]
+
+## Big Tech Blog References
+- Uber: Robust backup/recovery for MySQL/Cassandra/etcd at PB scale; continuous restore validation cuts outage time.[2]
+- Netflix: Implicit in data pipelines for resilience (e.g., EVO streaming recovery).[5]
+
+## Cheat-sheet, Q&A Style
+- **Q: WAL purpose?** A: Log changes before DB write for durability.[1]
+- **Q: Checkpoint role?** A: Sync log/DB to disk; recover from last one.[1]
+- **Q: Undo vs. Redo?** A: Undo uncommitted; redo committed post-crash.[1]
+- **Q: Shadow Paging pros?** A: No undo/redo; cons: fragmentation.[1]
+- **Q: ARIES used in?** A: PostgreSQL, MySQL InnoDB, DB2.[3]
+
+## Data Structures & Algorithms
+- **DS**: Logs (sequential files/queues), Page Tables (shadow/current hashes), B-Trees (index recovery).[1]
+- **Algos**: Log scanning (linear), Hashing (page lookup), Sorting (txn order), State analysis (ARIES phases).[3]
+
+## Tools/Frameworks/Software
+| Tool | Use Case | Key Features |
+|------|----------|--------------|
+| Percona XtraBackup | MySQL hot backups | Non-blocking, point-in-time [2] |
+| pgBackRest | PostgreSQL | WAL archiving, compression [6] |
+| Stellar Repair for MS SQL | SQL recovery | Corrupt MDF fix, selective restore [7] |
+| Vembu BDR Suite | Multi-DB | Incremental, scheduled DR [7] |
+| AWS RDS Snapshots | Cloud PITR | Automated, cross-region [4] |
+
+## Key Highlights & Possible Interview Questions
+**Highlights**: Prioritize WAL/ARIES for most cases; test restores regularly; balance RTO/RPO with cost.[2][1]
+**Questions**: How to minimize recovery time at scale? Trade-offs of fuzzy vs. consistent checkpoints? Backup strategy for sharded DBs?[4]
+
+## Concise Summary: Key Terms & Keywords
+- WAL, ARIES (Analysis/Redo/Undo), Checkpointing, Shadow Paging, Undo/Redo, Transaction Log, PITR, RPO/RTO, Full/Differential Backup, ACID (Atomicity/Durability).[1]
+
+[1](https://www.geeksforgeeks.org/dbms/database-recovery-techniques-in-dbms/)
+[2](https://www.uber.com/en-IN/blog/robust-database-backup-recovery-at-uber/)
+[3](https://en.wikipedia.org/wiki/Algorithms_for_Recovery_and_Isolation_Exploiting_Semantics)
+[4](https://www.datacamp.com/blog/data-architect-interview-questions)
+[5](https://netflixtechblog.com)
+[6](https://drbtaneja.com/database-recovery/)
+[7](https://www.comparitech.com/net-admin/sql-recovery-tools/)
+[8](https://www.designgurus.io/answers/detail/most-asked-system-design-questions)
+[9](https://himalayas.app/interview-questions/database-architect)
+[10](https://interviewsidekick.com/blog/system-design-interview-for-senior-engineers)
+[11](https://leetcode.com/discuss/study-guide/3823497/dbms-cheatsheet-for-interviews-30-questions/)
+[12](https://www.finalroundai.com/blog/database-architect-interview-questions)
+[13](https://www.linkedin.com/posts/vsadhwani_5-engineering-blogs-by-big-tech-you-must-activity-7367582109768642560-kjw8)
+[14](https://kanerika.com/blogs/data-recovery-tools/)
+[15](https://www.almabetter.com/bytes/cheat-sheet/dbms-cheat-sheet)
+[16](https://cs186berkeley.net/notes/note14/)
+[17](https://upesonline.ac.in/blog/data-architect-interview-questions)
+[18](https://www.systoolsgroup.com/sql-recovery.html)
+[19](https://jobbinge.in/dbms-cheat-sheet/)
+[20](https://www.hellointerview.com/learn/system-design/in-a-hurry/patterns)

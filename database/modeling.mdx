@@ -1,0 +1,80 @@
+## Interview Summary
+Data modeling in system design interviews focuses on selecting database types, defining entities with keys and relationships, indexing for access patterns, balancing normalization/denormalization, and planning sharding based on requirements like volume, queries, and consistency. Start by clarifying functional/non-functional needs, then iterate schemas to optimize reads/writes while justifying trade-offs. Senior architects demonstrate reasoning through access patterns over rote patterns.[1][2][3]
+
+## Keywords & Patterns
+- **Database Types**: Relational/SQL (PostgreSQL, MySQL), Document/NoSQL (MongoDB, Firestore), Key-Value (Redis), Wide-Column (Cassandra), Graph (Neo4j).[3]
+- **Keys/Relationships**: Primary Key (PK, system-generated IDs), Foreign Key (FK, referential integrity), 1:N (user→posts), N:M (likes junction), 1:1 (merge tables).[3]
+- **Schema Fundamentals**: Normalization (reduce redundancy), Denormalization (embed for reads), Indexes (single/composite on query fields), Constraints (NOT NULL, UNIQUE).[3]
+- **Scaling**: Shard key (match primary access, e.g., user_id), Avoid cross-shard joins, Time-based sharding for feeds.[3]
+- **Patterns**: Access-pattern driven design, Eventual consistency for feeds, ACID for transactions.[1]
+
+## Common Trade-offs + Example Questions
+**Trade-offs**:
+- Normalization saves storage but slows reads via joins; denormalization boosts reads but risks update anomalies and duplication.[3]
+- Foreign keys ensure integrity but add write overhead; drop at scale, enforce in app.[3]
+- SQL for relations vs. NoSQL for schema flexibility/nesting (trades joins for storage).[3]
+- Sharding by user_id avoids cross-shard but complicates global feeds.[3]
+
+**Example Questions**:
+- Design schema for social feed: How to handle user posts + likes efficiently?[3]
+- When to denormalize post like-counts vs. compute on fly?[1]
+- Index strategy for "recent posts by followed users"?[2]
+
+## Use Cases
+- **Social Feeds**: Denormalize user posts + follower lists in NoSQL for fast reads; shard by user_id.[3]
+- **Analytics**: Wide-column for time-series aggregation (telemetry/IoT).[3]
+- **Caching/Sessions**: Key-value for single-key lookups.[3]
+- **Financial Txns**: SQL with ACID, normalized for consistency.[3]
+
+## Big Tech Blog References
+- Netflix: Data pipelines for recommendations/fraud detection use denormalized models in ML workflows.[4]
+- Uber: Michelangelo ML platform employs wide-column/event stores for backtesting/model perf at scale.[4]
+- Facebook: Social graph via MySQL (normalized + sharded), avoiding pure graph DBs.[3]
+
+## Cheat-sheet, Q&A Style
+- **Q: SQL vs. NoSQL?** A: SQL for relations/ACID; NoSQL for flexible schemas/high writes.[3]
+- **Q: Primary access pattern?** A: Shard by it (e.g., user_id for profiles).[3]
+- **Q: Index posts by user + time?** A: Composite (user_id, created_at).[3]
+- **Q: Denorm when?** A: Read-heavy, eventual consistency (feeds > txns).[3]
+- **Q: Orphaned records?** A: FKs or app logic; drop FKs at scale for perf.[3]
+
+## Data Structures & Algorithms
+- **DS**: Trees/Graphs for relationships (joins in SQL, embeddings in NoSQL), Hash tables for key-value/indexes, Arrays/Lists for sorted time-series.[5]
+- **Algos**: Hashing for sharding/IDs, Sorting for chronological queries (created_at indexes), Tree traversals for nested data, Aggregations for analytics.[6]
+
+## Tools/Frameworks/Software
+| Tool | Use Case | Key Features |
+|------|----------|--------------|
+| ER/Studio | Enterprise modeling | Collaboration, governance [7] |
+| Erwin Data Modeler | Schema design | Forward/reverse engineering, DB sync [8] |
+| IBM InfoSphere | Logical models | Metadata analysis, version control (Git) [7] |
+| PostgreSQL/MySQL | SQL impl | Relations, indexes [3] |
+| MongoDB | Document | Nested data [3] |
+
+## Key Highlights & Possible Interview Questions
+**Highlights**: Drive design from access patterns > volume/consistency; justify DB choice + indexes/sharding; show trade-offs verbally.[1][3]
+**Questions**: How to scale feeds without cross-shard? Trade-offs of embedding vs. joins? Schema for URL shortener with analytics?[9]
+
+## Concise Summary: Key Terms & Keywords
+- Primary/Foreign Keys, Normalization/Denormalization, Indexes (Composite), Sharding (Shard Key), Access Patterns, 1:N/N:M Relationships, Referential Integrity, ACID/Eventual Consistency, SQL/NoSQL/Wide-Column/Key-Value.[3]
+
+[1](https://interviewing.io/guides/system-design-interview)
+[2](https://www.youtube.com/watch?v=TUcPS6dsWx4)
+[3](https://www.hellointerview.com/learn/system-design/core-concepts/data-modeling)
+[4](https://www.evidentlyai.com/blog/best-machine-learning-blogs)
+[5](https://en.wikipedia.org/wiki/Data_structure)
+[6](https://dzone.com/articles/5-common-data-structures-and-algorithms-used-in-ma)
+[7](https://hevodata.com/learn/data-modeling-tools/)
+[8](https://www.simplilearn.com/top-powerful-data-modeling-tools-software-article)
+[9](https://igotanoffer.com/blogs/tech/system-design-interviews)
+[10](https://www.datacamp.com/blog/data-architect-interview-questions)
+[11](https://www.geeksforgeeks.org/system-design/guide-to-system-design-interview-for-senior-engineers/)
+[12](https://blog.surfalytics.com/p/ultimate-cheatsheet-for-data-engineering)
+[13](https://upesonline.ac.in/blog/data-architect-interview-questions)
+[14](https://www.index.dev/blog/20-best-software-engineering-blogs)
+[15](https://www.hipeople.io/interview-questions/data-modeling-interview-questions)
+[16](https://draft.dev/learn/engineering-blogs)
+[17](https://www.datacamp.com/blog/data-modeling-tools)
+[18](https://www.projectpro.io/article/data-modeling-interview-questions-and-answers/597)
+[19](https://www.w3schools.com/dsa/dsa_intro.php)
+[20](https://www.startdataengineering.com/post/de_interview_sd/)

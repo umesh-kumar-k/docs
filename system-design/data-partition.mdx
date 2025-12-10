@@ -1,0 +1,137 @@
+**Data Partitioning** is physically dividing data across multiple stores to improve scalability, performance, availability, and operational flexibility while avoiding single points of failure and hotspots. For senior interviews, emphasize choosing the right partitioning strategy (horizontal/vertical/functional) based on access patterns, query performance, and growth projections, plus handling rebalancing and cross-partition operations.[1]
+
+***
+
+## Compact interview summary
+
+- **Why partition?** Scalability (scale out beyond single DB limits), performance (smaller datasets per query, parallel operations), availability (no single point of failure), security (isolate sensitive data), operational flexibility (different backup/monitoring per partition), and cost optimization (match store to access pattern).[1]
+
+- **Three core strategies**:
+  - **Horizontal (sharding)**: Same schema, different data subsets across shards (e.g., customer ID ranges/hashes).[1]
+  - **Vertical**: Split fields by access frequency (hot/cold fields) or sensitivity.[1]
+  - **Functional**: By bounded context/business domain (orders vs inventory).[1]
+
+- **Shard key selection is critical**: Must evenly distribute workload, avoid hotspots, minimize cross-shard queries/joins, and anticipate future resharding needs.[1]
+
+- **Key design principles**: Minimize cross-partition operations, embrace eventual consistency, replicate static reference data, periodically rebalance, design for operational tasks (backup/restore across shards).[1]
+
+***
+
+## Keywords & patterns
+
+### Core concepts
+- Data partitioning / sharding
+- Shard / partition
+- Shard key / partition key
+- Hot partition / hotspot
+- Cross-partition query / join
+- Rebalancing / resharding
+
+### Partitioning strategies
+- Horizontal partitioning (sharding)
+- Vertical partitioning
+- Functional partitioning
+- Hybrid partitioning
+
+### Design considerations
+- Workload distribution / balance
+- Query performance optimization
+- Scalability limits per partition
+- Availability / single point of failure
+- Operational flexibility
+
+### Operational patterns
+- Offline migration
+- Online migration (dual-write/read)
+- Read-only during rebalance
+- Parallel queries across partitions
+- Eventual consistency
+
+### Application patterns
+- Index table pattern
+- Materialized view pattern
+- Sharding pattern
+
+### Data access strategies
+- Minimize cross-partition operations
+- Replicate static reference data
+- Application-level joins (vs DB joins)
+- Partition locator / shard map
+
+***
+
+## Common trade-offs + example questions
+
+### Key trade-offs
+- **Shard key choice**: Even distribution vs query locality (hash vs range keys)[1]
+- **Cross-partition ops**: Performance vs data model purity (denormalize vs normalize across shards)[1]
+- **Rebalancing**: Online (complex, zero-downtime) vs offline (simple, downtime)[1]
+- **Consistency**: Strong (slower, complex) vs eventual (fast, simpler app logic)[1]
+- **Operational complexity**: Scale benefits vs management/monitoring cost across many shards[1]
+
+### Example questions
+- "How would you shard a global user feed system? What shard key and why?"
+- "Your order service is getting hotspot shards on recent orders. How do you detect and fix?"
+- "Design partitioning for an e-commerce catalog with 1B+ SKUs across 100+ regions."
+- "A shard is approaching capacity limits. Walk through online resharding."
+- "How do you handle queries that span multiple shards efficiently?"
+
+***
+
+## Cheat-sheet Q&A
+
+**Q1. What are the three main partitioning strategies?**  
+Horizontal (sharding: same schema, data subsets), vertical (field subsets by access pattern), functional (by business domain/bounded context).[1]
+
+**Q2. How do you choose a shard key?**  
+Must evenly distribute workload (hash customer ID, not first letter), support common queries (range for time-series), minimize cross-shard ops, and avoid hotspots.[1]
+
+**Q3. What causes hot partitions and how do you fix?**  
+Skewed access patterns (recent data, popular users). Fix: better shard key (hash+time), replicate hot data, local caches, or reshard.[1]
+
+**Q4. How do you handle cross-partition queries?**  
+Minimize via smart sharding, denormalization, materialized views. When unavoidable: parallel fan-out queries + app aggregation (avoid DB cross-joins).[1]
+
+**Q5. Online vs offline resharding?**  
+Online: dual-write to old/new shards, gradual cutover (zero-downtime, complex). Offline: take shard read-only/offline, migrate, verify (downtime, simpler).[1]
+
+**Q6. When eventual consistency?**  
+Most partitioned systems embrace it for availability/scale. App handles temporary inconsistencies during writes/replication.[1]
+
+***
+
+## Tools / frameworks / references
+
+### Auto-sharding databases
+- **Cassandra**: Automatic sharding by partition key hash, tunable consistency[1]
+- **CockroachDB**: Geographic sharding, auto-rebalancing
+- **MongoDB**: Sharding with shard key, balancer
+- **Azure Cosmos DB**: Automatic partitioning, multi-region[1]
+- **DynamoDB**: Partition key + sort key, auto-scaling
+
+### Manual sharding helpers
+- **Shard maps** (app-level): Track key→shard mapping
+- **Consistent hashing**: Libraries for even distribution
+- **Vitess** (MySQL): Proxy-based sharding
+- **Citrusleaf** (Aerospike): Smart client sharding
+
+### Big company blogs
+- **Netflix**: "Lessons learned from Cassandra at scale"
+- **Uber**: "Sharding Michelangelo: Uber's machine learning platform"
+- **Instagram**: "Sharding Postgres at Instagram"
+- **Discord**: "How Discord stores trillions of messages"
+
+***
+
+## Keywords summary
+
+```
+Core: partition, shard, shard key, hotspot, cross-partition
+Strategies: horizontal, vertical, functional, hybrid
+Patterns: sharding, index table, materialized view
+Ops: rebalancing, online/offline migration, eventual consistency
+Design: workload balance, query locality, scalability limits
+Access: parallel queries, app joins, reference data replication
+```
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/best-practices/data-partitioning)

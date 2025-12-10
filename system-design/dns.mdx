@@ -1,0 +1,166 @@
+DNS provides the “name → IP” mapping for the internet using a hierarchical, cached, highly available infrastructure, and DNS‑based load balancing uses DNS responses (often from multiple anycasted or geo‑aware DNS servers) to distribute client traffic across endpoints and regions. For interviews, focus on how DNS resolution works end‑to‑end, what records and caching behaviors exist, and how DNS load balancers (e.g., Cloudflare) steer traffic based on health, geography, and policies while dealing with TTL and caching trade‑offs.[1][2][3]
+
+***
+
+## Compact interview summary
+
+- DNS is a distributed, hierarchical naming system that maps domain names to IP addresses using records such as A, AAAA, CNAME, and NS stored on authoritative name servers.[3][1]
+- The resolution path is: client/resolver → recursive resolver (ISP/enterprise) → root server → TLD server → authoritative server, with caching at each step to reduce latency and load.[1][3]
+- DNS’s hierarchy (root, TLD, authoritative) and heavy caching make it scalable and fault‑tolerant; there are a small number of logical root servers replicated globally and many resolvers and authoritative servers.[3]
+- DNS load balancing works by returning different IPs for the same hostname based on policies (round‑robin, geo, latency, health, weights), often implemented by providers like Cloudflare at the authoritative DNS layer.[2]
+- For large systems, DNS is used together with L4/L7 load balancers and anycast to route users to nearby healthy endpoints and optimize availability and performance.[2]
+
+***
+
+## Keywords & patterns
+
+### DNS fundamentals
+
+- DNS: Domain Name System; internet “address book”.[1][3]
+- Records (RRs):  
+  - A (IPv4), AAAA (IPv6) records.  
+  - CNAME (canonical name alias).  
+  - NS (nameserver delegation).[1]
+  - MX (mail), TXT, SRV, SOA (start of authority).  
+- Hierarchy:  
+  - Root servers → TLD servers (.com, .io, etc.) → authoritative name servers (zone owners).[3][1]
+- Resolvers:  
+  - Stub resolver on client (OS/browser).  
+  - Recursive resolver (ISP, corporate, or public like 1.1.1.1 / 8.8.8.8).[3]
+- Caching: TTL on records; caching at browser, OS, resolver, and intermediate DNS infrastructure.[1][3]
+
+### DNS resolution & behavior
+
+- Recursive vs iterative queries.[3]
+- Positive and negative caching (NXDOMAIN).  
+- Zone files and delegation via NS records.[1][3]
+- 13 logical root server names with many global instances for redundancy.[3]
+- Scalability via distribution and hierarchical delegation to organizations’ authoritative servers.[3]
+
+### DNS load balancing patterns
+
+- DNS round‑robin: multiple A/AAAA records, relying on client/resolver selection.[4][2]
+- Geo DNS / latency‑based routing: choose IPs based on resolver location or measured RTT.[2]
+- Health‑checked DNS: remove unhealthy origins from answers using active health monitors.[5][2]
+- Weighted routing: distribute traffic proportionally across pools or regions.[2]
+- Anycast + DNS: same IP announced from many locations; clients go to nearest POP.[2]
+- Multi‑cloud / multi‑region distribution using DNS‑based load balancers as a global traffic manager.[5][2]
+
+### Tools, products, and software
+
+- Public recursive resolvers: Cloudflare (1.1.1.1), Google Public DNS (8.8.8.8), ISP resolvers.[5][3]
+- Authoritative DNS and DNS‑LB services:  
+  - Cloudflare DNS and Load Balancing.[5][2]
+  - AWS Route 53, GCP Cloud DNS, Azure DNS (not in the linked pages but standard practice).  
+- Self‑hosted DNS: BIND, PowerDNS, CoreDNS.  
+- Health‑checked load balancing: Cloudflare Load Balancing (global anycast, health checks, geo and latency routing).[5][2]
+
+***
+
+## Common trade‑offs + example questions
+
+### Trade‑offs
+
+- **TTL vs responsiveness**:  
+  - Long TTL ⇒ better cache hit rate and lower DNS QPS, but slower failover and traffic shifting.  
+  - Short TTL ⇒ faster reaction to failures/config changes but higher DNS load, more latency on cold lookups.[2][1]
+- **DNS‑LB vs L4/L7 LB**:  
+  - DNS‑LB is simple and global but cannot see per‑request state, and client‑side caching can keep sending to unhealthy IPs until TTL expires.[2]
+  - L4/L7 LBs (e.g., reverse proxies) support richer routing and session handling but usually sit inside one region/cluster.  
+- **Geo/latency routing vs sticky routing**:  
+  - Geo/latency routing optimizes response time but may route users across regions, complicating data consistency and regulatory constraints.[2]
+- **Global anycast vs unicast**:  
+  - Anycast simplifies “nearest POP” routing but depends on BGP behavior and offers less explicit fine‑grained control.  
+
+### Example interview questions
+
+- “Walk through what happens in DNS when a user types `www.example.com` into a browser.”[1][3]
+- “How can DNS be used as a global load balancer for a multi‑region service, and what are its limitations?”[2]
+- “Explain the impact of DNS TTL on failover time and on system load.”[1][2]
+- “Compare DNS round‑robin with using a dedicated L7 load balancer for distributing traffic.”  
+- “How do Cloudflare or Route 53 health‑based DNS load balancers detect and route around failures?”[5][2]
+
+***
+
+## Use cases
+
+- **Global user‑facing web apps**  
+  - Use DNS‑based geo/latency routing to direct users to nearest region; combine with regional L7 load balancers and autoscaling for intra‑region distribution.[5][2]
+
+- **Multi‑region active‑active services**  
+  - Map a single hostname to regional VIPs with weights; shift traffic gradually by changing DNS weights to do canary or blue‑green releases.[2]
+
+- **Failover / disaster recovery**  
+  - Define primary and secondary origin pools behind DNS LB; health checks remove downed primaries, sending traffic to DR regions (DNS‑driven failover).[5][2]
+
+- **DDoS‑resilient front door**  
+  - Use a provider with anycast DNS and global anycast load balancing; they absorb and scrub attack traffic while still resolving your domain and steering to healthy edges.[5][2]
+
+- **Hybrid / multi‑cloud connectivity**  
+  - Use DNS to distribute requests across on‑prem and multiple clouds, allowing cost‑ and capacity‑aware routing policies.[2]
+
+Big‑company blog angle: Cloudflare’s documentation and marketing material emphasize that DNS‑based load balancing combined with anycast improves application availability and latency by placing logic at the edge and routing around failures quickly, without requiring customer‑managed appliances.[5][2]
+
+***
+
+## Cheat‑sheet, Q&A style
+
+**Q1. What is DNS and why is it critical in system design?**  
+DNS is the distributed naming service that translates human‑readable domain names into IP addresses via a hierarchy of name servers and caches, enabling decoupling of user‑facing hostnames from the underlying infrastructure and supporting scalability, observability, and traffic management.[3][1]
+
+**Q2. Which servers participate in DNS resolution?**  
+A stub resolver (client) queries a recursive resolver, which consults root servers to find TLD servers, which then direct it to authoritative servers for the domain; each step may be cached to avoid repeated full resolutions.[1][3]
+
+**Q3. What are common DNS record types used in system design?**  
+A/AAAA map hostnames to IPs, CNAME maps aliases to canonical names, NS delegates authority to name servers, MX points to mail servers, TXT/SRV provide metadata and service discovery particulars, and SOA defines zone properties.[1]
+
+**Q4. How does DNS load balancing work conceptually?**  
+The authoritative DNS server for a hostname returns different IPs depending on health checks, geography, latency, or weights, so that clients resolve the same name to different backends in a controlled way, distributing load and improving resilience.[5][2]
+
+**Q5. What are limitations of DNS‑based load balancing?**  
+DNS caching means clients might keep using an unhealthy IP until TTL expiry; DNS also operates at the name resolution layer and lacks per‑request context, so it cannot do cookie‑based stickiness or inspect HTTP headers like an L7 load balancer.[2]
+
+**Q6. How do providers like Cloudflare improve on plain DNS round‑robin?**  
+They run globally distributed authoritative DNS with built‑in health checks, geo/latency awareness, and weighted policies, allowing fast failover and dynamic routing while hiding infrastructure changes behind a stable hostname.[5][2]
+
+**Q7. How should TTL be set in a high‑availability setup?**  
+Critical front‑door records are often configured with moderately low TTLs (e.g., seconds to a few minutes) to enable quick failover and traffic shifts, while less dynamic records can have higher TTLs to reduce DNS load and latency.[1][2]
+
+**Q8. How does DNS interact with other load balancing layers?**  
+DNS typically chooses a region or POP (coarse‑grained), then that region’s L4/L7 load balancer distributes requests across instances (fine‑grained); this layered approach combines global traffic management with rich per‑request routing.[2]
+
+***
+
+## Concise terms & keywords summary
+
+- DNS, stub resolver, recursive resolver, authoritative server.[3][1]
+- Root server, TLD server, zone, NS delegation, SOA record.[3][1]
+- A, AAAA, CNAME, NS, MX, TXT, SRV records.[1]
+- TTL, caching, negative caching, iterative vs recursive query.[3][1]
+- DNS round‑robin, geo DNS, latency‑based routing, weighted routing.[2]
+- Anycast DNS, global edge network, health checks, failover.[5][2]
+- Cloudflare DNS & Load Balancing, public resolvers (1.1.1.1, 8.8.8.8), BIND, Route 53, Cloud DNS (industry context).[5][2]
+- Multi‑region, multi‑cloud traffic management using DNS‑based load balancing combined with regional L4/L7 balancers.[2]
+
+These terms and patterns are the core hooks to recall when discussing DNS and DNS‑based load balancing in senior‑level system design interviews.
+
+[1](https://www.educative.io/courses/system-design-interview-prep-crash-course/domain-name-system-dns)
+[2](https://www.cloudflare.com/application-services/products/load-balancing/)
+[3](https://www.educative.io/courses/grokking-the-system-design-interview/how-the-domain-name-system-works)
+[4](https://failover.cc/resources/news/load-balancing.html)
+[5](https://developers.cloudflare.com/load-balancing/)
+[6](https://blog.bytebytego.com/p/a-crash-course-in-dns-domain-name)
+[7](https://www.youtube.com/watch?v=27r4Bzuj5NQ)
+[8](https://www.educative.io/courses/grokking-the-system-design-interview/introduction-to-domain-name-system-dns)
+[9](https://www.youtube.com/watch?v=QszC5x0B41c)
+[10](https://www.designgurus.io/course-play/grokking-system-design-fundamentals/doc/introduction-to-dns)
+[11](https://www.youtube.com/watch?v=vhfRArT11jc)
+[12](https://www.geeksforgeeks.org/computer-networks/domain-name-system-dns-in-application-layer/)
+[13](https://grokkingthesystemdesign.com/courses/grokking-the-system-design-interview/)
+[14](https://dev.to/chrisachard/dns-record-crash-course-for-web-developers-35hn)
+[15](https://www.youtube.com/watch?v=QVdX34quUgU)
+[16](https://www.youtube.com/watch?v=yjD136piimk)
+[17](https://edurev.in/t/71513/dns--domain-name-system-)
+[18](https://github.com/Jeevan-kumar-Raj/Grokking-System-Design)
+[19](https://www.reddit.com/r/CloudFlare/comments/11gz1pw/dns_load_balancer/)
+[20](https://baihuqian.github.io/2020-06-11-dns-a-crash-course/)

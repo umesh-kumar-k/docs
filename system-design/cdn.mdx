@@ -1,0 +1,211 @@
+export const meta = {
+    title: "CDN (Content Delivery Network)",
+    description: "A geographically distributed caching and edge-routing layer that serves content from PoPs close to users to reduce latency, offload origin servers, and improve availability, scalability, and security.",
+}
+
+# CDN (Content Delivery Network)
+
+A CDN is a performance and resilience layer in front of origins that uses edge caching, smart routing, and optional edge compute to serve static and cacheable content from locations near users. Use CDNs to improve P95+ latency, absorb traffic spikes, reduce origin load, and add security features (WAF, DDoS mitigation, TLS termination).
+
+## Notes
+
+- Interview framing: “a performance and resilience layer in front of origins, using caching + smart routing + edge logic.”  
+- Mention Pull vs Push CDN and trade-offs (simplicity vs control, first‑hit latency vs prewarmed caches).  
+- Call out TTL, cache‑control, invalidation/purge, and cache‑busting as freshness mechanisms.  
+- For system design answers, pair CDN with object storage (S3/GCS) for static assets and selective edge caching or micro‑caching for dynamic endpoints.
+
+CDNs are geographically distributed caches and proxies that serve content from edge locations close to users to reduce latency, offload origin servers, and improve availability, scalability, and security. For interviews, frame them as: “a performance and resilience layer in front of origins, using caching + smart routing + edge logic.”[1][2]
+
+***
+
+## Compact interview summary
+
+- **What is a CDN?**  
+  A CDN is a geographically distributed network of PoPs (Points of Presence) with edge servers that cache and deliver content (static assets and sometimes dynamic responses) from locations close to users, reducing latency and improving reliability.[3][1]
+
+- **How it works (happy path)**  
+  1) User hits a CDN‑fronted URL or domain.  
+  2) DNS/Anycast routes the request to a nearby PoP.  
+  3) Edge server checks cache; on hit, serves directly; on miss, fetches from origin, caches using TTL/cache‑control, returns to user.[4][1]
+
+- **Why interviewers care**  
+  CDNs are the canonical answer for: global users, large static assets, traffic spikes, offloading origin, improving P95+ latencies, and giving a first layer for DDoS/WAF/SSL termination. You are expected to mention CDN for social networks, video streaming, e‑commerce, and public websites.[2][1]
+
+- **Pull vs Push CDN (must know)**  
+  - Pull: CDN automatically fetches content from origin on first request; simpler to set up; best for typical web apps with many URLs and frequent updates.[5][6]
+  - Push: you proactively upload content to CDN storage; better control and predictable cache, suited to large static bundles/media where you control publishing workflow.[6][5]
+
+***
+
+## Keywords & patterns (bullet‑heavy)
+
+### Core terminology
+
+- PoP (Point of Presence) – physical location with CDN edge servers.[7][4]
+- Edge server – server at PoP that caches/serves content.  
+- Origin server – main application or storage where original content lives.  
+- TTL (Time to Live) – how long an object stays cached before treated as stale.[7][1]
+- Cache‑Control headers, ETag, Last‑Modified – origin‑driven cache behavior controls.  
+- Cache warming – pre‑loading cache for expected hot content.[7]
+- Cache invalidation – removing/updating specific content when origin changes.  
+- Cache purge – explicit forced removal of objects from all or some PoPs.[7]
+
+### Routing and request handling
+
+- Anycast IP – multiple PoPs share one IP; routing sends user to “nearest” PoP by BGP path.[1]
+- DNS‑based routing – CDN’s DNS returns best edge IP based on GeoIP, latency, or load.[1]
+- GeoIP routing – choose PoP closest to user’s geolocation.[7]
+- HTTP/2, HTTP/3 (QUIC) support at edge for improved multiplexing and latency.  
+
+### Caching mechanisms & policies
+
+- Static asset caching (images, CSS, JS, fonts, videos).[1]
+- Dynamic content caching / micro‑caching (short TTL, vary‑by headers).  
+- Path‑based rules (e.g., `/static/**` cacheable, `/api/**` no‑cache).  
+- Origin shield / parent cache layer to reduce origin hits.[8]
+- Stale‑while‑revalidate, stale‑if‑error behavior to serve slightly old content on origin issues.[1]
+
+### CDN topologies / types
+
+- Flat: PoPs all fetch directly from origin (simple, less scalable).[7]
+- Hierarchical: central “mid‑tier” / shield PoPs feed edge PoPs, reducing origin load.[9][8]
+- Mesh / peer‑assisted: PoPs share content laterally; some CDNs also add P2P for video.  
+- Traditional / static CDN, dynamic CDN, P2P CDN, hybrid CDN.[10][11]
+
+### Pull CDN vs Push CDN
+
+- **Pull CDN**[5][6]
+  - Content fetched on first user request; cached thereafter.  
+  - Pros:  
+    - Minimal config; origin just serves content.  
+    - Good for many small, frequently changing assets.  
+  - Cons:  
+    - First user suffers cache miss latency.  
+    - Risk of unnecessary origin requests when TTLs short or mis‑configured.  
+
+- **Push CDN**[6][5]
+  - Content uploaded/“pushed” into CDN storage/buckets.  
+  - Pros:  
+    - Predictable availability; no first‑hit penalty.  
+    - Useful for big binaries, video, versioned bundles.  
+  - Cons:  
+    - More complex publish pipeline and lifecycle management.  
+    - Risk of stale/unused assets accumulating, storage cost.  
+
+### Benefits (what to call out in answers)
+
+- Reduced latency via geographic proximity + optimized TCP/QUIC + persistent connections.[2][1]
+- Offload origin: fewer requests and lower bandwidth from app servers/storage.  
+- Higher availability: PoPs provide redundancy; traffic can be rerouted if a PoP/origin is down.[1]
+- Better scalability: CDNs absorb spikes (e.g., launches, flash sales, viral content).[8][1]
+- Security at edge: DDoS mitigation, WAF, bot management, rate limiting, TLS termination close to user.[2][1]
+
+### Common system design use‑cases
+
+- Global static sites (marketing, docs, blogs).  
+- Social feeds, profile pictures, media thumbnails.  
+- Video streaming (VOD, HLS/DASH segments).  
+- E‑commerce product images, catalog assets, downloadable content.  
+- APIs with edge caching for GET/read‑heavy endpoints.  
+
+***
+
+## Common trade‑offs (with “architect speak”)
+
+- **Freshness vs performance**  
+  - Higher TTL → fewer origin hits, lower latency, but staler content.  
+  - Lower TTL or aggressive invalidation → fresher data, but higher origin load and risk of cache stampede.[5][1]
+
+- **Simplicity vs control (Pull vs Push)**  
+  - Pull → simple but less control over exact replication lifecycle and bandwidth.  
+  - Push → more control and predictable warm caches, at cost of more complex pipelines and ops.[6][5]
+
+- **Static vs dynamic caching**  
+  - Static objects easy and safe to cache long; dynamic pages require careful keying (headers, auth, cookies) and shorter TTLs or bypass rules.[1]
+  - Misconfigured dynamic caching can leak personalized/secure data.  
+
+- **Cost vs coverage**  
+  - More PoPs, more traffic offload, higher egress and CDN bills.  
+  - Some workloads may not benefit from CDN (highly personalized or low‑latency intra‑region APIs).  
+
+- **Origin complexity vs edge complexity**  
+  - Moving logic to edge workers (Cloudflare Workers, Lambda@Edge, Fastly Compute@Edge) reduces origin load and latency but splits logic across platforms, complicating debugging and deployment.[12][1]
+
+- **Vendor lock‑in vs capabilities**  
+  - Advanced features (image optimization, video, custom edge compute, proprietary rules engines) increase lock‑in but can dramatically simplify your stack.  
+
+***
+
+## Cheat‑sheet, Q&A style
+
+Keep answers 2–4 sentences in interview.
+
+**Q1. What is a CDN and when do you mention it in system design?**  
+A CDN is a geographically distributed network of PoPs with edge caches that serve content close to users, reducing latency and origin load. Mention it whenever your system serves static or cacheable assets to global users, especially for image/video‑heavy sites, large frontends, or public APIs.[2][1]
+
+**Q2. How does a CDN route a user to the “nearest” edge?**  
+CDNs typically use Anycast IPs and/or DNS‑based routing, where BGP and GeoDNS direct requests to the PoP with lowest network distance or best performance. They may also factor in PoP load or health for better balancing.[1]
+
+**Q3. What is the difference between Pull and Push CDN? Which would you use?**  
+Pull CDNs lazily fetch content from origin on first request and cache it automatically, ideal for most web apps where content lives in origin storage and changes frequently. Push CDNs require you to upload content to the CDN ahead of time, and are better for large static bundles, media libraries, or sites with explicit release workflows.[5][6]
+
+**Q4. How do you keep CDN content fresh?**  
+Use TTLs and cache‑control headers from origin, plus explicit cache invalidation or purge APIs for critical updates (e.g., product price change, bug fix in JS). Techniques like cache versioning (cache‑busting URLs) and short TTLs on dynamic fragments help balance freshness with performance.[1]
+
+**Q5. Can dynamic or personalized content use CDN?**  
+Yes, modern CDNs support dynamic acceleration via connection reuse, routing optimizations, micro‑caching, and edge compute for partially dynamic pages. Fully personalized responses are often not cached per se, but still benefit from TLS termination, WAF, and optimized network paths.[8][1]
+
+**Q6. How do CDNs improve availability and reliability?**  
+Multiple PoPs with redundant edge servers mean if one PoP or link fails, traffic can be routed to another, and cached content can be served even if the origin is temporarily unavailable. Some CDNs support “serve stale on error” to continue serving last known good content during origin outages.[1]
+
+**Q7. What are risks or pitfalls when integrating a CDN?**  
+Misconfigured caching can cause stale or inconsistent content, cache stampedes, or even data leaks if personalized content is cached without proper cache keys. You also need to handle invalidation complexity, origin security (only allow CDN IPs), and observability split between edge and origin.[1]
+
+***
+
+## Example tools / providers / frameworks
+
+Mentioning concrete names signals experience.
+
+- **Major providers**  
+  - Cloudflare CDN and Cloudflare Workers (global Anycast, security‑heavy).[1]
+  - Akamai (enterprise, very large PoP footprint).[3]
+  - AWS CloudFront (tight AWS integration: S3, ALB, API Gateway, Lambda@Edge).[12]
+  - Google Cloud CDN, Fastly, Azure CDN, Fastly Compute@Edge, etc.[13][2]
+
+- **Common origin setups behind CDNs**  
+  - Object storage: AWS S3, GCS, Azure Blob as origin for static content.  
+  - App servers/API gateways: NGINX, Envoy, or managed gateways as HTTP origins.  
+
+Use phrases like: “In practice I’d front static content with CloudFront or Cloudflare, origin on S3 or a web tier, and use cache‑control + versioned URLs; for APIs I’d selectively cache idempotent GETs and use WAF/DDoS at the edge.”  
+
+***
+
+## Example system‑design questions you can practice
+
+- “Design a global image‑hosting service (like Instagram photos). Where and how would you introduce a CDN, and how do you handle cache invalidation when users update images?”  
+- “Your e‑commerce site has poor performance for users in Asia. Walk through a CDN‑based solution, including DNS, PoPs, origin setup, and failure handling if the primary region goes down.”  
+- “Explain Pull vs Push CDN for a video streaming platform, and justify which model you’d use for long‑tail videos vs home‑page featured videos.”  
+- “How would you prevent stale or inconsistent content when using CDN caching for product prices and inventory?”  
+
+
+[1](https://www.cloudflare.com/learning/cdn/what-is-a-cdn/)
+[2](https://www.ibm.com/think/topics/content-delivery-networks)
+[3](https://en.wikipedia.org/wiki/Content_delivery_network)
+[4](https://www.geeksforgeeks.org/system-design/what-is-content-delivery-networkcdn-in-system-design/)
+[5](https://www.arvancloud.ir/blog/en/pull-cdn-vs-push-cdn/)
+[6](https://www.geeksforgeeks.org/system-design/pull-cdn-vs-push-cdn/)
+[7](https://www.designgurus.io/blog/content-delivery-network-cdn-system-design-basics)
+[8](https://dev.to/karanpratapsingh/system-design-content-delivery-network-cdn-bof)
+[9](https://text2fa.ir/wp-content/uploads/Text2fa.ir-Content-Delivery-Networks-State_compressed-1.pdf)
+[10](https://blog.blazingcdn.com/en-us/the-different-types-of-content-delivery-networks-cdns-a-professional-guide)
+[11](https://www.linkedin.com/advice/0/what-different-types-content-delivery-networks-lb2af)
+[12](https://aws.amazon.com/what-is/cdn/)
+[13](https://www.youtube.com/watch?v=bJ9NnLLMQ78)
+[14](https://www.geeksforgeeks.org/system-design/designing-content-delivery-network-cdn-system-design/)
+[15](https://www.designgurus.io/answers/detail/how-to-understand-cdn-content-delivery-network-in-system-design)
+[16](https://www.reactpwa.com/blog/2018/07/02/pull-vs-push-cdn.html)
+[17](https://systemweakness.com/understanding-mutual-tls-mtls-a-secure-connection-7799bcdf2289)
+[18](https://www.designgurus.io/course-play/grokking-system-design-fundamentals/doc/push-cdn-vs-pull-cdn)
+[19](https://www.scribd.com/document/789574365/System-Design-Secrets-Monolith-vs-Microservices-Explained-by-Roopa-Kushtagi-Medium)
+[20](https://www.belugacdn.com/push-cdn/)

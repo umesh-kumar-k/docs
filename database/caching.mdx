@@ -1,0 +1,101 @@
+Database caching reduces DB round-trips by storing frequently accessed data in faster in‑memory layers (local or remote), while Hibernate/Spring caching in Java/J2EE adds ORM‑aware first/second‑level caches and query caches to further cut latency and DB load.[1][2][3]
+
+## Interview summary
+- Database cache = in‑memory key–value or structured store sitting beside/above DB (integrated, local in‑JVM, or remote like Redis/Memcached) to serve hot reads in microseconds instead of disk‑backed milliseconds.[2][1]
+- Core Java view: use application‑level patterns (cache‑aside, read‑through/write‑through/write‑around/write‑back) plus Hibernate first‑level (Session) and second‑level/query caches (Ehcache/Hazelcast/Infinispan) for entity/query results.[3][4][1]
+- Architect approach: identify hot read patterns and slow/expensive queries, choose cache scope (per‑JVM vs distributed), pick strategy + eviction policy, then explicitly handle invalidation and consistency with DB.[4][2][3]
+
+## Keywords & patterns
+- Cache fundamentals: cache hit/miss, TTL, eviction (LRU/LFU/MRU/MFU/LTTL/random), in‑memory vs distributed cache, hotspot keys.[2]
+- Placement:  
+  - DB‑integrated caches (Aurora buffer/cache).[1]
+  - Local (in‑JVM: Guava/Caffeine, Hibernate L1).[1][2]
+  - Remote/distributed (Redis, Memcached, Hazelcast, Infinispan, Aerospike).[2][1]
+- Strategies: cache‑aside (lazy‑load), read‑through, write‑through, write‑around, write‑back (write‑behind).[2]
+- Hibernate cache types:  
+  - First‑level (Session‑scoped, mandatory).  
+  - Second‑level (SessionFactory‑scoped, uses provider).  
+  - Query cache (depends on second‑level).  
+  - Collection cache (associations).[3][4]
+- Concurrency strategies (Hibernate): READ_ONLY, READ_WRITE, NONSTRICT_READ_WRITE, TRANSACTIONAL.[4]
+- Java stack patterns: DAO over cache+DB, Spring Cache annotations (@Cacheable, @CacheEvict), cache regions per entity/query.[3][4]
+
+## Common trade-offs + example questions
+- Trade‑offs:  
+  - Performance vs consistency: more caching (especially write‑back, query cache) → higher risk of stale data and complex invalidation; write‑through/write‑around → safer but slower writes.[4][2]
+  - Local vs distributed: local (fast, per‑JVM but no sharing, poor failover); distributed (shared, scalable, network hop, operational complexity).[1][2]
+  - Hibernate second‑level: fewer DB hits vs extra memory, risk of subtle stale‑entity/association states if invalidation not aligned with update paths.[3][4]
+- Example interview prompts:  
+  - “Design caching for a read‑heavy product catalog in a Spring Boot/Hibernate app—what goes in Redis vs Hibernate second‑level cache?”.[4][1]
+  - “How would you handle cache invalidation for prices that change every few minutes?”.[2][3]
+  - “When would you disable Hibernate query cache even in a high‑read system?”.[4]
+
+## Use cases (with Java/J2EE flavor)
+- Read‑heavy catalog/search:  
+  - Cache product/details, category trees, and search result pages in Redis/ElastiCache using cache‑aside; Hibernate second‑level for individual Product entities.[1][4]
+- Session and user profile caching:  
+  - Store HTTP sessions/shopping carts in distributed cache (Redis/Hazelcast) to support stateless app nodes; Hibernate first‑level covers per‑request entity reuse.[3][2]
+- Expensive reporting/analytics queries:  
+  - Cache aggregated DTOs or JSON blobs from heavy joins in Redis; use TTL aligned with reporting freshness requirements.[1][2]
+- Java‑specific:  
+  - Use Caffeine/Guava local caches for small, very hot configuration data (feature flags, reference tables), second‑level cache for mostly‑read master data, and Redis for cross‑service sharing.[2][3][4]
+
+## Big‑company references & practices
+- AWS: advocates DB caching with ElastiCache for Redis/Memcached to offload RDS/DynamoDB and documents patterns (cache‑aside/read‑through/write‑through/write‑back) and eviction policies for high‑traffic systems.[1]
+- Large consumer sites (YouTube, Reddit, Twitter, Wikipedia) use Memcached as a distributed cache in front of DBs for dynamic content; Redis widely used for hot data, sessions, and counters.[2]
+- Many Java enterprise stacks pair RDBMS (Aurora/PostgreSQL/MySQL) with Redis/ElastiCache and Hibernate second‑level cache providers (Ehcache/Hazelcast/Infinispan) for multi‑layer caching.[3][4][1]
+
+## Tools / frameworks / software
+- Distributed caches: Redis, Amazon ElastiCache (managed Redis/Memcached), Memcached, Hazelcast, Infinispan, Aerospike.[1][2]
+- Java libraries:  
+  - Hibernate cache providers: Ehcache, Infinispan, Hazelcast, JBoss Cache, Caffeine.[4][3]
+  - Local caches: Caffeine, Guava Cache.[2]
+  - Spring: Spring Cache abstraction with JCache/Ehcache/Hazelcast/Redis backends.[4]
+- Operational: Cloud managed Redis (ElastiCache), monitoring via JMX/Hibernate statistics, cache metrics (hit ratio, evictions, memory).[4][1]
+
+## Cheat‑sheet (Q&A style)
+- Q: When do you introduce a DB cache?  
+  A: When profiling shows DB is the main latency / cost bottleneck and workload is read‑heavy with repeated access patterns.[1][2]
+
+- Q: Cache‑aside vs read‑through?  
+  A: Cache‑aside: app manages read/write to cache and DB; resilient to cache failures, widely used with Redis in Spring/Java. Read‑through: cache layer loads from DB on miss, good with managed cache providers but can become a single point of failure if all access goes through it.[2]
+
+- Q: Write‑through vs write‑back vs write‑around?  
+  A: Write‑through: write to cache then DB synchronously (stronger consistency, slower writes). Write‑back: write to cache, flush to DB later in batches (high write perf, eventual consistency). Write‑around: write directly to DB and only update cache if already present (avoids polluting cache with one‑off writes).[2]
+
+- Q: What does Hibernate first‑level cache give you “for free”?  
+  A: Per‑Session identity map ensuring repeated session.get() calls for same ID hit memory, not DB; eliminates duplicate SELECTs within a unit of work.[3]
+
+- Q: When to use Hibernate second‑level cache?  
+  A: For mostly read‑heavy entities with stable data (e.g., products, reference data), especially when accessed by many sessions across a cluster; avoid for highly volatile rows.[3][4]
+
+- Q: How do you avoid stale data with Hibernate caches?  
+  A: Choose proper concurrency strategy (READ_ONLY or READ_WRITE), align TTLs, evict cache entries on updates, and carefully design update paths so all go through ORM layer.[3][4]
+
+- Q: How do you pick eviction policy?  
+  A: LRU/LFU for most workloads; consider TTL‑based (LTTL) when freshness is more critical than exact frequency, random only for special uniform scan patterns.[2]
+
+## Key highlights & typical interview angles
+- Highlights:  
+  - Always start from access patterns: “read‑mostly vs write‑heavy, per‑request vs cross‑request, per‑service vs cross‑service.”  
+  - Use layered approach in Java: Hibernate L1 → Hibernate L2/Query cache → distributed cache (Redis/Hazelcast) depending on scope.[4][1][3]
+  - Cache invalidation is the hard part: design TTLs, explicit eviction, and tolerate controlled staleness where acceptable.[4][2]
+
+- Likely questions:  
+  - “Design caching for a Spring Boot/Hibernate e‑commerce app (product catalog, inventory, prices, cart).”  
+  - “Explain cache‑aside vs read‑through vs write‑through with pros/cons in a Java microservice calling RDS + Redis.”  
+  - “How would you monitor and tune Hibernate second‑level cache in production?”.[1][3][4][2]
+
+## Concise summary – important terms & keywords (bullet list)
+- Caching basics: cache hit, cache miss, TTL, eviction (LRU, LFU, MRU, MFU, LTTL, random).[2]
+- Cache placement: DB‑integrated cache, local in‑JVM cache, remote/distributed cache (Redis, Memcached, Hazelcast, Infinispan, Aerospike).[1][2]
+- Strategies: cache‑aside (lazy loading), read‑through, write‑through, write‑around, write‑back (write‑behind).[2]
+- Hibernate caching: first‑level cache (Session), second‑level cache (SessionFactory, Ehcache/Hazelcast/etc.), query cache, collection cache, cache regions.[3][4]
+- Concurrency strategies: READ_ONLY, READ_WRITE, NONSTRICT_READ_WRITE, TRANSACTIONAL.[4]
+- Java tooling: Spring Cache (@Cacheable/@CacheEvict), Caffeine/Guava local caches, Redis/ElastiCache, Ehcache/Hazelcast/Infinispan providers.[3][1][4][2]
+- Trade‑offs: performance vs consistency, local vs distributed, memory vs hit‑rate, over‑caching vs under‑caching, stale data vs DB pressure.[1][3][4][2]
+
+[1](https://www.ibm.com/think/topics/sql-vs-nosql)
+[2](https://www.geeksforgeeks.org/system-design/tradeoffs-in-system-design/)
+[3](https://www.youtube.com/watch?v=IDAf1D0HIOg)
+[4](https://www.linkedin.com/pulse/performance-vs-scalability-system-design-in-depth-analysis-firoz-khan-iifmc)

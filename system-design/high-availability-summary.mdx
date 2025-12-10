@@ -1,0 +1,133 @@
+---
+title: "High Availability (HA) - Summary"
+description: "Concise reference for designing highly available systems: definitions, core principles, strategies, trade‑offs, tools, and interview‑ready cheat sheets."
+notes: |
+    - Audience: system designers, SREs, and candidates preparing for system-design interviews.
+    - Purpose: serve as an Obsidian/MDX-friendly HA section with quick checklists, implementation concerns, and sample questions.
+    - Usage tips:
+        - Start answers by stating SLO/SLA targets (nines) and acceptable RTO/RPO.
+        - Walk through failure modes, redundancy, detection, and failover sequence when designing.
+        - Keep cost/complexity trade-offs explicit.
+    - Tags: [high-availability, HA, reliability, scalability, SRE, system-design]
+---
+
+
+***
+
+## Core concepts
+
+- High availability (HA)  
+- Uptime, downtime  
+- Availability percentage, “nines of availability” (99.9, 99.99, 99.999)  
+- SLA, SLO, SLI  
+- RTO (Recovery Time Objective)  
+- RPO (Recovery Point Objective)  
+
+***
+
+## Failure and risk vocabulary
+
+- Single point of failure (SPOF)  
+- Fault, failure, incident, outage  
+- Degraded mode / graceful degradation  
+- Fault tolerance vs high availability  
+- Disaster recovery (DR)  
+- Region failure, AZ (availability zone) failure, node failure, network partition  
+
+***
+
+## Redundancy and replication
+
+- Redundancy (N+1, N+2)  
+- Active‑active vs active‑passive  
+- Hot standby, warm standby, cold standby  
+- Replication, replicas  
+- Synchronous vs asynchronous replication  
+- Leader–follower / primary–replica  
+- Quorum, majority, consensus  
+
+***
+
+## Scaling and traffic handling
+
+- Horizontal scaling, vertical scaling  
+- Load balancing (L4, L7)  
+- Round robin, least connections, weighted round robin  
+- Health checks, heartbeat  
+- Connection draining  
+- Session affinity / sticky sessions  
+- Global load balancing, anycast, DNS‑based routing  
+
+***
+
+## Data and storage HA
+
+- Distributed data storage  
+- Sharding / partitioning  
+- Multi‑AZ deployment  
+- Multi‑region deployment  
+- Read replicas, write master  
+- Eventual consistency, strong consistency  
+- CAP theorem (consistency, availability, partition tolerance)  
+
+***
+
+## Clustering and orchestration
+
+- Failover clustering  
+- Cluster membership, leader election  
+- Fencing, split‑brain  
+- Kubernetes Deployment, StatefulSet, ReplicaSet  
+- Auto‑healing, auto‑scaling  
+- Control plane HA, etcd HA  
+
+***
+
+## Resilience patterns (app layer)
+
+- Circuit breaker  
+- Retry with backoff, jitter  
+- Timeout, bulkhead  
+- Idempotency  
+- Backpressure  
+- Graceful shutdown  
+
+***
+
+## Observability and operations
+
+- Monitoring (metrics, logs, traces)  
+- Health endpoints, liveness probe, readiness probe  
+- Alerting, on‑call, runbooks  
+- SLO‑based alerting (error budget)  
+- Chaos engineering, game days  
+- Postmortem / incident review  
+
+***
+
+## Change management for HA
+
+- Rolling deployment  
+- Blue‑green deployment  
+- Canary release  
+- Feature flags  
+- Maintenance window, planned downtime  
+
+***
+
+## Common technologies (good to name‑drop)
+
+- Load balancers: NGINX, HAProxy, Envoy, cloud LBs (ALB/NLB, etc.)[2][3]
+- Databases: PostgreSQL with streaming replication and failover tools, distributed SQL / NoSQL stores with multi‑replica topologies[4][5][6]
+- Orchestration: Kubernetes HA clusters, multi‑AZ control planes[7][8]
+
+You can paste this into Obsidian and mark items you feel weak on; for each system design question, quickly scan this list and mentally tick which levers you’re using.
+
+[1](https://www.designgurus.io/blog/high-availability-system-design-basics)
+[2](https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/)
+[3](http://nginx.org/en/docs/http/load_balancing.html)
+[4](https://scalegrid.io/blog/managing-high-availability-in-postgresql-part-1/)
+[5](https://www.postgresql.org/docs/current/high-availability.html)
+[6](https://www.yugabyte.com/postgresql/postgresql-high-availability/)
+[7](https://k21academy.com/docker-kubernetes/high-availability-and-scalable-application-in-kubernetes/)
+[8](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/)

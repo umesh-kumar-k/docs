@@ -1,0 +1,199 @@
+---
+name: Caching
+description: Concise guide to caching and distributed caching concepts, strategies, trade‑offs, and interview‑focused Q&A for designing scalable, low‑latency systems.
+---
+
+Caching and distributed caching are about storing expensive or frequently accessed data in faster storage (usually in‑memory, often on separate cache tiers) to reduce latency, protect backends, and improve scalability. For senior‑level interviews, you need to reason about when, where, and how to cache and how to manage correctness and failure modes across a distributed cache.[1][2][3]
+
+***
+
+## Compact interview summary
+
+- **Purpose of caching**  
+  - Reduce latency by serving data from fast, nearby storage (memory, edge) instead of slow backends (DB, blob, remote services).[2][3]
+  - Offload read load and spikes from databases and services, improving reliability, availability, and cost profile.[3][1]
+
+- **Where to cache (layers)**  
+  - Client/browser, CDN, reverse proxies/load balancers, web/app servers, distributed cache tier, database, DNS, ISP/enterprise proxies.[4][3]
+  - Think of “multi‑layered caching” for large systems: each layer solves a different bottleneck (network vs compute vs storage).[4]
+
+- **What is a distributed cache?**  
+  - A logically single cache built from multiple cache nodes, usually in‑memory key‑value stores, shared by many app instances.[5][3]
+  - Provides higher capacity, horizontal scalability, and resilience versus single‑instance/local caches; often uses sharding and replication.[6][3]
+
+- **Core strategies to know cold**  
+  - Cache‑aside, read‑through, write‑through, write‑around, write‑back (write‑behind) for read/write flows.[7][2]
+  - Eviction: LRU, LFU, FIFO, size/time‑based, TTL.[1][7]
+  - Consistent hashing, replication, and partitioning in distributed caches.[6][3]
+
+***
+
+## Keywords & patterns
+
+### Concepts & metrics
+
+- Cache hit, cache miss, hit ratio, miss ratio.[2][3]
+- Warm cache vs cold cache; cache warming.[4]
+- Hot keys / hot partitions; cache stampede / thundering herd.[7][2]
+- TTL (Time‑to‑live); max‑age; soft TTL vs hard TTL.  
+- Strong vs eventual consistency; read‑your‑writes behavior.  
+- RPS, tail latency (P95/P99), QPS offload, capacity planning.  
+
+### Caching layers & examples
+
+- Client/browser cache: HTTP cache‑control, ETag, service workers.[2]
+- CDN/edge cache: static assets, media, some GET APIs.  
+- Reverse proxy / gateway cache (NGINX, Envoy, Varnish).  
+- Application‑level in‑process cache: LRU maps, Guava Caches, Caffeine.  
+- Distributed cache: Redis, Memcached, Hazelcast, Ignite, Coherence.[5][3]
+- DB‑level cache: query cache, materialized views, read replicas.  
+- DNS cache, ISP cache (for heavy video workloads).[4]
+
+### Read/write strategies
+
+- **Cache‑aside (lazy loading)**[7][2]
+  - On read: app checks cache → miss → read DB → populate cache → return.  
+  - On write: app writes DB, then invalidates/updates cache.  
+  - Simple, popular, but risk of stale reads between DB write and cache update.  
+
+- **Read‑through**[7][2]
+  - App always hits cache API; cache pulls from backing store on miss.  
+  - Encapsulates caching logic; focuses app on business logic.  
+
+- **Write‑through**[2][7]
+  - Writes go through cache, then synchronously to DB.  
+  - Stronger consistency but higher write latency.  
+
+- **Write‑around**[7][2]
+  - Writes go to DB only; cache filled by reads.  
+  - Avoids polluting cache with write‑heavy, low‑read data.  
+
+- **Write‑back / write‑behind**[2][7]
+  - Writes go to cache and are batched/async to DB.  
+  - Great write throughput; complex failure and durability story.  
+
+### Eviction and invalidation
+
+- Eviction policies: LRU, LFU, FIFO, random, size‑based, time‑based; hybrids (LRU+TTL).[1][7]
+- Invalidation options:  
+  - Explicit key deletion after writes.  
+  - Versioned keys (e.g., `user:123:v5`).  
+  - Namespace versioning (bump “generation” to invalidate a group).  
+  - Time‑based expiry (TTL) tuned per key type.[3][2]
+
+### Distributed cache patterns
+
+- Sharding/partitioning: consistent hashing to map keys to nodes.[6][3]
+- Replication: primary‑replica caches for HA and failover.  
+- Gossip/cluster membership and rebalancing when nodes join/leave.  
+- Client‑side vs server‑side sharding: smart clients vs cache cluster router.[5]
+- Local + distributed hybrid: local L1 per instance over shared L2 cache.[3]
+
+### Benefits (what to emphasize)
+
+- Latency reduction, lower DB load, improved throughput, reduced tail latency.[3][4]
+- Improved user experience (snappy feeds, search, recommendations).  
+- Cost reduction by shifting read load from expensive DB/IO to cheap RAM.[3]
+
+***
+
+## Common trade‑offs (what interviewers listen for)
+
+- **Freshness vs performance**  
+  - Long TTL/high cache reliance → high hit rate, low latency, but stale data risk.  
+  - Short TTL/aggressive invalidation → fresher data, more DB load, more misses.[2][3]
+
+- **Complexity vs gain**  
+  - More layers (CDN + proxy + distributed cache + local cache) → great performance, but tricky debugging, observability, and consistency reasoning.[4]
+  - Simple single‑layer cache → easier to reason about but might not meet scale/latency targets.  
+
+- **Consistency vs availability**  
+  - Strong cache consistency (write‑through, no stale reads) often means higher latency/less availability under partition.[2]
+  - Looser guarantees (cache‑aside with small staleness window) improve performance but require business acceptance of eventual consistency.  
+
+- **Durability vs speed in distributed cache**  
+  - In‑memory cache without persistence (Memcached, Redis without AOF/RDB) is blazing fast but lossy on restart.[5]
+  - Persistent cache (Redis with AOF/RDB, write‑back) protects data but adds I/O overhead and operational complexity.[3]
+
+- **Hot keys and skew vs simplicity**  
+  - Naive sharding can create hot partitions; need replication, local caching, or key hashing tricks.  
+  - Extra mechanisms (request coalescing, per‑key locks) mitigate stampedes but complicate code.[7][2]
+
+- **When NOT to cache**  
+  - Highly sensitive, fast‑changing, or low‑latency control surfaces where staleness is unacceptable (e.g., some financial balances, medical data) or data volume/patterns don’t justify cache overhead.[4][2]
+
+***
+
+## Cheat‑sheet Q&A (interview‑oriented)
+
+**Q1. What is caching and why is it important in system design?**  
+Caching stores copies of frequently accessed or expensive‑to‑compute data in a faster store (typically memory) closer to where it is needed. It significantly reduces latency, offloads critical backends like databases, and improves availability and scalability under high read load.[3][2]
+
+**Q2. When do you decide to add caching to a system?**  
+Look for read‑heavy patterns, hotspots, expensive computations, or external calls that dominate latency and load. Also consider scale: small internal tools might not need cache, whereas global products and feeds almost always do; assess whether added complexity is justified.[4][3]
+
+**Q3. How would you design a distributed cache for a large system?**  
+Use an in‑memory key‑value store cluster (e.g., Redis Cluster or Memcached) with sharding via consistent hashing and optional replication for HA. Clients use cache‑aside or read‑through for reads, write‑through or invalidate‑then‑write for writes, with TTLs, eviction policies, and monitoring for hit rate and latency.[6][5][3]
+
+**Q4. What are the main cache write strategies and when to use them?**  
+- Cache‑aside: default for most apps; gives explicit control and keeps DB as source of truth.[7][2]
+- Read‑through: good when using a managed cache that can encapsulate miss fetch logic.  
+- Write‑through: for scenarios needing strong cache‑DB consistency on reads.  
+- Write‑back/behind: for high write throughput where some async lag is tolerable and you can handle failure complexity.[2]
+
+**Q5. How do you handle cache invalidation and consistency?**  
+Use TTLs plus explicit invalidation on writes for critical keys; design cache keys carefully and avoid caching sensitive personalized responses without proper key scoping. For complex aggregates, consider versioned keys or segmenting data so small updates don’t require purging huge cache regions.[3][2]
+
+**Q6. What are typical problems in distributed caches and how do you mitigate them?**  
+Hot keys, stampedes on miss, stale data, and lost entries on node failure are common. Mitigate via replication, request coalescing or locks per key, backoff on miss, jittered TTLs, and robust cluster management with rebalancing and monitoring.[7][3]
+
+**Q7. How do you evaluate if your caching strategy is successful?**  
+Track hit/miss rates, cache latency, DB/primary store load, and tail latencies before and after enabling cache. Also monitor error rates and data correctness incidents (staleness bugs, invalidation issues) and adjust TTLs, sizes, and strategies accordingly.[1][3]
+
+***
+
+## Tools, frameworks, and notable references
+
+- **Distributed caches & in‑memory stores**  
+  - Redis / Redis Cluster (sharding, replication, persistence, Pub/Sub, Lua, etc.).[5][3]
+  - Memcached (simple, in‑memory, no persistence; great for ephemeral caching).[1]
+  - JVM/world: Hazelcast, Apache Ignite, Ehcache, Coherence as embedded or clustered caches.[5]
+
+- **Examples and guides worth name‑dropping**  
+  - Redis glossary and best‑practice guides on distributed caching (sharding, eviction, consistency).[8][3]
+  - Educative’s distributed cache chapter (Memcached vs Redis, evaluation against scalability, consistency, availability).[1]
+  - HelloInterview’s caching guide + video focusing on how to present caching in interviews (where to cache, architectures, eviction).[9]
+  - Blog posts using Redis as a distributed cache with clustering and replication examples.[10][6]
+
+***
+
+## Example senior‑level interview questions
+
+Use these for drills:
+
+- “Design the caching strategy for a Twitter‑like feed: what do you cache (timeline, user profiles, counts), where do you cache it, and how do you handle invalidation?”  
+- “Your product search API is slow due to DB load. Propose a distributed caching solution and discuss cache‑aside vs read‑through, and the impact on freshness of inventory/pricing.”  
+- “Explain how you’d scale Redis or Memcached as traffic grows: talk about sharding, consistent hashing, replication, failover, and what happens when a node dies.”  
+- “Describe a situation where caching hurt correctness or operability. What went wrong (stale data, thundering herd, cache poisoning), and what design changes would you make?”  
+
+
+[1](https://www.educative.io/courses/grokking-the-system-design-interview/system-design-the-distributed-cache)
+[2](https://igotanoffer.com/blogs/tech/caching-system-design-interview)
+[3](https://redis.io/glossary/distributed-caching/)
+[4](https://www.geeksforgeeks.org/system-design/caching-system-design-concept-for-beginners/)
+[5](https://redisson.pro/glossary/distributed-caching.html)
+[6](https://www.tencentcloud.com/techpedia/102510)
+[7](https://hackernoon.com/the-system-design-cheat-sheet-cache)
+[8](https://redis.io/glossary/)
+[9](https://www.youtube.com/watch?v=1NngTUYPdpI)
+[10](https://www.linkedin.com/pulse/system-design-distributed-cache-concepts-explained-using-arpan-das)
+[11](https://www.educative.io/blog/system-design-caching)
+[12](https://www.designgurus.io/blog/caching-system-design-interview)
+[13](https://dev.to/somadevtoo/9-caching-strategies-for-system-design-interviews-369g)
+[14](https://github.com/Devinterview-io/caching-interview-questions)
+[15](https://interviewprep.org/cache-interview-questions/)
+[16](https://dev.to/somadevtoo/system-design-basics-caching-4fge)
+[17](https://devinterview.io/blog/caching-interview-questions/)
+[18](https://www.interviewgrid.com/interview_questions/system_design/caching)
+[19](https://github.com/sibasishpadhy/Grokking-System-Design-EducativeIO/blob/master/basics/caching.md)
+[20](https://www.youtube.com/watch?v=YgDRv0mcLIc)

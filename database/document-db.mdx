@@ -1,0 +1,146 @@
+## Interview Summary
+Document databases store data as self‑contained, JSON‑like documents grouped in collections, giving flexible schemas, natural modeling for hierarchical data, and easy horizontal scaling at the cost of heavier denormalization and weaker cross‑document guarantees than RDBMS. For senior architect interviews, emphasize access‑pattern‑driven document design (one document per aggregate), index choices, transaction boundaries, and the trade‑offs vs relational databases in schema evolution, joins, consistency, and analytics.[1][2][3][4]
+
+***
+
+## Keywords & Patterns
+
+- **Core concepts**
+  - Document = JSON/BSON object; Collection = group of documents; Database = logical grouping of collections.[5][1]
+  - Flexible schema: documents in the same collection can have different fields and nested structures (arrays, subdocuments).[1][5]
+  - Aggregates: model “things you read/write together” (e.g., order + items + shipping) as one document to minimize joins.[4][1]
+
+- **Modeling patterns**
+  - Embed vs reference:  
+    - Embed for 1:few, tight coupling, and localized updates (user + addresses, order + items).[3][1]
+    - Reference (store foreign keys) for large/many‑to‑many or frequently reused entities (users across many docs).[4][1]
+  - One‑collection‑per‑aggregate vs multiple collections with references depending on query shapes.[1][4]
+
+- **Indexes & querying**
+  - Single‑field, compound, multikey (array), and text/geospatial indexes; covered queries to read from index only.[2][6]
+  - Rich query and aggregation APIs (filters, projections, group/aggregate, pipeline stages) instead of SQL joins.[6][2]
+
+- **Scaling**
+  - Horizontal scaling via sharding on a shard key field (e.g., `userId`, `tenantId`); replicas for HA and read scaling.[5][1]
+  - Managed variants (MongoDB Atlas, Amazon DocumentDB) automate sharding, failover, and backups.[7][8]
+
+***
+
+## Common Trade‑offs + Example Questions
+
+### Trade‑offs
+
+- **Schema flexibility vs data integrity**
+  - Pros: Rapid iteration, easy to add/remove fields, good for heterogeneous product catalogs or evolving APIs.[3][1]
+  - Cons: Risk of inconsistent document shapes; integrity and invariants must be enforced in application logic or with optional schema validators.[3][4]
+
+- **Embedding vs referencing**
+  - Embedding: single‑document reads/writes, atomic updates, but can create very large documents and duplication.[4][1]
+  - Referencing: avoids duplication and huge docs but reintroduces “joins” in app code or multiple round trips.[1][4]
+
+- **NoSQL features vs relational strength**
+  - Document DBs simplify horizontal scaling and polyglot data, but lack strong multi‑collection joins and global constraints; complex analytics often move to warehouses.[9][3]
+
+### Example interview questions
+
+- Design the data model for an e‑commerce order system in a document DB: what do you embed, what do you reference, and why?[3][1]
+- How would you shard a large multi‑tenant SaaS application on MongoDB, and what shard key would you choose?[5][1]
+- Compare using a relational DB vs a document DB for a CMS or product catalog with constantly evolving attributes.[4][3]
+- A query using multiple `$lookup` stages is slow; what schema and indexing changes would you consider?[2][6]
+
+***
+
+## Use Cases
+
+- **CMS, content & catalogs**
+  - Articles, pages, product catalogs with variable attributes (different fields per product type) benefit from document flexibility and nested structures.[10][1]
+
+- **User profiles & personalization**
+  - Store user profile, settings, preferences, and recent activity in a single document or few collections for fast, localized reads.[11][1]
+
+- **Event & log storage**
+  - Semi‑structured events (tracking, audit logs) with changing schemas; often ingested into document DB then ETL’d to analytics stores.[11][2]
+
+- **Big‑tech style case studies**
+  - **Hudl**: migrated from self‑managed MongoDB to Amazon DocumentDB to scale sports video and metadata workloads while reducing ops overhead and improving performance visibility.[7]
+  - **Forbes**: rebuilt CMS and mobile app on MongoDB in months, improving content publishing agility and handling spikes for viral stories.[10]
+  - MongoDB case studies highlight large media, finance, and government workloads (e.g., Aadhaar) leveraging document modeling for massive, evolving identity/content datasets.[8][10]
+
+***
+
+## Cheat‑sheet, Q&A Style
+
+- **Q: What is a document database?**  
+  - A: A NoSQL database that stores data as JSON‑like documents in collections, with flexible schemas and rich querying over document fields.[2][1]
+
+- **Q: When would you choose a document DB over an RDBMS?**  
+  - A: When you have hierarchical or semi‑structured data, rapidly evolving schemas, and access patterns that align with document‑level aggregates rather than complex joins.[3][4]
+
+- **Q: Embed vs reference: rule of thumb?**  
+  - A: Embed for small, tightly coupled data frequently read/updated with the parent; reference for large, shared, or many‑to‑many data.[1][4]
+
+- **Q: How do you ensure performance at scale?**  
+  - A: Choose a good shard key (high cardinality, evenly distributed, query‑aligned), create appropriate indexes, limit unbounded document growth, and pre‑aggregate where needed.[6][5][1]
+
+- **Q: What consistency guarantees do document DBs provide?**  
+  - A: Typically strong consistency per document/primary, with replica reads and multi‑document transactions available under some constraints (e.g., MongoDB ACID across a replica set).[2][4]
+
+- **Q: What are common pitfalls?**  
+  - A: Over‑embedding leading to mega‑documents, poor shard keys causing hot partitions, uncontrolled schema drift, and trying to emulate relational joins heavily.[5][3]
+
+***
+
+## Data Structures & Algorithms
+
+- **Data structures**
+  - BSON/JSON‑like document representation with nested arrays/objects.[2][1]
+  - B‑tree/B+‑tree or similar structures for primary and secondary indexes on document fields.[6][2]
+  - Shard routing metadata (mapping ranges or hashed key buckets to shards).[5][1]
+
+- **Algorithms**
+  - Query planning over indexes and scan types (index scan, collection scan) using cost estimates.[6][2]
+  - Sharding strategies (range or hash on shard key) and routing algorithms to route queries to correct shards.[1][5]
+  - Replication & failover protocols to keep replica sets in sync and elect new primaries.[11][2]
+
+***
+
+## Tools / Frameworks / Software
+
+- **MongoDB**: dominant document DB; on‑prem and Atlas managed service with sharding, replica sets, transactions, aggregation framework.[8][2]
+- **Amazon DocumentDB**: managed JSON document DB with MongoDB‑compatible API, used by Hudl and others for easier operations and scaling.[7]
+- **Couchbase / CouchDB**: document DBs with integrated caching, sync, and query capabilities.[12][13]
+- **Developer tooling**: MongoDB Compass, Studio 3T, Prisma and Mongoose for modeling and ORMs/ODMs.[14][6]
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- Document database, JSON/BSON document, collection, database.[2][1]
+- Flexible schema, schema‑on‑read, aggregate‑oriented modeling.[4][1]
+- Embed vs reference, one‑to‑one, one‑to‑many, many‑to‑many modeling.[4][1]
+- Single‑field / compound / multikey / text / geo indexes; aggregation pipeline.[6][2]
+- Shard key, range/hash sharding, replica set, primary/secondary, failover.[5][1]
+- Trade‑offs vs relational: integrity, joins, analytics, schema evolution.[3][4]
+
+[1](https://www.mongodb.com/resources/basics/databases/document-databases)
+[2](https://www.mongodb.com/resources/products/fundamentals/basics)
+[3](https://milvus.io/ai-quick-reference/what-are-the-tradeoffs-between-document-databases-and-relational-databases)
+[4](https://www.prisma.io/dataguide/types/relational-vs-document-databases)
+[5](https://www.sprinkledata.com/blogs/a-beginners-guide-to-creating-databases-in-mongodb)
+[6](https://www.datacamp.com/blog/top-concepts-when-using-mongodb)
+[7](https://aws.amazon.com/solutions/case-studies/hudl-case-study/)
+[8](https://www.mongodb.com/solutions/customer-case-studies)
+[9](https://atlan.com/relational-vs-document-database/)
+[10](https://hevodata.com/learn/mongodb-use-case/)
+[11](https://www.datacamp.com/blog/what-is-mongodb)
+[12](https://memgraph.com/blog/types-of-nosql-databases-deep-dive)
+[13](https://www.instaclustr.com/education/nosql-database/nosql-databases-types-use-cases-and-8-databases-to-try/)
+[14](https://studio3t.com/academy/lessons/mongodb-basics/)
+[15](https://www.geeksforgeeks.org/mongodb/mongodb-database-collection-and-document/)
+[16](https://www.w3schools.com/mongodb/)
+[17](https://www.reddit.com/r/compsci/comments/1kpfj92/relational_vs_documentoriented_database_for/)
+[18](https://www.mongodb.com/solutions/customer-case-studies/hk01)
+[19](https://www.oracle.com/in/database/mongodb/)
+[20](https://www.reddit.com/r/softwarearchitecture/comments/1kpf4uu/relational_vs_documentoriented_database_for/)
+[21](https://www.cdata.com/blog/mongodb-use-cases)
+[22](https://www.geeksforgeeks.org/mongodb/mongodb-tutorial/)

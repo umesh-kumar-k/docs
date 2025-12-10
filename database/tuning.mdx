@@ -1,0 +1,162 @@
+## Interview Summary
+SQL tuning is the process of identifying expensive queries, understanding their execution plans, and then improving performance by adjusting SQL, schema, and database configuration so queries meet latency and resource targets. Senior architects are expected to reason about end-to-end performance: locate high-load statements, ensure accurate optimizer statistics, read execution plans (joins, scans, sorts), and choose indexes or rewrites that improve performance without breaking correctness or maintainability.[1][2][3]
+
+***
+
+## Keywords & Patterns
+
+- **Core tuning loop**
+  - Identify high-load SQL (AWR, query history, logs, pg_stat_statements).[4][1]
+  - Inspect execution plans (EXPLAIN / EXPLAIN ANALYZE / Oracle Autotrace, SQL Monitor).[2][1]
+  - Fix root causes: missing/misused indexes, bad joins, low-selectivity predicates, unnecessary work.[1][2]
+
+- **Optimizer & statistics**
+  - Cost-based optimizer chooses plan using table and column statistics (cardinality, histograms, correlation).[4][1]
+  - Stale or missing stats → wrong row estimates → bad plans; schedule regular statistics collection.[1]
+
+- **Plan operations to recognize**
+  - Scans: sequential scan, index scan, index-only scan, bitmap scan.[2][4]
+  - Joins: nested loop, hash join, merge join – each suited to different sizes and distributions.[2][4]
+  - Sorts, aggregates, materialize, filter, limit; each may spill to disk if not tuned.[2]
+
+- **Typical tuning levers**
+  - Better indexing: composite indexes aligned with WHERE/ORDER BY/GROUP BY; covering indexes.[1][2]
+  - SQL rewrites: remove unnecessary DISTINCT, turn subqueries into joins (or vice versa), push filters earlier, avoid SELECT *.[1][2]
+  - Schema-level fixes: normalization/denormalization, partitioning, materialized views, summary tables.[5][1]
+  - Configuration: work_mem/sort_mem, effective_cache_size, parallelism knobs, connection pooling.[6][4]
+
+***
+
+## Common Trade-offs + Example Questions
+
+### Key trade-offs
+
+- **Index vs write overhead**
+  - More indexes speed reads but slow inserts/updates/deletes and increase storage.[4][1]
+
+- **Complex query vs decomposition**
+  - One big query can let optimizer do global planning but may create huge joins/sorts; breaking into steps may be easier to reason about, but can materialize large intermediate data.[5][2]
+
+- **Normalization vs denormalization**
+  - Normalized schema needs more joins; denormalized schema simplifies queries but complicates writes and can require more careful tuning for hot rows.[5]
+
+- **Hints / manual overrides vs maintainability**
+  - Optimizer hints and custom profiles can fix bad plans quickly but may become fragile as data and schema evolve.[7][1]
+
+### Example interview questions
+
+- A dashboard query performing multiple joins is slow under peak traffic. How would you diagnose and optimize it step-by-step?[5][2]
+- An index you added improved one query but slowed down write throughput. What are your options and how do you decide?[4][1]
+- How do you use EXPLAIN/EXPLAIN ANALYZE in PostgreSQL (or plan display in Oracle) to validate that your tuning changes worked?[2][1]
+- When would you introduce materialized views or summary tables vs relying purely on online aggregation queries?[5][1]
+
+***
+
+## Use Cases
+
+- **High-traffic OLTP APIs**
+  - Tune hot path queries (auth, profile, checkout) to sub-10–50 ms p95; add appropriate indexes, avoid N+1 queries, and ensure connection pooling.[8][1]
+
+- **Reporting / analytics on OLTP DBs**
+  - Offload heavy aggregates to materialized views or a replica; rewrite complex queries to avoid full table scans when possible.[1][5]
+
+- **Multi-tenant SaaS**
+  - Use partitioning (by tenant or time), carefully chosen composite indexes, and query templates to keep per-tenant queries efficient at scale.[6][4]
+
+***
+
+## Big Tech / Engineering Blog References
+
+- **Oracle**  
+  - SQL Tuning Advisor and Access Advisor analyze high-load statements and suggest indexes, SQL profiles, and schema changes, significantly reducing CPU and I/O usage for enterprise workloads.[7][1]
+
+- **PostgreSQL ecosystem**  
+  - Query optimization guides show how interpreting EXPLAIN ANALYZE allowed teams to replace sequential scans with index scans and cut query times from hundreds of milliseconds to under 10 ms.[2][5]
+
+- **Data platform vendors**  
+  - Blogs from companies supporting large Postgres fleets describe using automatic statistics collection, plan monitoring, and auto-indexing to keep latency within SLOs.[6][5]
+
+***
+
+## Cheat-sheet, Q&A Style
+
+- **Q: What are the first steps in tuning SQL?**  
+  - A: Identify top resource-consuming queries, gather statistics, inspect execution plans, then iteratively change queries or indexes and re-measure.[1][2]
+
+- **Q: How do you detect a “bad” plan?**  
+  - A: Look for full table scans on large tables, nested loop joins on big sets, misestimated row counts, and repeated sorts or materialization.[4][2][1]
+
+- **Q: How do you choose an index for a slow query?**  
+  - A: Index columns used in selective WHERE clauses and joins, and consider composite indexes in the order predicates are applied and sorted.[2][1]
+
+- **Q: When is EXPLAIN ANALYZE preferred over EXPLAIN?**  
+  - A: EXPLAIN shows planned cost; EXPLAIN ANALYZE runs the query and shows actual timings and row counts to compare with estimates.[4][2]
+
+- **Q: What is the role of statistics in SQL tuning?**  
+  - A: Accurate statistics allow the optimizer to estimate cardinalities correctly and choose appropriate join/scan methods; outdated stats often cause regressions.[4][1]
+
+- **Q: When would you use hints or SQL profiles?**  
+  - A: As a last resort when the optimizer consistently mischooses a plan and schema/query changes are not feasible, while monitoring for future drift.[7][1]
+
+- **Q: How do you prevent tuning from breaking future workloads?**  
+  - A: Test with realistic data, monitor plans over time, avoid overfitting with hints, and prefer schema/query changes that are robust to growth.[5][1]
+
+***
+
+## Data Structures & Algorithms Used
+
+- **Data structures**
+  - B-tree and B+‑tree indexes for point and range lookups; hash indexes in some engines for equality lookups.[9][4]
+  - Heap/clustered tables, temporary tables, hash tables for hash joins and aggregations; sort buffers for ORDER BY/GROUP BY.[2][4]
+
+- **Algorithms**
+  - Join algorithms: nested loop, hash join, merge join – chosen based on estimated row counts and sort order.[4][2]
+  - Cost-based query optimization: explore alternative join orders, index paths, and aggregations, pick lowest estimated cost via dynamic programming and heuristics.[1][4]
+  - Sorting and hashing for GROUP BY, DISTINCT, and ORDER BY.[2][4]
+
+***
+
+## Tools / Frameworks / Software
+
+| Tool / Feature | DB / Stack | Purpose |
+|----------------|-----------|---------|
+| SQL Tuning Advisor, SQL Access Advisor, SQL Monitor | Oracle | Analyze high-load SQL, suggest indexes, profiles, rewrites.[1][7] |
+| EXPLAIN / EXPLAIN ANALYZE, auto_explain | PostgreSQL | Inspect and log query plans and actual timings.[2][4] |
+| pg_stat_statements, pgBadger | PostgreSQL | Find top queries by time/calls and visualize patterns.[4][5] |
+| EverSQL, QueryFlow, Metis | Postgres-focused tools | Automated query optimization suggestions and plan visualization.[2] |
+| APM tools (New Relic, Datadog, AppDynamics) | General | Trace slow DB calls back to application endpoints.[10] |
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- SQL tuning, query optimization, cost-based optimizer.[1]
+- Execution plan, EXPLAIN, EXPLAIN ANALYZE, Autotrace, SQL Monitor.[4][1][2]
+- Table/column statistics, cardinality estimates, histograms.[1][4]
+- Sequential scan, index scan, index-only scan, bitmap scan.[2][4]
+- Nested loop join, hash join, merge join; join order.[4][2]
+- SELECT *, predicates, filter pushdown, GROUP BY, ORDER BY, DISTINCT.[2]
+- B-tree/B+‑tree indexes, composite index, covering index, partial index.[1][4]
+- Materialized view, partitioning, denormalization for performance.[5][1]
+
+[1](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/introduction-to-sql-tuning.html)
+[2](https://towardsdatascience.com/query-optimization-for-mere-humans-in-postgresql-875ab864390a/)
+[3](https://interviewing.io/guides/system-design-interview)
+[4](https://www.postgresql.org/docs/current/performance-tips.html)
+[5](https://www.enterprisedb.com/blog/postgresql-query-optimization-performance-tuning-with-explain-analyze)
+[6](https://www.tigerdata.com/blog/best-practices-for-query-optimization-in-postgresql)
+[7](http://luna-ext.di.fc.ul.pt/oracle11g/server.112/e10822/tdppt_sqltune.htm)
+[8](https://www.geeksforgeeks.org/system-design/guide-to-system-design-interview-for-senior-engineers/)
+[9](https://www.geeksforgeeks.org/dbms/relational-model-in-dbms/)
+[10](https://interviewsidekick.com/blog/system-design-interview-for-senior-engineers)
+[11](https://docs.oracle.com/en/database/oracle/oracle-database/18/tgsql/introduction-to-sql-tuning.html)
+[12](https://oracle-base.com/articles/misc/how-do-i-learn-to-tune-sql)
+[13](https://www.youtube.com/watch?v=L5iVCVpnSUE)
+[14](https://www.linkedin.com/pulse/oracle-sql-tuning-tips-mahesh-birajdar)
+[15](https://www.designgurus.io/answers/detail/most-asked-system-design-questions)
+[16](https://www.youtube.com/watch?v=ImV6_VXcmb8)
+[17](https://dev.to/jacobandrewsky/improving-performance-of-postgresql-queries-1h7o)
+[18](https://www.dnsstuff.com/query-tuning-in-oracle)
+[19](http://www.asktheway.org/official-documents/oracle/oracle-database_21_20210819/content/tgsql/introduction-to-sql-tuning.html)
+[20](https://igotanoffer.com/blogs/tech/system-design-interviews)
+[21](https://www.youtube.com/watch?v=eU8B95FWR-g)

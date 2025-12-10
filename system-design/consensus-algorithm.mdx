@@ -1,0 +1,237 @@
+Consensus algorithms give distributed nodes a way to agree on a single value or outcome (e.g., leader, log entry, transaction decision) despite crashes, message delays, or partitions. For interviews, anchor around properties (safety, liveness, fault tolerance) and a few core algorithms: 2PC/3PC (atomic commit) and Paxos/Raft (replicated state machine and leader election).[1][2]
+
+***
+
+## Compact interview summary
+
+- **What is consensus?**  
+  Agreement among multiple nodes on a single value or sequence of values (e.g., commit/abort, log entries, leader identity) in the presence of failures and unreliable networks.[2]
+
+- **Key properties**  
+  - Safety (no incorrect/conflicting decisions).  
+  - Liveness (system eventually decides).  
+  - Fault tolerance (correct operation despite some node failures).  
+  - Immutability (decisions do not change later).  
+  - Termination (decision in bounded steps).  
+  - Decentralization (no single permanent authority, or at least leader can change).[2]
+
+- **Algorithms to know**  
+  - **2PC / 3PC**: atomic commit for distributed transactions across participants.[2]
+  - **Paxos**: general consensus via proposers, acceptors, learners; used in many classic Google/Yahoo systems.[3][4][2]
+  - **Raft**: leader‑based consensus designed to be easier to understand/implement than Paxos, widely used in etcd, Consul, modern databases.[5][6][1]
+
+***
+
+## Keywords & patterns
+
+### Core properties & terminology
+
+- Consensus, agreement  
+- Safety vs liveness  
+- Fault tolerance  
+- Node crashes, network partitions, message delays  
+- Quorum, majority  
+- Leader / follower / candidate  
+- Immutability, total order  
+- Termination  
+
+### Two‑phase & three‑phase commit (2PC / 3PC)
+
+- Coordinator / leader  
+- Cohorts / participants  
+- Prepare phase, commit phase (2PC)[2]
+- Pre‑commit phase (3PC)  
+- Commit vs abort decision  
+- Blocking protocol (2PC blocking on coordinator failure)  
+- Network partition issues, split‑brain risk in 3PC  
+
+### Paxos
+
+- Proposers, acceptors, learners  
+- Proposal number vs proposal value  
+- Prepare / promise phase  
+- Accept / accepted phase  
+- Majority quorum of acceptors  
+- Single‑value Paxos vs multi‑Paxos (log)  
+- Performance & scalability overhead (many messages)[3][2]
+
+### Raft
+
+- Leader, followers, candidate  
+- Terms (logical epochs)  
+- RequestVote RPC (elections)  
+- AppendEntries RPC (log replication + heartbeat)  
+- Majority quorum for leader election and log commits  
+- Log replication, log compaction / snapshots  
+- Single‑leader bottleneck, leader failover, election timeouts[6][1][5]
+
+### General system‑design contexts
+
+- Leader election  
+- Replicated state machine  
+- Distributed locking  
+- Atomic commit for distributed transactions  
+- Atomic broadcast / totally ordered broadcast  
+- CAP theorem trade‑offs (usually CP systems)  
+
+***
+
+## Trade‑offs + example questions
+
+### 2PC vs 3PC
+
+- **2PC**  
+  - Simple mental model and common in distributed transactions.  
+  - Blocking: if coordinator fails after prepare, participants can be stuck waiting, especially under partitions.[2]
+
+- **3PC**  
+  - Adds pre‑commit to reduce blocking, assumes bounded message delays.[2]
+  - More complex and still vulnerable to certain partitions; higher message overhead, rarely used in mainstream systems.  
+
+### Paxos vs Raft
+
+- **Paxos**  
+  - Very general and theoretically robust; used in systems like Google Chubby, Megastore, and ZooKeeper‑like designs (via related protocols).[4][7][3]
+  - Hard to implement and reason about; multiple communication rounds, more complex message flows → performance and complexity concerns.[8][9]
+
+- **Raft**  
+  - Leader‑based, easier to understand and implement (separation of leader election, log replication, safety).[10][11][1]
+  - Still single‑leader throughput bottleneck for heavy writes and can be challenged in very large clusters; log compaction adds operational overhead.[5][6]
+
+### Example senior‑level questions
+
+- “Explain safety vs liveness in consensus algorithms, with examples of where one is prioritized over the other.”  
+- “Compare 2PC and Raft in terms of failure handling and where you’d use them in a real system.”  
+- “How does Raft elect a leader and ensure log consistency among replicas?”  
+- “What are the limitations of Paxos and why might a system choose Raft instead?”  
+- “Where in a large scale system (e.g., ride‑hailing, social network) would you require consensus and where is it overkill?”  
+
+***
+
+## Use cases (system‑design oriented)
+
+From the article plus widely known deployments:[12][13][6][3][2]
+
+- **Leader election & cluster coordination**  
+  - Elect primary DB or service leader among replicas (primary‑secondary setups).  
+  - Examples:  
+    - Google Chubby lock service uses Paxos to coordinate GFS and other Google systems.[7][14][3]
+    - ZooKeeper uses Zab (Paxos‑like) for leader election and metadata consistency.[13][12][4]
+    - etcd and Consul use Raft for leader election and configuration metadata.[6][13]
+
+- **Consistent data replication / replicated logs**  
+  - Consensus on the order of updates across nodes (multi‑Paxos or Raft).  
+  - Used in distributed databases, metadata stores, log‑based systems (e.g., keyspace metadata, config, membership).  
+
+- **Distributed locking & configuration**  
+  - Implement a strongly consistent lock or configuration store so multiple services agree on ownership or configuration values.  
+  - Chubby (Google), ZooKeeper, etcd are classic examples.[12][3][6]
+
+- **Distributed transactions (2PC / 3PC)**  
+  - Ensure atomic commit or abort across multiple shards/services when ACID semantics are needed across boundaries.[2]
+
+- **Atomic broadcast / messaging**  
+  - Guarantee same ordered sequence of messages across all replicas, used in state‑machine replication and some messaging systems.  
+
+- **Blockchain & BFT (mentioned conceptually)**  
+  - PoW, PoS, and BFT protocols are consensus variants tailored for adversarial networks, but are usually out of scope for most classic web interview questions.[2]
+
+***
+
+## Tools / frameworks / software examples
+
+- **Coordination & config stores**  
+  - Apache ZooKeeper (Zab consensus) for leader election, locks, config.[13][12]
+  - etcd (Raft) – backing store for Kubernetes cluster state.[6]
+  - Consul (Raft) – service discovery, KV store, health checking.[13]
+
+- **Distributed databases / systems**  
+  - Google Chubby (Paxos‑based lock service).[7][3]
+  - Many modern NewSQL/replicated DBs use Raft or Paxos derivatives for log replication and primary election.  
+
+- **Libraries / reference implementations**  
+  - Raft reference site + paper and educational implementations.[11][1][10]
+  - Open‑source Paxos implementations (less common in greenfield projects due to complexity).  
+
+Name‑dropping lines for interviews:  
+- “Kubernetes etcd uses Raft for strongly consistent cluster metadata; ZooKeeper and Chubby use Paxos‑family protocols for leader election and locks.”[12][3][6][13]
+
+***
+
+## Cheat‑sheet Q&A
+
+**Q1. What is a consensus algorithm in distributed systems?**  
+A consensus algorithm lets multiple nodes agree on a single value or sequence of values even if some nodes crash or messages are delayed or lost, ensuring safety (no conflicting decisions) and liveness (eventual decision).[6][2]
+
+**Q2. What’s the difference between safety and liveness?**  
+Safety: nothing bad happens (e.g., two leaders or two different committed values for the same log index are never chosen).[2]
+Liveness: something good eventually happens (the system keeps making progress and eventually decides).  
+
+**Q3. When would you use 2PC? What are its limitations?**  
+Use 2PC to coordinate atomic commit/abort across multiple databases or services that must either all commit or all roll back a transaction. Its main limitation is blocking: if the coordinator fails after prepare, participants may wait indefinitely, especially under partitions.[2]
+
+**Q4. How does Raft work at a high level?**  
+Raft elects a leader using majority votes (RequestVote), then the leader replicates log entries to followers via AppendEntries RPCs; entries are committed when a majority have them, ensuring a consistent replicated log. Leaders send periodic heartbeats; if they fail, followers time out, become candidates, and hold a new election.[1][5][6]
+
+**Q5. Why did Raft become popular compared to Paxos?**  
+Raft was designed for understandability and practical implementation: it decomposes the problem into leader election, log replication, and safety rules, which made it easier to implement correctly than Paxos while offering similar guarantees.[10][11][1]
+
+**Q6. Where in a typical system design do you actually need consensus?**  
+- Leader election for primaries in a replicated service or database.  
+- Log replication for critical metadata/configuration.  
+- Distributed locks or strongly consistent configuration stores (e.g., service discovery, feature flags impacting correctness).  
+Most business data planes can be eventually consistent and don’t require full consensus for every write.  
+
+**Q7. How do these algorithms relate to CAP?**  
+Most consensus‑based systems are CP: they maintain consistency and partition tolerance by requiring a majority for progress; during certain partitions, they may sacrifice availability (writes/commits blocked) to avoid split‑brain.[6][2]
+
+***
+
+## Concise terms & keywords summary (for last‑minute skim)
+
+**Core concepts**  
+- Consensus, agreement  
+- Safety, liveness  
+- Fault tolerance  
+- Quorum, majority  
+- Node crash, network partition, message delay  
+- Leader, follower, candidate  
+- Replicated log, replicated state machine  
+
+**Algorithms**  
+- 2PC (Two‑Phase Commit): coordinator, cohorts, prepare, commit, blocking  
+- 3PC (Three‑Phase Commit): pre‑commit, timeout, split‑brain risk  
+- Paxos: proposer, acceptor, learner, proposal number, prepare, accept  
+- Raft: leader election, RequestVote, AppendEntries, terms, log replication, log compaction  
+
+**Use‑case keywords**  
+- Leader election  
+- Distributed locking  
+- Distributed transactions / atomic commit  
+- Consistent data replication  
+- Atomic broadcast / totally ordered log  
+- Configuration/metadata store (ZooKeeper, etcd, Consul, Chubby)  
+- Blockchain consensus (PoW, PoS, BFT)  
+
+These terms and patterns cover the vocabulary expected for consensus algorithms in senior system design interviews.[1][3][6][2]
+
+[1](https://raft.github.io)
+[2](https://www.geeksforgeeks.org/operating-systems/consensus-algorithms-in-distributed-system/)
+[3](https://cse.buffalo.edu/tech-reports/2016-02.pdf)
+[4](https://15799.courses.cs.cmu.edu/fall2013/static/papers/paxos-henryrobinson.pdf)
+[5](https://en.wikipedia.org/wiki/Raft_(algorithm))
+[6](https://ezyinfra.dev/blog/raft-algo-backup-etcd)
+[7](https://people.eecs.berkeley.edu/~kubitron/courses/cs262a-F12/lectures/lec24-Paxos-Megastore.pdf)
+[8](https://www.geeksforgeeks.org/system-design/paxos-vs-raft-algorithm-in-distributed-systems/)
+[9](https://ics.uci.edu/~cs237/reading/Paxos_vs_Raft.pdf)
+[10](https://raft.github.io/raft.pdf)
+[11](https://web.stanford.edu/~ouster/cgi-bin/papers/raft-atc14.pdf)
+[12](https://developers-heaven.net/blog/case-study-apache-zookeeper-etcd-for-distributed-coordination/)
+[13](https://www.monkeyvault.net/distributed-consensus-and-other-stories/)
+[14](https://www.cs.colostate.edu/~cs670/CR7_AndyStone_PaxosChubby.pdf)
+[15](https://www.educative.io/blog/consensus-algorithms-in-system-design)
+[16](https://borisburkov.net/2021-10-03-1/)
+[17](https://milvus.io/blog/raft-or-not.md)
+[18](https://blog.container-solutions.com/raft-explained-part-1-the-consenus-problem)
+[19](https://www.youtube.com/watch?v=Sj8vo4YmUZI)
+[20](https://none.cs.umass.edu/~shenoy/courses/677content/slides/spring23/Lec20.pdf)

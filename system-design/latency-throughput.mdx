@@ -1,0 +1,156 @@
+Latency is the time to complete a single request (delay), while throughput is the rate of completed work over time (capacity), and in real systems they interact—network and system design must explicitly balance “fast per request” vs “many requests per second.” AWS emphasizes definitions, measurement, and factors, while Dan Slimmon’s article focuses on the structural trade‑off: a cluster tuned for low latency must preserve slack, whereas a cluster tuned for maximum throughput keeps all workers busy at the cost of queueing delays.[1][2][3]
+
+***
+
+## Compact interview summary
+
+- **Latency**: time from request to response, typically measured in milliseconds; driven by propagation delay, processing, queuing, and protocol overhead.[3][4][1]
+- **Throughput**: amount of work done per unit time (e.g., requests/s, MB/s), representing how many requests/data units the system actually completes, influenced by bandwidth, processing power, and packet loss.[5][1][3]
+- Latency and throughput are distinct but related: high latency tends to limit achieved throughput, and low throughput can feel like high latency for large transfers; bandwidth is the theoretical capacity, throughput is the realized rate after latency and loss.[6][5][3]
+- The Slimmon piece frames the **latency/throughput trade‑off**: interactive “on‑the‑spot” users want idle capacity (slack) to avoid queues and minimize latency, while batch “bulk” jobs want full utilization to maximize throughput, pushing latency up.[2]
+
+***
+
+## Keywords & patterns
+
+- **Core terms**  
+  - Latency: response time, round‑trip time (RTT), tail latency (p95/p99).[1][3]
+  - Throughput: requests per second, MB/s, QPS, IOPS.[5][1]
+  - Bandwidth: theoretical max capacity, often in Mbps/MBps; upper bound on throughput.[3][5]
+  - Jitter: variability in latency.  
+
+- **Latency factors**[4][3]
+  - Geographical distance (propagation).  
+  - Network congestion and queuing.  
+  - Protocol overhead (e.g., TCP handshakes, TLS).  
+  - Server load, inefficient application/database processing.  
+
+- **Throughput factors**[6][3]
+  - Bandwidth of links.  
+  - CPU and NIC processing power.  
+  - Packet loss and retransmissions.  
+  - Network topology and number of hops.  
+
+- **Trade‑off patterns (Slimmon)**[2]
+  - Slack vs utilization:  
+    - Low‑latency cluster: keep some workers idle ⇒ lower utilization, lower latency.  
+    - High‑throughput cluster: keep workers always busy ⇒ higher utilization, higher queueing latency.  
+  - Mixed workload problem: interactive (low‑latency) vs bulk (high‑throughput) users competing on same cluster leads to tension.  
+  - Solution pattern: split into latency‑optimized and throughput‑optimized clusters, route requests accordingly.[2]
+
+- **Improvement levers** (from AWS page)[7][3]
+  - Caching and CDNs to reduce latency and relieve origin, indirectly boosting throughput.  
+  - Increasing bandwidth (links, NICs).  
+  - Better transport protocols / tuning (TCP vs UDP, congestion control).  
+  - QoS to prioritize latency‑sensitive traffic.  
+
+- **Tools & services**  
+  - AWS: CloudFront, Global Accelerator, Direct Connect, Local Zones to reduce latency and improve throughput.[7]
+  - Message brokers: Kafka, Kinesis for high‑throughput pipelines with moderate latency.  
+  - Load balancers and autoscalers: to keep utilization in target bands.  
+
+***
+
+## Common trade‑offs + example questions
+
+### Trade‑offs to articulate
+
+- **Latency vs utilization vs throughput**  
+  - To keep latency low for interactive users, the system must maintain slack capacity (idle workers, low queue depth), which mathematically reduces average utilization and thus total throughput.[2]
+  - To maximize throughput, the system pushes utilization near capacity, causing queue builds and higher response latency especially under bursts.[8][2]
+
+- **Network perspective**  
+  - High bandwidth link with high latency (e.g., transcontinental) can show disappointing throughput for chatty protocols; optimizing RTT (e.g., via closer regions/CDNs) increases throughput without changing bandwidth.[3][6]
+
+- **Workload separation**  
+  - Co‑locating latency‑sensitive APIs and heavy batch jobs on the same cluster leads to unpredictable latency; splitting into separate pools or priority queues gives better SLO control.[9][2]
+
+### Example interview questions
+
+- “Explain the difference between latency and throughput and give examples where each is the primary concern.”[1][5]
+- “How do bandwidth, latency, and throughput relate in a network, and how would you diagnose a ‘slow network’?”[5][3]
+- “Describe the latency/throughput trade‑off in a microservice cluster under mixed interactive and batch workloads. How would you design for both?”[2]
+- “What techniques would you use in AWS to reduce user‑perceived latency globally?”[7]
+- “How do you think about tail latency (p99) when optimizing throughput?”  
+
+***
+
+## Use cases
+
+- **Low‑latency, interactive systems**  
+  - Examples: user‑facing APIs, trading front‑ends, online gaming, real‑time collaboration.  
+  - Design: over‑provisioning, autoscaling, short queues, prioritization, regional edges (CDN, edge compute), aggressive caching.[7][3][2]
+
+- **High‑throughput batch/analytics systems**  
+  - Examples: ETL pipelines, model training, log aggregation, offline reporting.  
+  - Design: high utilization clusters (Spark/Flink/Kafka consumers), batching, larger message sizes, relaxed latency SLOs.[10][2]
+
+- **Mixed workloads (Slimmon’s scenario)**  
+  - Need clearly separated clusters/queues: “on‑the‑spot” low‑latency service vs “bulk” high‑throughput service; each sized and tuned differently.[9][2]
+
+- **Network optimization in the cloud**  
+  - Use CDNs (CloudFront) and global routing (Global Accelerator) to shorten paths; Direct Connect or private links for predictable latency and higher effective throughput.[3][7]
+
+Big‑company blog angle: AWS repeatedly illustrates how using CloudFront, Global Accelerator, and geographically closer compute (Local Zones) improves both user‑visible latency and effective throughput by reducing propagation delay and congestion, while Dan Slimmon’s series frames how SREs should model and observe these trade‑offs at the service level.[9][7][3][2]
+
+***
+
+## Cheat‑sheet, Q&A style
+
+**Q1. One‑line definitions?**  
+Latency = how long a single request takes (delay); throughput = how many requests/data units you handle per unit time (capacity).[1][5]
+
+**Q2. Units and measurement?**  
+Latency: milliseconds, measured via ping/RTT or end‑to‑end timings; throughput: requests/s or MB/s, measured via load tests or transfer benchmarks.[5][3]
+
+**Q3. How are bandwidth, latency, and throughput related?**  
+Bandwidth is theoretical capacity; latency is per‑request delay; throughput is realized rate, which is bounded by bandwidth and reduced by latency, protocol overhead, and loss.[6][5][3]
+
+**Q4. Why can’t you always maximize both latency and throughput simultaneously?**  
+Maximizing throughput pushes utilization high and queues deep, increasing latency; minimizing latency requires slack and shallow queues, limiting utilization and total throughput.[10][8][2]
+
+**Q5. How would you architect for both low latency and high throughput?**  
+Separate paths: dedicate low‑latency clusters/endpoints for interactive traffic with strong SLOs and slack, and high‑throughput clusters/pipelines for batch traffic; use priority queues, rate limits, and capacity planning to prevent interference.[9][2]
+
+**Q6. Concrete AWS levers for better latency/throughput?**  
+Use CloudFront or other CDNs, Global Accelerator, Direct Connect, region selection, and Local Zones to shorten paths and reduce jitter; scale out services and increase link bandwidth to raise throughput.[7][3]
+
+**Q7. How do protocols (TCP vs UDP) affect latency/throughput?**  
+TCP adds reliability and congestion control with extra handshakes and retransmissions, often increasing latency but enabling higher effective throughput for bulk reliable transfer; UDP removes reliability overhead, lowering latency but making the application responsible for loss handling.[3][7]
+
+**Q8. What metrics do you watch in production?**  
+Per‑endpoint p50/p95/p99 latency, overall and per‑tenant throughput (QPS/MBps), utilization (CPU, IO, bandwidth), queue depth, and error/retry rates.  
+
+***
+
+## Concise terms & keywords summary
+
+- Latency, throughput, bandwidth, RTT, jitter.[1][5][3]
+- p95/p99 latency, tail latency; QPS, MB/s.[8][4]
+- Propagation delay, congestion, queuing, protocol overhead.[4][3]
+- Slack vs utilization; latency‑optimized vs throughput‑optimized clusters.[9][2]
+- Batch vs interactive workloads; mixed‑use cluster, priority inversion.[2]
+- Caching, CDN, edge, Global Accelerator, Direct Connect, Local Zones (AWS context).[7][3]
+- TCP vs UDP trade‑offs; packet loss, retransmissions, congestion control.[3][7]
+
+
+[1](https://priyasrivastava.hashnode.dev/latency-vs-throughput)
+[2](https://blog.danslimmon.com/2019/02/26/the-latency-throughput-tradeoff-why-fast-services-are-slow-and-vice-versa/)
+[3](https://aws.amazon.com/what-is/latency/)
+[4](https://www.geeksforgeeks.org/system-design/latency-in-system-design/)
+[5](https://www.geeksforgeeks.org/computer-networks/difference-between-latency-and-throughput/)
+[6](https://www.kentik.com/kentipedia/latency-vs-throughput-vs-bandwidth/)
+[7](https://aws.amazon.com/compare/the-difference-between-throughput-and-latency/)
+[8](https://milvus.io/ai-quick-reference/how-should-one-interpret-latency-vs-throughput-tradeoffs-in-benchmarks-eg-a-system-might-achieve-low-latency-at-low-qps-but-latency-rises-under-higher-qps)
+[9](https://blog.danslimmon.com/2019/03/25/latency-and-throughput-optimized-clusters-under-load/)
+[10](https://software.land/throughput-vs-latency/)
+[11](https://www.youtube.com/watch?v=84ZLMbHefJI)
+[12](https://news.ycombinator.com/item?id=32635910)
+[13](https://www.linkedin.com/posts/shkawsar_throughput-vs-latency-difference-between-activity-7330940502873137152-NFwj)
+[14](https://www.simplyblock.io/blog/iops-throughput-latency-explained/)
+[15](https://www.parkplacetechnologies.com/blog/storage-performance-metrics/)
+[16](https://wiki.dendron.so/notes/1befymhb4uqo356c2ahqyqd/)
+[17](https://theawesomenayak.hashnode.dev/system-design-101-bandwidth-throughput-and-latency)
+[18](http://noisycode.com/blog/2015/01/14/ix-and-the-throughput-slash-latency-tradeoff/)
+[19](https://news.ycombinator.com/item?id=21640864)
+[20](https://www.linkedin.com/pulse/latency-vs-throughput-understanding-balancing-key-metrics-erowele-rbgwc)

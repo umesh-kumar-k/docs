@@ -1,0 +1,61 @@
+Scalability architectures achieve linear capacity growth and redundancy through load balancing across layers, caching for resource efficiency, offline processing via queues for latency decoupling, and platform layers for independent scaling and team separation; tradeoffs prioritize horizontal over vertical scaling to avoid single-machine limits.[1]
+
+## Interview Summary
+- Core principles: Horizontal scalability (add servers = linear capacity increase), redundancy (no single failure disrupts service), multi-layer load balancing (user→web→platform→DB).[1]
+- Progression: Start simple (monolith+DB), add caching early, layer load balancers, introduce queues/platform for growth, map-reduce for data-heavy ops.[1]
+- Architect approach: Identify bottlenecks (measure I/O, latency), apply patterns (cache hot data, queue slow tasks), specialize servers (IO vs CPU), plan multi-DC replication/invalidation.[1]
+
+## Keywords & Patterns (bullet-heavy)
+- Scalability types: horizontal (add machines), vertical (beefier machines—avoid long-term).[1]
+- Load balancing: round-robin, weighted random, health checks, smart clients, hardware (NetScaler), software (HAProxy on localhost ports).[1]
+- Caching strategies: application (read-through/write-through), DB tuning, in-memory (Memcached/Redis LRU), CDN (static media offload), invalidation (delete on write or TTL).[1]
+- Offline processing: message queues (RabbitMQ), cron→queue, map-reduce (Hadoop/Hive/HBase).[1]
+- Architecture layers: web app → platform (API reuse, team isolation) → DB/cache.[1]
+- Patterns: separate static subdomain (future CDN), cache-aside, pool separation (read/write DB), server specialization (SSD for IO, CPU for app).[1]
+
+## Common Trade-offs + Example Questions
+- Trade-offs:  
+  - Smart clients (dev-friendly) vs complexity (host discovery/failover); hardware LB (perf) vs cost.[1]
+  - Caching (speed) vs invalidation bugs/stampedes; app cache (control) vs DB cache (free perf).[1]
+  - Queues (decouple) vs eventual consistency; platform layer (reuse/scale teams) vs added latency.[1]
+- Example questions:  
+  - "Scale Digg-like site to 100M users—what layers get LBs first?".[1]
+  - "Cache invalidation for fuzzy queries or bulk deletes?".[1]
+  - "When does vertical scaling make sense vs horizontal?".[1]
+
+## Use Cases
+- Web traffic: LB user→web servers, cache user profiles, CDN static assets.[1]
+- Social features: Queue fan-out (post propagation), map-reduce for recommendations/analytics.[1]
+- Data-heavy: Platform layer for API/mobile reuse, separate read/write DB pools.[1]
+- Growth pains: Offline cron jobs → queues for redundancy, server specialization post-bottleneck ID.[1]
+
+## Big-Company Articles & Applications
+- Will Leinweber (ex-Yahoo/Digg): This post details real scaling from monolith to layered LB/cache/queues at Digg/Yahoo—used HAProxy for internal pools, Memcached for hot data, queues to hit 100M+ users without disruption.[1]
+- Netflix TechBlog (e.g., Zuul/Spinnaker evolutions): Applied multi-layer LBs (edge→service mesh), aggressive caching, queue-based async for resilience at planetary scale.[2]
+- Google SRE book/blogs: Platform layers (Borg/Omega) for team scaling, map-reduce (original Hadoop inspiration) for analytics.[3]
+
+## Tools, Frameworks & Software Examples
+- Load balancers: HAProxy (software, local ports), Citrix NetScaler (hardware), smart clients (custom libs).[1]
+- Caches: Memcached (LRU in-memory), Redis (LRU+disk), CDN (Akamai/CloudFront), Nginx (static serving).[1]
+- Queues/Offline: RabbitMQ (pub-sub), cron→queue, Hadoop/Hive/HBase (map-reduce).[1]
+- DB: MySQL/PostgreSQL (read/write pools, row cache tuning), Cassandra (optimized configs).[1]
+
+## Cheat-sheet (Q&A Style)
+- Q: Ideal scalability metric? A: Linear capacity (+1 server = +33% at 3-server baseline), fault-tolerant (lose 1 = -33% capacity).[1]
+- Q: Cache strategies? A: Read-through (miss→DB→set), write-through (update both), delete-on-write + TTL.[1]
+- Q: LB layers? A: User→web, web→platform, platform→DB read/write pools.[1]
+- Q: Offline vs inline? A: Queue slow tasks (graph fanout), inline quick + async cleanup.[1]
+- Q: Platform layer benefits? A: Independent scaling, multi-product reuse, team isolation.[1]
+- Q: Cache stampede fix? A: Write-through or probabilistic early refill.[1]
+
+## Key Highlights / Possible Interview Questions / Tradeoffs
+- Highlights: Cache before LB (multiplies existing capacity); start software LB (HAProxy); separate concerns early (static/CDN, read/write).[1]
+- Questions: "Digg-scale social feed—LB/cache/queue choices?" / "Multi-DC cache consistency?" / "Map-reduce for daily analytics at 1TB/day?".[1]
+- Tradeoffs: Complexity (layers/queues) vs perf/redundancy; dev time (smart clients) vs ops (managed LB).[1]
+
+## Concise Summary (Important Terms & Keywords)
+Horizontal/vertical scalability, redundancy, load balancing (round-robin/health checks), smart clients, HAProxy/NetScaler, caching (read/write-through/LRU/invalidation/stampede), Memcached/Redis/CDN, message queues (RabbitMQ), map-reduce (Hadoop), platform layer, server specialization, read/write pools, offline processing, cron→queue, multi-DC replication.[1]
+
+[1](https://lethain.com/introduction-to-architecting-systems-for-scale/)
+[2](https://netflixtechblog.com/pushy-to-the-limit-evolving-netflixs-websocket-proxy-for-the-future-b468bc0ff658)
+[3](https://github.com/donnemartin/system-design-primer)

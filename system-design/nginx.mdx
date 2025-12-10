@@ -1,0 +1,144 @@
+NGINX achieves high performance and scale by using a few multi‑process, single‑threaded, event‑driven workers that handle many non‑blocking connections each, instead of a thread‑per‑connection model used by many traditional servers. This design minimizes context switches and per‑connection overhead so a single worker can handle hundreds of thousands of concurrent connections on modern hardware.[1][2]
+
+***
+
+## Compact interview summary
+
+- NGINX process model: one master process plus a small number of worker processes (often one per CPU core) and optional cache helper processes.[2]
+- The master process reads configuration, binds to ports, and spawns workers; workers handle all client traffic using non‑blocking I/O and an event loop.[2]
+- Each worker is single‑threaded and can manage many simultaneous connections via an event‑driven state machine (HTTP, stream/TCP, mail), avoiding the cost of one process/thread per connection.[1][2]
+- This architecture keeps workers pinned to cores, reduces context switches, and makes configuration reloads and even binary upgrades graceful and essentially zero‑downtime.[2]
+
+***
+
+## Keywords & patterns
+
+- **Process architecture**[2]
+  - Master process: privileged operations, config reload, binary upgrades.  
+  - Worker processes: handle all network I/O, disk I/O, upstream communication.  
+  - Cache loader/manager: load and prune disk‑based cache.  
+  - `worker_processes auto;` ⇒ one worker per CPU core.  
+
+- **Event‑driven, non‑blocking I/O**[3][2]
+  - Each worker runs a single event loop; uses non‑blocking sockets and OS multiplexing (e.g., `epoll`, `kqueue`) to react to events.  
+  - No blocking on network I/O; workers move between “games” (connections) as soon as they have done available work.  
+
+- **Connection handling & state machine**[2]
+  - Workers wait for events on listen sockets, accept connections, and assign them to protocol‑specific state machines (HTTP, stream, mail).  
+  - State machine encodes request lifecycle: read request, route/proxy, read upstream, write response, handle keep‑alive.  
+
+- **Resource efficiency & scaling**[1][2]
+  - Each connection only adds a file descriptor + small memory; minimal per‑connection overhead.  
+  - Few worker processes ⇒ fewer context switches, better CPU cache locality, high scalability (hundreds of thousands of concurrent connections per worker with proper tuning).  
+
+- **Configuration reload & binary upgrade**[2]
+  - `nginx -s reload` or SIGHUP to master: master loads new config, starts new workers, old workers drain existing connections and exit gracefully.  
+  - Binary upgrade: new master + workers share listening sockets; old set is shut down once traffic drains.  
+
+- **Kernel‑level optimizations (mentioned in related NGINX/F5/Cloudflare material)**  
+  - Accept mutex and socket sharding (`SO_REUSEPORT`) to distribute incoming connections evenly across workers and reduce lock contention.[4][5]
+
+***
+
+## Common trade‑offs + example questions
+
+### Trade‑offs
+
+- **Event‑driven single‑threaded workers vs thread‑per‑connection**  
+  - Pros: lower memory use per connection, fewer context switches, better scalability under high concurrency.[1][2]
+  - Cons: more complex internal design; modules must be non‑blocking (slow/blocking operations can stall the event loop).  
+
+- **Few heavy workers vs many light threads**  
+  - NGINX: small fixed number of workers pinned to cores; good for predictable CPU usage and stable performance.[2]
+  - Thread‑per‑connection servers: simpler programming model but degrade at high concurrency due to memory and context‑switch overhead.  
+
+- **Graceful reload vs in‑place reconfiguration**  
+  - NGINX chooses process recycling on reload/upgrade, which is slightly more complex but gives clean separation between generations and preserves uptime.[2]
+
+### Example interview questions
+
+- “Explain NGINX’s process and concurrency model and why it scales better than a thread‑per‑connection architecture.”[1][2]
+- “How does an NGINX worker handle hundreds of thousands of connections if it is single‑threaded?”[3][2]
+- “What is the role of the master process in NGINX? How does configuration reload or binary upgrade avoid downtime?”[2]
+- “What kinds of operations or modules can hurt NGINX performance given its event‑driven design?”  
+
+***
+
+## Use cases
+
+- **High‑traffic web front‑ends / reverse proxy**  
+  - Terminate HTTP/TLS, proxy to upstream app servers, cache static resources; event‑driven design lets NGINX absorb traffic spikes with modest hardware.[2]
+
+- **API gateway / microservices edge**  
+  - Fronting many microservices with routing, rate limits, and basic auth; high concurrency and many keep‑alive connections benefit from low per‑connection overhead.  
+
+- **Content cache / CDN edge node**  
+  - Use disk + memory cache managed by cache loader/manager processes; workers serve cached content with minimal latency.[2]
+
+- **Zero‑downtime deploys for web tier**  
+  - Change configuration or upgrade NGINX itself via master reload/upgrade flow, keeping active connections intact.[2]
+
+Big‑company angle: Cloudflare and others have written about scaling NGINX with kernel features like `SO_REUSEPORT` and thread pools, reinforcing that NGINX’s core event‑driven, worker‑per‑core model is a strong foundation for global‑scale edge traffic handling.[6][5]
+
+***
+
+## Cheat‑sheet, Q&A style
+
+**Q1. What is NGINX’s basic process model?**  
+A master process handles privileged operations and lifecycle; a small number of worker processes (usually one per core) handle all client connections and requests; cache helper processes manage on‑disk cache.[2]
+
+**Q2. How does a single worker process handle so many connections?**  
+By using non‑blocking sockets and an event loop (e.g., `epoll`), so the worker quickly reacts to readiness events for many connections instead of blocking on any single one.[3][2]
+
+**Q3. Why is this design more scalable than thread‑per‑connection?**  
+It avoids per‑connection threads/processes, so memory and context‑switch overhead grow slowly with connection count, allowing hundreds of thousands of concurrent connections per worker.[1][2]
+
+**Q4. What is the role of the HTTP “state machine”?**  
+It represents the steps of handling an HTTP transaction; the worker advances each connection’s state based on I/O events (request read, upstream response, write back), all within the event loop.[2]
+
+**Q5. How does NGINX reload configuration without downtime?**  
+The master loads the new config, forks new workers using it, then signals old workers to stop accepting new connections and exit once existing requests complete.[2]
+
+**Q6. What kernel or OS optimizations does NGINX leverage?**  
+Non‑blocking I/O with `epoll`/`kqueue`, accept mutex and optionally socket sharding via `SO_REUSEPORT` to distribute incoming connections across workers efficiently.[5][4][2]
+
+**Q7. What kinds of tasks must be handled carefully because of the event‑driven model?**  
+Blocking operations such as slow disk I/O, synchronous external calls, or blocking module code can stall the event loop and hurt latency; they should be avoided or offloaded.  
+
+**Q8. Which roles is NGINX especially well‑suited for?**  
+Reverse proxy, HTTP/TLS terminator, static file server, cache, basic API gateway, and fronting high‑concurrency sites and CDNs.  
+
+***
+
+## Concise terms & keywords summary
+
+- Master process, worker processes, cache loader, cache manager.[2]
+- `worker_processes auto;` (one worker per core).  
+- Event‑driven architecture, non‑blocking I/O, `epoll`/`kqueue`.[3][2]
+- HTTP/state machine, stream (TCP) and mail state machines.[2]
+- File descriptor per connection, minimal per‑connection memory, low context switching.[1][2]
+- Accept mutex, socket sharding, `SO_REUSEPORT` for worker‑level load balancing.[4][5]
+- Graceful config reload, zero‑downtime binary upgrade via master/worker orchestration.[2]
+
+These are the main concepts and phrases to keep fresh for NGINX performance/design discussions in senior system‑design interviews.
+
+[1](https://www.linux.com/news/inside-nginx-how-we-designed-performance-scale/)
+[2](https://keypointt.com/2020-03-24-Inside-NGINX/)
+[3](https://stackoverflow.com/questions/6250005/how-can-event-driver-nginx-process-high-concurrent-requests-with-only-2-worker-p)
+[4](https://www.linkedin.com/posts/tinyannadas_socket-sharding-tweaking-nginx-for-10k-activity-7387815633683587073-c80Y)
+[5](https://www.f5.com/company/blog/nginx/socket-sharding-nginx-release-1-9-1)
+[6](https://blog.cloudflare.com/how-we-scaled-nginx-and-saved-the-world-54-years-every-day/)
+[7](https://blog.nginx.org/blog/inside-nginx-how-we-designed-for-performance-scale)
+[8](https://www.f5.com/ja_jp/company/blog/nginx/inside-nginx-how-we-designed-for-performance-scale/_jcr_content)
+[9](https://engineeringatscale.substack.com/p/nginx-millions-connections-event-driven-architecture)
+[10](https://www.nginx-cn.net/company/blog/nginx/inside-nginx-how-we-designed-for-performance-scale)
+[11](https://blog.nginx.org/nginx-architecture)
+[12](https://xiazemin.github.io/linux/2019/05/28/SO_REUSEPORT.html)
+[13](https://mohitmishra786.github.io/chessman/2024/12/29/Understanding-NGINX-Worker-Architecture.html)
+[14](https://www.reddit.com/r/nginx/comments/16uc7vr/is_this_a_good_way_to_scale/)
+[15](https://notes.kodekloud.com/docs/Nginx-For-Beginners/Introduction/Nginx-Architecture)
+[16](https://nginxstore.com/blog/nginx/nginx-socket-sharding/)
+[17](https://blog.nginx.org/blog/performance-tuning-tips-tricks)
+[18](https://stackoverflow.com/questions/4764731/nginx-its-multithreaded-but-uses-multiple-processes)
+[19](https://www.f5.com/fr_fr/company/blog/nginx/socket-sharding-nginx-release-1-9-1)
+[20](https://www.reddit.com/r/nginx/comments/15fyyo3/how_nginx_handle_so_many_requests/)

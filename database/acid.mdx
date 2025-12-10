@@ -1,0 +1,83 @@
+ACID transactions (Atomicity: all-or-nothing; Consistency: valid state transitions; Isolation: no interference; Durability: permanent post-commit) guarantee data integrity in relational DBs via locks/logs; tradeoffs include perf overhead/scalability limits vs BASE (eventual consistency) for distributed scale—use sagas/2PC for distributed, CQRS for reads.[1]
+
+## Interview Summary
+- Core properties: A (atomic via rollback), C (constraints/rules), I (levels: read uncommitted→serializable), D (WAL/logs).[1]
+- Implementation: SQL (BEGIN/COMMIT/ROLLBACK), 2PC for distributed; NoSQL hybrids (MongoDB multi-doc).[1]
+- Architect flow: Define integrity needs → pick isolation level → minimize scope → monitor locks/deadlocks → hybrid BASE for scale.[2][1]
+
+## Keywords & Patterns (bullet-heavy)
+- Properties: Atomicity (all/none), Consistency (rules/constraints), Isolation (levels: read committed/serializable), Durability (WAL/redo logs).[1]
+- Mechanisms: 2PC/3PC (distributed commit), locking (row/table, optimistic/pessimistic), MVCC (multi-version concurrency).[3][4]
+- Patterns: sagas (distributed tx orchestration), outbox (reliable messaging), CQRS (separate read/write), polyglot (ACID writes/BASE reads).[1]
+- Anti-patterns: long tx (lock contention), distributed monolith (2PC blocking).[2]
+- Metrics: deadlock rate, tx latency p99, throughput (tx/sec), rollback %.[1]
+- Alternatives: BASE (Basically Available/Soft state/Eventual consistency).[5][1]
+
+## Common Trade-offs + Example Questions
+- Trade-offs:  
+  - ACID: integrity/reliability vs perf (locks/overhead), scalability (2PC latency/network partitions).[2][1]
+  - BASE: scale/availability vs consistency windows, complexity (idempotency/sagas).[1]
+  - Isolation: higher (serializable)=correctness vs lower (read committed)=throughput.[1]
+- Example questions:  
+  - "Bank transfer: implement ACID across services?".[1]
+  - "Distributed tx failure—2PC vs saga?".[3]
+  - "High-throughput order system: ACID or eventual?".[1]
+
+## Use Cases
+- ACID-must: banking (transfers), e-commerce (orders/inventory), healthcare (patient records).[1]
+- BASE-tolerant: social feeds (likes), analytics (aggregates), IoT (telemetry).[1]
+- Hybrid: Uber billing (ACID) + dispatch (eventual); Netflix events (Cassandra BASE) + billing (PostgreSQL ACID).[6]
+
+## Big-Company Articles & Applications
+- Uber: ACID PostgreSQL for trip billing (atomic updates across trips/earnings); sagas for dispatch to avoid 2PC blocking.[6]
+- Netflix/Databricks: Delta Lake adds ACID to data lakes (upserts/ACID on S3)—handles streaming at petabyte scale.[7]
+- Google Spanner: Distributed ACID via TrueTime/Paxos—global tx without 2PC tradeoffs.[1]
+
+## Tools, Frameworks & Software Examples
+- SQL ACID: PostgreSQL (WAL/MVCC), MySQL InnoDB (redo logs), Oracle (undo segments).[1]
+- Distributed ACID: CockroachDB/Yugabyte (Raft), Spanner (TrueTime), Vitess (MySQL sharding).[8]
+- NoSQL ACID: MongoDB (multi-doc tx), Cosmos DB (multi-model ACID).[9]
+- Saga orchestration: Temporal, Netflix Conductor; outbox: Debezium.[1]
+
+## Cheat-sheet (Q&A Style)
+- Q: Atomicity failure? A: Full rollback (no partial updates).[1]
+- Q: Isolation levels? A: Read uncommitted (dirty reads) → serializable (no anomalies).[1]
+- Q: Durability mechanism? A: WAL (write-ahead log) before commit.[1]
+- Q: Distributed ACID? A: 2PC (prepare/commit phases), sagas (compensating tx).[3]
+- Q: ACID vs BASE? A: ACID=immediate consistency; BASE=eventual/available.[1]
+- Q: Deadlock fix? A: Shorter tx, optimistic locking, timeout aborts.[1]
+
+## Key Highlights / Possible Interview Questions / Tradeoffs
+- Highlights: Minimize tx scope; use READ COMMITTED default; sagas > 2PC for microservices.[1]
+- Questions: "eShop checkout ACID across inventory/payment?" / "Scale ACID to 1M tx/sec?" / "BASE pitfalls in feeds?".[1]
+- Tradeoffs: Correctness vs throughput; quantify consistency SLO (P99 fresh).[2][1]
+
+## Concise Summary (Important Terms & Keywords)
+- **Properties**: Atomicity (all/none), Consistency (valid states), Isolation (levels: read committed/serializable), Durability (WAL)  
+- **Mechanisms**: 2PC/3PC, locking (pessimistic/optimistic), MVCC, rollback/commit  
+- **Distributed**: Sagas, outbox pattern, Raft/Paxos/TrueTime  
+- **Tradeoffs**: ACID (integrity/low scale) vs BASE (availability/high scale)  
+- **Tools**: PostgreSQL/MySQL InnoDB, CockroachDB, Spanner, MongoDB tx, Delta Lake  
+- **Patterns**: CQRS, polyglot persistence, short tx, monitor deadlocks  
+- **Metrics**: Tx latency, throughput, rollback %, lock contention[1]
+
+[1](https://www.datacamp.com/blog/acid-transactions)
+[2](https://redis.io/glossary/acid-transactions/)
+[3](https://en.wikipedia.org/wiki/ACID_transactions)
+[4](https://ignite.apache.org/features/acid-transactions.html)
+[5](https://celerdata.com/glossary/acid-or-base-modern-application-trade-offs)
+[6](https://dev.to/crit3cal/acid-vs-base-mastering-transaction-models-for-modern-full-stack-applications-d1e)
+[7](https://www.linkedin.com/posts/rakeshgoud-edigi_dataengineer-bigdata-apacheiceberg-activity-7364649739948064769-V0gG)
+[8](https://www.yugabyte.com/key-concepts/acid-transactions/)
+[9](https://www.mongodb.com/resources/basics/databases/acid-transactions)
+[10](https://www.databricks.com/glossary/acid-transactions)
+[11](https://dev.to/jaiminbariya/acid-transactions-in-system-design-1i45)
+[12](https://phoenixnap.com/kb/acid-vs-base)
+[13](https://en.wikipedia.org/wiki/Distributed_transaction)
+[14](https://www.ververica.com/blog/serializable-acid-transactions-on-streaming-data)
+[15](https://en.wikipedia.org/wiki/ACID)
+[16](https://aws.amazon.com/compare/the-difference-between-acid-and-base-database/)
+[17](https://www.reddit.com/r/bigdata/comments/f6zw5p/what_does_c_in_acid_mean_for_distributed/)
+[18](https://synvert.com/en-en/synvert-blog/clash-of-acid-data-lakes-comparing-data-lakehouse-formats/)
+[19](https://www.bmc.com/blogs/acid-atomic-consistent-isolated-durable/)
+[20](https://www.designgurus.io/course-play/grokking-the-system-design-interview/doc/acid-vs-base-properties-in-databases)

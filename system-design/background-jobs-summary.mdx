@@ -1,0 +1,96 @@
+Below is a compact “keywords sheet” for **Background Jobs & Async Processing**, optimized for quick pre‑interview skims.[1]
+
+***
+
+## Core concepts
+
+- Background job / worker  
+- Asynchronous processing / async workflows  
+- Fire‑and‑forget  
+- Long‑running process  
+- Batch job / batch processing  
+- CPU‑intensive vs IO‑intensive jobs  
+- Workflow / orchestration  
+
+***
+
+## Triggers & initiation
+
+- Event‑driven trigger  
+- Schedule‑driven trigger  
+- Queue message trigger  
+- Storage change trigger  
+- HTTP/API trigger / webhook  
+- Timer / cron / scheduled task  
+
+***
+
+## Communication & status
+
+- Command / job request  
+- Job ID / correlation ID  
+- Status store (status table, job metadata)  
+- Reply queue / response queue  
+- Callback / push notification  
+- Status / health endpoint  
+
+***
+
+## Hosting & execution environments
+
+- Background worker service  
+- Web app with background runner  
+- Serverless functions (short‑lived jobs)  
+- Virtual machines / services  
+- Containers, Kubernetes Jobs / CronJobs  
+- Batch processing platform  
+
+***
+
+## Patterns & building blocks
+
+- Queue‑based load leveling  
+- Competing consumers  
+- Leader election  
+- Singleton job vs multi‑instance workers  
+- Pipes and Filters (multi‑step pipeline)  
+- Scheduler Agent Supervisor (orchestration + recovery)  
+- Compensating transaction (undo failed workflows)  
+
+***
+
+## Reliability & correctness
+
+- At‑least‑once delivery  
+- Idempotent processing  
+- Checkpointing / progress persistence  
+- Poison messages  
+- Dead letter queue  
+- Dequeue count / retry count  
+- Ordering / sequence numbers  
+
+***
+
+## Scaling & partitioning
+
+- Autoscaling workers (queue length, CPU, schedule)  
+- Separately scaling UI vs background workers  
+- Work partitioning / sharding  
+- Resource contention / pessimistic locking  
+- Throughput vs latency for jobs  
+
+***
+
+## Quality attributes & trade‑off terms
+
+- Availability  
+- Scalability  
+- Resiliency  
+- Security isolation  
+- Performance / latency  
+- Manageability  
+- Cost vs capacity  
+
+These terms cover the main vocabulary expected when discussing background jobs and async processing in senior system design interviews.[1]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/best-practices/background-jobs)

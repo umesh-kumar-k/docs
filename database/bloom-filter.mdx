@@ -1,0 +1,68 @@
+Bloom filters provide probabilistic membership testing (definite "no", possible "yes" with false positive rate) using bit arrays + multiple hash functions—ideal for cache/DB checks to avoid expensive lookups, trading space (10-20 bits/item) for 100x memory savings vs sets .
+
+## Interview Summary
+- Core algorithm: Fixed-size bit array; k hash functions set/query bits; false positives via hash collisions (tunable via size/error_rate) .
+- Key guarantees: No false negatives (not present = truly absent); false positives controlled (0.1-1%) .
+- Design flow: Estimate capacity/error_rate → compute bits/hashes → BF.RESERVE → ADD/EXISTS; auto-scale via sub-filters if capacity exceeded .
+
+## Keywords & Patterns (bullet-heavy)
+- Structure: bit array (m bits), k hash functions, false positive rate (p), capacity (n items) .
+- Math: optimal k = -ln(p)/ln(2); bits/item = -ln(p)/(ln(2)^2); total bits = n * bits/item .
+- Redis commands: BF.RESERVE (init error_rate/capacity), BF.ADD/MADD, BF.EXISTS/MEXISTS .
+- Scaling: EXPANSION (sub-filter growth), NONSCALING (fixed size, growing error) .
+- Patterns: cache key existence (avoid DB), duplicate detection, heavy hitters filtering, set intersection approximation .
+- Alternatives: Cuckoo filter (deletions, faster lookup), Counting Bloom (deletions) .
+- Metrics: false positive rate (measured vs expected), memory (bits/item), latency (O(k) inserts/queries) .
+
+## Common Trade-offs + Example Questions
+- Trade-offs:  
+  - Memory (10-20 bits/item) vs false positives (0.1% → 14 bits/item); definite negatives vs possible false positives .  
+  - No deletions vs Cuckoo (extra space); fixed capacity vs auto-scaling (lookup latency) .  
+  - Space savings vs precision loss (never use for dedup, only pre-filter) .
+- Example questions:  
+  - "URL shortener: check existing slugs without DB hit?" .  
+  - "1B users: filter cache misses 99%?" .  
+  - "Tune Bloom for 0.01% error at 10M items?" .
+
+## Use Cases
+- Cache pre-filter: Check key existence before expensive DB fetch (90%+ hit reduction) .
+- Fraud detection: "Has this CC/location been seen?" per user filter .
+- Ad serving: "Has user seen this ad/product?" avoids DB for recommendations .
+- Username/slug validation: Fast reject before DB uniqueness check .
+- Heavy hitters: Network traffic analysis, spam filtering .
+
+## Big-Company Articles & Applications
+- Google Chrome: Safe Browsing uses Bloom for malicious URL checks—reduced DB load 95%+ .
+- Facebook: TAO cache layer uses Bloom filters for edge cache misses (billions QPS) .
+- Redis modules: Used in production for fraud/ad tech at scale (sub-ms lookups) .
+
+## Tools, Frameworks & Software Examples
+- Redis: BF.RESERVE/BF.ADD/BF.EXISTS (modules/redisbloom/redisbf) .
+- Java: Guava BloomFilter, Caffeine cache integration .
+- Python: pybloom-live, redis-py (BF commands) .
+- Go: github.com/bits-and-blooms/bloom .
+- C++: folly::BloomFilter (Facebook), Google sparsehash .
+- Distributed: Apache Flink (streaming Bloom), Cassandra Bloom indexes .
+
+## Cheat-sheet (Q&A Style)
+- Q: False negative possible? A: Never—"no" = truly absent .  
+- Q: False positive rate formula? A: (1-e^(-kn/m))^k ≈ 0.6185^(m/n) .  
+- Q: Optimal hashes? A: k = -ln(p)/ln(2) ≈ 1.44 * ln(1/p) .  
+- Q: Redis sizing? A: BF.RESERVE key 0.001 1000000 (0.1% error, 1M items) .  
+- Q: Memory vs Set? A: Bloom=14 bits/item; Set=320+ bits/IP .  
+- Q: Scaling? A: EXPANSION=2 (double sub-filter size), NONSCALING (fixed) .
+
+## Key Highlights / Possible Interview Questions / Tradeoffs
+- Highlights: 100x space savings; O(1) definite negatives; tune error_rate=0.1-1% .
+- Questions: "Instagram photo dedup at scale?" / "Cassandra row existence pre-check?" / "Bloom vs HyperLogLog?" .
+- Tradeoffs: Space vs precision; pre-filter only (confirm positives in source) .
+
+## Concise Summary (Important Terms & Keywords)
+- **Core**: Probabilistic membership, false positives only, no false negatives, bit array + k hashes  
+- **Math**: p=(1-e^(-kn/m))^k, k=-ln(p)/ln(2), bits/item=-ln(p)/ln(2)^2  
+- **Sizing**: error_rate (0.001), capacity (n), EXPANSION (2), NONSCALING  
+- **Redis**: BF.RESERVE, BF.ADD/MADD, BF.EXISTS/MEXISTS  
+- **Use Cases**: Cache pre-filter, fraud detection, ad serving, username check  
+- **Tradeoffs**: Space savings vs false positives, no deletions  
+- **Tools**: RedisBloom, Guava, pybloom, folly::BloomFilter, Apache Flink  
+- **Metrics**: False positive rate, bits/item (14@0.1%), O(k) latency

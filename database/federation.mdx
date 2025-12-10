@@ -1,0 +1,70 @@
+Database federation virtualizes multiple heterogeneous data sources (DBs, files, streams) into a unified query layer without physical movement/duplication, enabling real-time SQL access across silos via schema mapping and query federation—ideal for analytics/compliance where ETL latency/cost is prohibitive .
+
+## Interview Summary
+- Core concept: Federation layer translates/optimizes queries into source-specific subqueries, aggregates results on-the-fly; no data copy, real-time freshness .
+- Architect flow: Assess sources/use cases → schema mapping → pick engine (Presto/Trino) → query pushdown/optimization → governance/security → monitor perf .
+- System design role: Bridges OLTP silos for analytics without warehouse ETL; scales via source-native parallelism but limited by slowest source .
+
+## Keywords & Patterns (bullet-heavy)
+- Architecture: data sources → federation layer (virtualization/schema mapping) → unified SQL interface → consumers (BI/DS/ML) .
+- Query flow: parse → rewrite/optimize → split subqueries → pushdown execution → federate results → aggregate .
+- Features: schema mapping (CustID↔CustomerID), query pushdown (filters/projections to source), real-time access, no ETL .
+- Patterns: data fabric (federation + mesh), virtual data lake, federated joins (across RDBMS/NoSQL), materialized views (hybrid) .
+- Optimization: predicate pushdown, projection pruning, source parallelism, caching query plans .
+- Governance: lineage tracking, access controls, data catalog integration .
+
+## Common Trade-offs + Example Questions
+- Trade-offs:  
+  - Real-time/no-copy vs performance (network hops, slowest source bottleneck, complex joins) .  
+  - Flexibility (add sources easily) vs governance (schema drift, security per-source) .  
+  - vs Warehousing: federation=fresh/flexible/silo-respecting vs warehouse=optimized/historical/consolidated .
+- Example questions:  
+  - "Query 10TB across MySQL/Mongo/S3 without moving data?" .  
+  - "Fed joins slow—what optimizations?" .  
+  - "Compliance audit across silos—federation or warehouse?" .
+
+## Use Cases
+- Cross-silo analytics: BI dashboards joining CRM (Salesforce) + ERP (SAP) + logs (S3) .
+- Data science: Train ML on federated RDBMS + unstructured lakes without ETL .
+- Compliance/audit: Real-time views across regulated sources (finance/healthcare) .
+- Operational reporting: Live dashboards from OLTP + streams without replication lag .
+
+## Big-Company Articles & Applications
+- **Google BigQuery Federated Queries**: Query external DBs (CloudSQL/PostgreSQL/MySQL) + BigQuery tables without data movement; used for hybrid cloud analytics .
+- **Snowflake External Tables**: Federation to S3/ADLS for virtual lakehouse; powers real-time analytics without duplication .
+- **Uber's H3 + Presto**: Federated queries across Hive/S3/MySQL for rider analytics without central warehouse [from search context].
+
+## Tools/Frameworks/Software
+- Engines: **Presto/Trino** (open MPP federation), **Dremio** (lakehouse federation), **Denodo** (enterprise virtualization) .
+- Cloud: **BigQuery Federated**, **Athena Federated**, **Snowflake External Tables**, **Databricks Unity Catalog** .
+- Enterprise: **IBM Data Virtualization**, **TIBCO Data Virtualization**, **SAP Data Intelligence** .
+- Open-source: **Apache Drill** (schema-on-read federation), **Starburst Galaxy** (Trino managed) .
+
+## Which Data Structures & Algorithms
+- **Query optimization**: Cost-based optimizer (CBO) with **statistics histograms**, **dynamic programming** for join trees .
+- **Schema mapping**: **Directed Acyclic Graph (DAG)** of mappings, **ontology matching algorithms** .
+- **Federated execution**: **Directed Acyclic Graph (DAG)** of subqueries, **work-stealing schedulers** for parallelism .
+- **Metadata**: **Catalog/index trees** (e.g., Hive Metastore), **inverted indexes** for source discovery .
+- **Caching**: **LRU caches** for query plans/schema, **Bloom filters** for predicate pruning .
+
+## Cheat-sheet (Q&A Style)
+- Q: Federation vs Warehousing? A: Federation=virtual/real-time/no-copy; Warehouse=physical/historical/optimized .  
+- Q: Slow federated joins? A: Pushdown predicates, materialized views, columnar formats, partition pruning .  
+- Q: Schema changes? A: Virtual layer remaps; no physical ETL rework .  
+- Q: Security model? A: Per-source RBAC + central gateway policies .  
+- Q: Best engine? A: Presto/Trino (open/multi-source), BigQuery (cloud-native), Dremio (lake-focused) .
+
+## Key Highlights / Possible Interview Questions / Tradeoffs
+- Highlights: Zero-copy integration, real-time analytics, source autonomy preserved .
+- Questions: "Fed query MySQL+Mongo+S3 for customer 360?" / "Scale federation to 100 sources?" / "Migration path?" .
+- Tradeoffs: Freshness/flexibility vs perf/governance complexity .
+
+## Concise Summary (Important Terms & Keywords)
+- **Core**: Data federation, virtualization, unified view, no data movement, real-time access   
+- **Architecture**: Data sources → federation layer → consumers, schema mapping, query pushdown   
+- **Processing**: Query splitting, subquery execution, result federation/aggregation   
+- **Benefits**: Reduced storage/costs, simplified integration, organizational flexibility   
+- **Challenges**: Performance (network/slowest source), schema complexity, governance   
+- **vs Warehouse**: Federation=virtual/live vs Warehouse=physical/historical   
+- **Tools**: Presto/Trino, Dremio, Denodo, BigQuery Federated, Snowflake External   
+- **DS/Algo**: Query DAGs, CBO, schema ontologies, statistics histograms

@@ -1,0 +1,179 @@
+## Interview Summary
+Sharding horizontally partitions data across multiple databases to remove single-node bottlenecks for storage and read/write throughput, at the cost of more complex routing, queries, and operations. Effective answers show how to pick shard keys from access patterns, choose a distribution strategy (range, hash, directory, consistent hashing), and reason about hot spots, cross-shard queries, consistency, and resharding over time.[1][2][3]
+
+***
+
+## Keywords & Patterns
+
+- **Core ideas**
+  - Partitioning vs sharding: partitioning is logical splitting; sharding is physical distribution across machines.[2][3]
+  - Horizontal vs vertical partitioning: split rows vs split columns.[3]
+  - Shard key: column(s) used to group data; must have high cardinality, even distribution, and align with dominant queries.[2][3]
+
+- **Shard key patterns**
+  - Good: `user_id` for user-centric apps; `order_id` for order-centric flows.[3]
+  - Bad: low-cardinality fields (`is_premium`), highly skewed fields (`country` where one country dominates), monotonic `created_at` causing hot shards.[3]
+
+- **Sharding strategies**
+  - Range-based: sharding by ID or time ranges (e.g., `1–1M`, `1M–2M`).[2][3]
+  - Hash-based: `shard = hash(key) % N` for even spread.[1][3]
+  - Directory-based: lookup table (`key → shard`) for custom placement / hot-key isolation.[1][3]
+  - Consistent hashing / virtual nodes: map keys and nodes on a ring to minimize data movement when nodes change.[4][5]
+
+- **Operational themes**
+  - Hotspot handling: isolate hot keys, compound shard keys, dynamic splitting and rebalancing.[1][3]
+  - Cross-shard operations: scatter–gather, caching, denormalization, and accepting slower admin-only queries.[2][3]
+  - Consistency: prefer single-shard transactions; use sagas and eventual consistency across shards.[6][3]
+  - Resharding: online workflows to add shards, move data, and cut over traffic.[7][8][3]
+
+***
+
+## Common Trade-offs + Example Questions
+
+### Trade-offs
+
+- **Sharding vs single large node**
+  - Pros: horizontal write/read scale, storage scale, fault isolation.[3][2]
+  - Cons: complex routing, cross-shard joins/transactions, operational complexity (migrations, resharding).[1][3]
+
+- **Range vs hash vs directory**
+  - Range: good for range queries and locality; at risk of hotspots and skew; easier to reason about.[2][3]
+  - Hash: great load balance; but range queries and shard-aware queries are harder, more scatter–gather.[3][1]
+  - Directory: most flexible and can isolate celebrities/hot tenants but requires managing a central mapping and keeping it consistent/available.[1][3]
+
+- **Consistent hashing vs simple modulo**
+  - Modulo: simple but requires moving many keys when adding/removing shards.[9]
+  - Consistent hashing: minimizes rebalancing but adds routing complexity and needs careful virtual-node configuration.[5][4]
+
+- **Single-shard vs multi-shard transactions**
+  - Single-shard: simple, fast, local ACID.[3]
+  - Multi-shard: need sagas/2PC, higher latency, partial failures, and more complex failure handling.[6][3]
+
+### Example interview questions
+
+- For a social network with 500M users and growing, how would you shard the user and post data? What shard key, strategy, and trade-offs would you choose?[1][3]
+- How do you handle a celebrity account generating disproportionate traffic on one shard?[3][1]
+- Your analytics query “top trending posts globally” spans all shards and is slow. How would you redesign this, and what consistency trade-offs are acceptable?[2][3]
+- The business wants to support cross-user money transfers across shards. How would you ensure correctness without global transactions?[6][3]
+
+***
+
+## Use Cases
+
+- **Large social apps (feeds, followers, likes)**  
+  - Shard by `user_id` (or partition key per user) so most reads/writes are single-shard; use background jobs + cache for global/trending queries.[1][3]
+
+- **SaaS multi-tenant systems**  
+  - Shard by `tenant_id` for isolation and noisy-neighbor control; possibly dedicate shards for very large customers via directory-based mapping.[10][2]
+
+- **High-write event and logging systems**  
+  - Shard logs/events by customer or hash of key to absorb massive write throughput; analyze using separate OLAP store.[2][1]
+
+- **Case-studies**
+  - Notion: moved from monolithic Postgres to sharded Postgres to reduce CPU spikes and improve response times for collaborative workspace data.[11][12]
+  - MongoDB / DynamoDB: built-in sharding over partition keys with automatic chunk splitting and balancing to sustain global workloads.[10][3]
+
+***
+
+## Big Tech / Engineering Blog References
+
+- **Notion (PostgreSQL sharding)**  
+  - Describes sharding their primary Postgres database to address CPU spikes, vacuum issues, and latency; carefully chose shard keys and executed a phased migration, achieving better throughput and responsiveness.[12][11]
+
+- **Vitess / PlanetScale (MySQL sharding)**  
+  - Vitess provides online resharding, VReplication, and routing to scale MySQL horizontally while hiding much complexity from application code.[8][13][7]
+
+- **ByteByteGo / other case-study collections**  
+  - Articles walk through real-world sharding in e-commerce and collaboration tools, showing performance gains and operational challenges.[14][10][1]
+
+***
+
+## Cheat-sheet, Q&A Style
+
+- **Q: When do you decide to shard?**  
+  - A: When a single DB instance (even with read replicas) can no longer meet storage, write throughput, or read throughput requirements; typically at TBs of data or tens of thousands of writes/sec.[3][1]
+
+- **Q: How do you choose a shard key?**  
+  - A: High cardinality, even distribution, aligns with majority of hot queries so they hit one shard (e.g., `user_id` for user-centric data).[2][3]
+
+- **Q: Range vs hash vs directory – what’s your default?**  
+  - A: Hash-based on a stable key is often the default for even load; use range if range queries/time locality dominate; add a directory only when you must isolate special keys or rebalance flexibly.[1][3]
+
+- **Q: How do you handle hotspots?**  
+  - A: Isolate hot keys on dedicated shards via directory mapping, use compound shard keys (`hash(user_id + date)`), or split shards and rebalance.[3][1]
+
+- **Q: How to handle cross-shard queries?**  
+  - A: Use scatter–gather plus caching for rare/global queries, pre-compute aggregates, or denormalize to keep frequently joined data co-located.[2][3]
+
+- **Q: How do you maintain consistency across shards?**  
+  - A: Prefer single-shard transactions; for multi-shard flows, use the saga pattern with compensating actions and accept eventual consistency where possible.[6][3]
+
+- **Q: What is consistent hashing and why use it here?**  
+  - A: Place nodes and keys on a hash ring so adding/removing nodes only remaps a small fraction of keys, simplifying scaling and failure handling.[15][4][5]
+
+- **Q: How do you reshard a live system?**  
+  - A: Bring up new shards, copy data (often via log-based streaming), dual-write or mirror traffic, verify, then cut over routing; tools like Vitess automate much of this.[16][7][8]
+
+***
+
+## Data Structures & Algorithms Used
+
+- **Data structures**
+  - Hash rings and virtual nodes for consistent hashing.[4][5]
+  - Directory maps: key → shard tables stored in a DB or config store.[1][3]
+  - Routing tables and metadata services (e.g., in Vitess, MongoDB config servers) to map requests to shards.[13][3]
+
+- **Algorithms**
+  - Consistent hashing: map hashed keys to nearest node on a ring to minimize remapping on changes.[5][15][4]
+  - Range partitioning algorithms: compute shard from ranges over IDs/time and split/merge ranges as they grow.[15][3]
+  - Rebalancing/resharding workflows: copy data while serving traffic, compare checksums, and switch routing atomically or in phases.[7][8][16]
+  - Saga orchestration for cross-shard business workflows (sequence + compensating transactions).[6][3]
+
+***
+
+## Tools / Frameworks / Software
+
+| Tool / Tech | Role in Sharding | Notes |
+|-------------|------------------|-------|
+| **Vitess / PlanetScale** | Sharding & routing for MySQL | Horizontal sharding, VReplication, online resharding, query routing.[7][8][13] |
+| **MongoDB sharding** | Built‑in range/hash sharding | Shard key, chunks, balancer for automatic splitting/migration.[3][10] |
+| **Cassandra / DynamoDB** | Partitioned key–value store | Hash partitioners, virtual nodes, auto rebalancing.[3][10][4] |
+| **Proxy / router layers (e.g., custom gateways, proxies in apps)** | Request routing | Compute shard from key or consult directory, forward to correct DB.[3][17] |
+| **Sharding libraries / frameworks** | App‑level sharding | Some ORMs and frameworks provide sharding plugins, but large orgs often build custom routing layers.[2][18] |
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- Partitioning vs sharding; horizontal vs vertical partitioning.[2][3]
+- Shard key, high cardinality, even distribution, access-pattern alignment.[3]
+- Range-based sharding, hash-based sharding, directory-based sharding.[1][3]
+- Consistent hashing, hash ring, virtual nodes, minimal rebalancing.[4][5][15]
+- Hotspots, load imbalance, hot key isolation, compound shard keys, dynamic shard splitting.[3][1]
+- Cross-shard queries, scatter–gather, caching, denormalization.[2][3]
+- Single-shard vs multi-shard transactions, sagas, eventual consistency.[6][3]
+- Resharding, online data migration, routing cut-over, sharding middleware (Vitess, MongoDB balancer).[8][10][7]
+
+[1](https://blog.bytebytego.com/p/a-crash-course-in-database-sharding)
+[2](https://www.datacamp.com/blog/database-sharding)
+[3](https://www.hellointerview.com/learn/system-design/core-concepts/data-modeling)
+[4](https://www.geeksforgeeks.org/system-design/is-consistent-hashing-used-in-sharding/)
+[5](https://highscalability.com/consistent-hashing-algorithm/)
+[6](https://hayksimonyan.substack.com/p/database-replication-and-sharding)
+[7](https://developerdiary.me/sharding-mysql-seamlessly-using-vitess/)
+[8](https://planetscale.com/learn/courses/vitess/horizontal-sharding)
+[9](https://stackoverflow.com/questions/75675421/how-to-combine-sharding-and-consistent-hashing-within-a-distributed-system)
+[10](https://www.byteplus.com/en/topic/402399)
+[11](https://talent500.com/blog/notion-postgresql-database-sharding/)
+[12](https://newsletter.francofernando.com/p/database-sharding-case-study-postgresql)
+[13](https://vitess.io)
+[14](https://www.linkedin.com/pulse/deep-dive-database-sharding-real-world-examples-kapil-uthra-cw88f)
+[15](https://docs.oracle.com/en/database/oracle/oracle-database/18/shard/sharding-methods.html)
+[16](https://vitess.io/docs/archive/13.0/user-guides/configuration-advanced/resharding/)
+[17](https://dev.to/somadevtoo/database-sharding-for-system-design-interview-1k6b)
+[18](https://www.rapydo.io/blog/relational-databases-in-the-near-and-far-future)
+[19](https://daily.dev/blog/sharding-strategies-4-real-world-examples)
+[20](https://planetscale.com/blog/database-sharding)
+[21](https://www.youtube.com/watch?v=jHNPhj6kl58)
+[22](https://www.geeksforgeeks.org/system-design/sharding-vs-consistent-hashing/)
+[23](https://www.nitorinfotech.com/blog/database-sharding-everything-you-need-to-know/)

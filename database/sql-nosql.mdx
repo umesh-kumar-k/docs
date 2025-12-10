@@ -1,0 +1,66 @@
+SQL databases (relational, fixed schema, ACID transactions, vertical scaling) excel at complex joins/integrity for structured data; NoSQL (non-relational, dynamic schema, horizontal scaling, CAP tradeoffs) handles unstructured/scale-out workloads—choose based on data model, consistency needs, and growth patterns.[1]
+
+## Interview Summary
+- Core distinction: SQL=RDBMS (tables, relations, ACID); NoSQL=varied models (docs/key-value/column/graph, BASE/CAP).[1]
+- Decision framework: Structured/relational/ACID/joins → SQL; unstructured/flexible/horizontal scale/high availability → NoSQL; polyglot persistence (both) for mixed needs.[1]
+- Architect flow: Model data (relations vs hierarchy), define consistency (strong vs eventual), forecast scale (vertical vs horizontal), pick model (document vs graph), plan sharding/replication.[1]
+
+## Keywords & Patterns (bullet-heavy)
+- SQL traits: relational (tables/rows/columns/FK), fixed schema, ACID (Atomicity/Consistency/Isolation/Durability), vertical scale, JOINs, normalization.[1]
+- NoSQL traits: non-relational, dynamic schema, horizontal scale (sharding), CAP (Consistency/Availability/Partition tolerance), eventual consistency.[1]
+- NoSQL types: document (MongoDB), key-value (Redis/DynamoDB), column-family (Cassandra), graph (Neo4j).[1]
+- Patterns: polyglot persistence (SQL+NoSQL), CQRS (SQL writes/NoSQL reads), denormalization (NoSQL), sharding (consistent hashing), read replicas.[1]
+- Tradeoff models: ACID vs BASE (Basically Available/Soft state/Eventual consistency).[1]
+- Metrics: query complexity (JOINs vs single-doc), write throughput, P99 latency at scale, storage efficiency.[1]
+
+## Common Trade-offs + Example Questions
+- Trade-offs:  
+  - SQL: data integrity/joins/ACID vs scale limits (vertical bottleneck), schema rigidity.[1]
+  - NoSQL: horizontal scale/flexibility/unstructured data vs weak consistency/no JOINs, query complexity.[1]
+  - CAP: CP (consistent/partition-tolerant) vs AP (available/partition-tolerant).[1]
+- Example questions:  
+  - "E-commerce catalog: SQL or NoSQL? Why?".[1]
+  - "Social graph at 1B nodes—scale strategy?".[1]
+  - "Order processing: ACID vs eventual consistency tradeoffs?".[1]
+
+## Use Cases
+- SQL-dominant: financial transactions (ACID), relational reporting (JOINs), e-commerce orders/inventory.[1]
+- NoSQL-dominant: user profiles (documents), session stores (key-value), IoT telemetry (time-series), social feeds/recommendations (graph).[1]
+- Hybrid: Netflix (Cassandra events + SQL analytics), Uber (PostgreSQL OLTP + Cassandra OLAP).[1]
+
+## Big-Company Articles & Applications
+- Netflix: Cassandra (NoSQL) for 1.5B events/day (AP scaling); PostgreSQL for billing (ACID)—hybrid cut latency 50%+.[1]
+- Facebook: Cassandra (NoSQL) for Inbox Search (horizontal scale across 1000s nodes); MySQL for core relational data.[1]
+- Uber: PostgreSQL → Schemaless (NoSQL) migration saved 90% storage via denormalization; now polyglot with Redis/Cassandra.[1]
+
+## Tools, Frameworks & Software Examples
+- SQL: PostgreSQL (ACID+JSON), MySQL (replication), Oracle (enterprise), SQL Server (T-SQL).[1]
+- NoSQL Document: MongoDB (aggregation), CouchDB (ACID docs).[1]
+- Key-Value: Redis (LRU cache), DynamoDB (serverless).[1]
+- Column: Cassandra (CQL, wide rows), BigTable/HBase.[1]
+- Graph: Neo4j (Cypher), Amazon Neptune.[1]
+- Hybrid: Vitess (MySQL sharding), CockroachDB (distributed SQL).[1]
+
+## Cheat-sheet (Q&A Style)
+- Q: SQL vs NoSQL data? A: SQL=structured/relational; NoSQL=unstructured/flexible.[1]
+- Q: Scale approach? A: SQL=vertical (bigger servers); NoSQL=horizontal (add nodes).[1]
+- Q: Consistency? A: SQL=ACID (immediate); NoSQL=BASE/CAP (eventual).[1]
+- Q: JOINs? A: SQL=native; NoSQL=app-level/denormalize.[1]
+- Q: Schema changes? A: SQL=migration pain; NoSQL=dynamic.[1]
+- Q: CAP choice? A: CP (banking), AP (social), CA (single-node).[1]
+
+## Key Highlights / Possible Interview Questions / Tradeoffs
+- Highlights: Normalize SQL, denormalize NoSQL; polyglot for complex domains; measure consistency cost.[1]
+- Questions: "Twitter timeline: SQL joins vs NoSQL fan-out?" / "Migrate 1TB MySQL to scale?" / "ACID NoSQL options?".[1]
+- Tradeoffs: Integrity vs velocity; always quantify consistency SLOs.[1]
+
+## Concise Summary (Important Terms & Keywords)
+- **Core Concepts**: SQL (RDBMS, relational, ACID, fixed schema, vertical scale), NoSQL ("Not Only SQL", non-relational, BASE/CAP, dynamic schema, horizontal scale)  
+- **SQL Strengths**: JOINs, transactions, data integrity, complex queries, normalization  
+- **NoSQL Strengths**: unstructured data, sharding, high availability, schema flexibility, throughput  
+- **NoSQL Types**: Document (MongoDB), Key-Value (Redis/DynamoDB), Column-Family (Cassandra), Graph (Neo4j)  
+- **Tradeoffs**: ACID vs eventual consistency, vertical vs horizontal scaling, schema rigidity vs flexibility  
+- **Patterns**: Polyglot persistence, CQRS, denormalization, sharding (consistent hashing)  
+- **Big Tech**: Netflix (Cassandra+PostgreSQL), Facebook (Cassandra+MySQL), Uber (Schemaless+Redis)[1]
+
+[1](https://www.ibm.com/think/topics/sql-vs-nosql)

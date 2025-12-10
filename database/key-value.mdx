@@ -1,0 +1,148 @@
+## Interview Summary
+Key–value databases store data as opaque values addressed by unique keys, optimized for simple get/put/delete operations with very low latency and easy horizontal scalability. For senior architect interviews, position KV stores as the “fast, simple core primitive” behind caches, sessions, feature flags, leaderboards, and some time‑series systems, and explain CAP/durability trade‑offs (in‑memory vs persistent, single‑node vs distributed, AP vs CP) plus when they complement—not replace—relational or document databases.[1][2][3][4][5]
+
+***
+
+## Keywords & Patterns
+
+- **Core concepts**
+  - Data model: `key → value`, value is usually an opaque blob or simple structure; no joins or rich schema.[4][1]
+  - Operations: `GET`, `SET/PUT`, `DELETE`, sometimes atomic operations like `INCR`, `CAS`, TTL/expiry.[6][4]
+  - Simplicity: often in‑memory or log‑structured on disk; optimized for O(1)‑ish lookups by key.[1][6]
+
+- **Architectural themes**
+  - CAP focus: often AP (availability + partition tolerance) with eventual consistency in distributed settings (Dynamo‑style), or CP for coordination stores like etcd/ZooKeeper.[2][7]
+  - Partitioning: shard by hashing the key across nodes, often using consistent hashing for smooth scaling.[7][2]
+  - Durability options: in‑memory only, WAL + snapshots, replication, or hybrids.[3][4]
+
+- **InfluxDB context**
+  - InfluxDB itself is time‑series focused, but internally uses a KV‑like layout: measurements, tags, and fields modeled as series identified by key–value metadata plus time.[8][9][1]
+  - Data is stored in time‑partitioned, compressed files (TSM/TSI) optimized for series scans and range queries.[10][8]
+
+***
+
+## Common Trade‑offs + Example Questions
+
+### Key trade‑offs
+
+- **Latency vs durability**
+  - Pure in‑memory KV (e.g., Redis without persistence) is fastest but loses data on restart.[6][4]
+  - WAL + snapshot or disk‑based KV (e.g., DynamoDB, RocksDB‑backed stores) offers durability but higher write latency and more complex recovery.[3][7]
+
+- **Simplicity vs features**
+  - Simple KV APIs are easy to scale and reason about but require more work in application logic for relationships, queries, and integrity.[5][2]
+
+- **Consistency vs availability**
+  - AP systems (Dynamo‑family) stay up during partitions with eventual consistency and conflict resolution; CP systems (etcd, ZooKeeper) prioritize consistent state for coordination at the cost of availability under some failures.[11][2][7]
+
+- **Schema‑less vs data quality**
+  - No enforced schema gives great flexibility but shifts integrity and validation entirely to application code.[5]
+
+### Example interview questions
+
+- Design a globally distributed key–value store for session data. What consistency level, partitioning, and durability strategy do you choose and why?[2][3]
+- When would you choose Redis vs DynamoDB vs Postgres for a simple key–value workload like feature flags or rate limits?[12][4]
+- How would you evolve a KV‑only system to support some query patterns (e.g., by secondary indexes or materialized views)? What constraints remain?[2][3]
+- Explain how a Dynamo‑style KV store uses consistent hashing, replication, and version vectors to achieve high availability.[7][2]
+
+***
+
+## Use Cases
+
+- **Caching and sessions**
+  - Store user sessions, auth tokens, and computed responses to offload primary databases and achieve sub‑millisecond access.[4][6]
+
+- **Configuration, feature flags, and small metadata**
+  - Central KV for flags, configuration, and small JSON blobs, often with watch/notification mechanisms (Consul, etcd, Redis).[6][5]
+
+- **Counters, rate limiting, leaderboards**
+  - Atomic increments and sorted structures (e.g., Redis sorted sets) for throughput counters, API limits, and leaderboard positions.[4][6]
+
+- **Distributed coordination**
+  - CP‑oriented KV stores (etcd, ZooKeeper, Consul) as configuration stores, locks, and service discovery backbones.[7][5]
+
+- **Time‑series / metrics backends**
+  - Time‑series engines like InfluxDB use a KV‑like model internally—time + tags as keys, values as fields—to store massive measurement series efficiently.[8][10][1]
+
+- **Real‑world / big‑tech style**
+  - Amazon Dynamo (basis for DynamoDB) uses consistent hashing, replication, and version clocks to support large‑scale, highly available KV workloads.[7]
+  - Cloud providers and SaaS platforms rely on Redis/DynamoDB/etcd as backing stores for low‑latency caches, shopping carts, and configuration systems.[13][6][4]
+
+***
+
+## Cheat‑sheet, Q&A Style
+
+- **Q: What is a key–value database?**  
+  - A: A database that stores opaque values addressed by unique keys, optimized for simple get/put/delete operations, often at very low latency and large scale.[1][4]
+
+- **Q: When is a KV store the right choice?**  
+  - A: When all access is by key, no complex queries or joins are needed, and latency and scalability are top priorities (cache, sessions, flags, counters).[5][6]
+
+- **Q: How are keys typically partitioned?**  
+  - A: By hashing the key across nodes (often with consistent hashing), so data can scale horizontally by adding/removing nodes.[2][7]
+
+- **Q: In‑memory KV vs disk‑based KV?**  
+  - A: In‑memory is fastest but volatile; disk‑based and/or WAL‑backed KV offers durability but with higher latency and more complex failure handling.[3][4]
+
+- **Q: What consistency models are common?**  
+  - A: From strong (single‑node or CP clusters) to eventual/tunable (Dynamo‑style, Cassandra‑like), with quorum reads/writes and conflict resolution.[11][2][7]
+
+- **Q: What are typical pitfalls?**  
+  - A: Using KV where you need rich querying, designing poor partition keys leading to hot spots, and ignoring data validation/integrity because of schema‑less nature.[5][2]
+
+***
+
+## Data Structures & Algorithms
+
+- **Data structures**
+  - Hash tables for in‑memory key → pointer/value mappings (e.g., Redis core).[6][4]
+  - Log‑structured merge trees / SSTables for disk‑backed KV (LevelDB, RocksDB, many time‑series engines).[14][10]
+  - Append‑only logs (WAL) and snapshot files for durability and fast recovery.[10][3]
+
+- **Algorithms**
+  - Consistent hashing to distribute keys across nodes and minimize rebalancing when nodes change.[2][7]
+  - Gossip and quorum protocols for membership, replication, and consistency (Dynamo‑family, etcd‑like systems).[7][2]
+  - Compaction/merge for LSM trees to reduce read amplification and reclaim space.[8][10]
+  - TTL expiry and eviction algorithms (LRU/LFU/TTL‑based) for cache‑oriented KV stores.[3][4]
+
+***
+
+## Tools / Frameworks / Software
+
+- **Redis / Dragonfly / Memcached** – in‑memory or memory‑first KV stores used for caching, sessions, and real‑time features.[4][6]
+- **Amazon DynamoDB** – fully managed, partitioned KV/NoSQL store with consistent hashing, auto‑scaling, and TTL support.[13][7]
+- **etcd / Consul / ZooKeeper** – CP‑oriented KV stores for configuration, coordination, and service discovery.[5][7]
+- **InfluxDB internals** – time‑series database that conceptually uses key–value pairs (tags + time → fields) with compressed storage and compaction.[9][1][8]
+- **RocksDB / LevelDB / Badger** – embedded KV engines providing LSM‑based persistence and used under higher‑level databases.[14][10]
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- Key–value store, get/put/delete, opaque value.[1][4]
+- Hash partitioning, consistent hashing, sharding, replication, quorum.[2][7]
+- In‑memory vs disk‑based, WAL, snapshot, LSM tree, SSTable, compaction.[10][3]
+- CAP trade‑offs, AP vs CP, eventual consistency, tunable consistency.[11][2]
+- Typical tools: Redis, DynamoDB, Memcached, etcd, Consul, ZooKeeper, RocksDB, LevelDB, InfluxDB internals.[1][6][7]
+
+[1](https://www.influxdata.com/key-value-database/)
+[2](https://dev.to/dleedev365/design-a-key-value-store-for-system-design-interview-3i4j)
+[3](https://www.systemdesignhandbook.com/guides/design-a-key-value-store/)
+[4](https://redis.io/nosql/key-value-databases/)
+[5](https://aerospike.com/glossary/what-is-a-key-value-store/)
+[6](https://www.dragonflydb.io/guides/key-value-databases)
+[7](https://programmerprodigy.code.blog/2021/06/28/introduction-to-key-value-data-store-along-with-use-cases/)
+[8](https://docs.influxdata.com/influxdb/v1/concepts/key_concepts/)
+[9](https://en.wikipedia.org/wiki/InfluxDB)
+[10](https://stackoverflow.com/questions/44971676/influxdb-data-structure-database-model)
+[11](https://dev.to/kodebae/designing-a-key-value-store-ohd)
+[12](https://www.reddit.com/r/Database/comments/ov4itx/redis_vs_dynamodb_for_key_value_entries/)
+[13](https://docs.aws.amazon.com/whitepapers/latest/choosing-an-aws-nosql-database/types-of-nosql-databases.html)
+[14](https://stackoverflow.com/questions/48856764/how-influxdb-leverages-the-underlying-key-value-store)
+[15](https://www.youtube.com/watch?v=1Iw_0J5UkYs)
+[16](https://github.com/influxdata/influxdb)
+[17](https://github.com/philippgille/gokv)
+[18](https://www.youtube.com/watch?v=xx5qOuhU9D0)
+[19](https://blog.csdn.net/HuiFeiDeTuoNiaoGZ/article/details/132967972)
+[20](https://www.reddit.com/r/influxdb/comments/1ebnrrm/how_does_influxdb_store_data/)
+[21](https://www.youtube.com/watch?v=XloH_0G2IzA)

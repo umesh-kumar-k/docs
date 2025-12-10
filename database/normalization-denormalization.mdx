@@ -1,0 +1,81 @@
+## Interview Summary
+Database normalization organizes data to eliminate redundancy and anomalies via normal forms (1NF-5NF, target 3NF), while denormalization intentionally adds redundancy for query performance in read-heavy systems. Senior architects balance both: normalize for write-heavy OLTP/integrity, denormalize selectively for OLAP/scale, justifying via access patterns, storage costs, and consistency needs.[1][2][3]
+
+## Keywords & Patterns
+- **Normal Forms**: 1NF (atomic values, no repeats), 2NF (full key dependency), 3NF (no transitive deps), BCNF (determinant=candidate key), 4NF/5NF (multi/join deps).[4]
+- **Anomalies**: Insert (can't add without parent), Update (partial changes inconsistent), Delete (lose unrelated data).[5]
+- **Normalization**: PK/FK relationships, Joins for reads, ACID writes efficient.[3]
+- **Denormalization**: Embed duplicates, Materialized views, Star/Snowflake schemas.[6]
+- **Hybrid**: Normalized OLTP → ETL to denormalized OLAP.[6]
+
+## Common Trade-offs + Example Questions
+**Trade-offs**:
+- Normalization: Integrity/storage savings vs. slow joins/heavy reads.[3]
+- Denormalization: Fast reads/simple queries vs. redundancy/update anomalies/storage bloat.[2]
+- 3NF ideal but over-normalize → complex schemas; under → perf issues.[6]
+
+**Example Questions**:
+- Normalize customer-orders to 3NF; when denormalize for analytics?[7]
+- Trade-offs for social feed: embed likes vs. join?[5]
+- Anomalies in unnormalized e-commerce schema?[5]
+
+## Use Cases
+- **OLTP (Banking)**: Normalize to 3NF for txns/integrity.[3]
+- **Analytics/Reporting**: Denormalize star schema for fast aggregates.[6]
+- **Real-time Feeds**: Denorm user data into posts for sub-sec reads.[5]
+- **Data Lakes**: Normalize raw → denorm warehouses (Snowflake).[6]
+
+## Big Tech Blog References
+- Netflix: Normalized user tables → denormalized recs/analytics for query speed.[5][6]
+- Uber: Normalized trips → denorm dashboards; 100x query speedup at 3x storage.[6]
+- Amazon: Normalized inventory → denorm catalogs for e-comm scale.[6]
+
+## Cheat-sheet, Q&A Style
+- **Q: 1NF rule?** A: Atomic values, unique rows (no arrays).[4]
+- **Q: 3NF vs BCNF?** A: 3NF no transitive; BCNF every determinant candidate key.[4]
+- **Q: Denorm benefit?** A: Fewer joins, faster reads (reads >> writes).[3]
+- **Q: Fix insert anomaly?** A: Normalize to separate entities.[5]
+- **Q: Hybrid when?** A: OLTP normalized + OLAP denorm via ETL.[6]
+
+## Data Structures & Algorithms
+- **DS**: Tables/Relations (sets), Trees (joins/indexes), Graphs (relationships).[8]
+- **Algos**: Functional dependency analysis, Join optimization (hash/nested-loop), Aggregation (denorm scans).[9]
+
+## Tools/Frameworks/Software
+| Tool | Use Case | Key Features |
+|------|----------|--------------|
+| DB Designer | Schema viz/normalization | ER diagrams, form checks [10] |
+| Liquibase/Flyway | Schema migrations | Normalize via versioning [7] |
+| dbt | Denorm analytics | Models, materialized views [11] |
+| Lucidchart/ER/Studio | Design/validation | Anomaly detection [10] |
+| PostgreSQL | Impl both | Window funcs for denorm [3] |
+
+## Key Highlights & Possible Interview Questions
+**Highlights**: Target 3NF baseline; denorm hotspots (reads>80%); manage anomalies via app logic/ETL; measure perf impact.[3][6]
+**Questions**: Design normalized OLTP → denorm OLAP pipeline? When violate 3NF? Impact on sharding?[1]
+
+## Concise Summary: Key Terms & Keywords
+- Normalization (1NF/2NF/3NF/BCNF), Denormalization, Anomalies (Insert/Update/Delete), Functional/Transitive Dependencies, Star/Snowflake Schema, Joins vs. Embeds, OLTP/OLAP, Materialized Views, ETL Hybrid.[2][3]
+
+[1](https://blog.devgenius.io/part-2-5-more-database-architecture-questions-every-software-architect-should-ask-but-still-most-08d413af748a)
+[2](https://www.geeksforgeeks.org/dbms/difference-between-normalization-and-denormalization/)
+[3](https://www.designgurus.io/answers/detail/what-is-sql-normalization-and-denormalization)
+[4](https://www.digitalocean.com/community/tutorials/database-normalization)
+[5](https://www.linkedin.com/pulse/normalization-vs-denormalization-netflix-example-every-pragya-jaiswal-3qjxf)
+[6](https://www.linkedin.com/posts/abhishekmohitedataengineer_bigdata-dataengineering-datawarehouse-activity-7344024202485641217-Q14i)
+[7](https://himalayas.app/interview-questions/database-designer)
+[8](https://en.wikipedia.org/wiki/Data_structure)
+[9](https://dzone.com/articles/5-common-data-structures-and-algorithms-used-in-ma)
+[10](https://www.puppygraph.com/blog/graph-database-modeling-tools)
+[11](https://airbyte.com/data-engineering-resources/data-denormalization)
+[12](https://www.linkedin.com/posts/krishna-prasad-sharma-7aa2576b_crackinganydatabaseinterview-databasetheory-activity-7367045280636022785-8bHi)
+[13](https://www.datacamp.com/blog/data-architect-interview-questions)
+[14](https://www.geeksforgeeks.org/system-design/guide-to-system-design-interview-for-senior-engineers/)
+[15](https://www.interviewbit.com/sql-interview-questions/)
+[16](https://upesonline.ac.in/blog/data-architect-interview-questions)
+[17](https://ai2sql.io/database-normalization-demystified-with-examples)
+[18](https://dev.to/somadevtoo/15-system-design-tradeoffs-for-software-developer-interviews-613)
+[19](https://seattledataguy.substack.com/p/normalization-vs-denormalization)
+[20](https://www.almabetter.com/bytes/cheat-sheet/dbms-cheat-sheet)
+[21](https://www.geeksforgeeks.org/dbms/introduction-of-database-normalization/)
+[22](https://www.educative.io/blog/amazon-system-design-interview-questions)

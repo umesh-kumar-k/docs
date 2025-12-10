@@ -1,0 +1,170 @@
+## Interview Summary
+Relational database design for system design interviews centers on modeling entities/relationships, choosing keys, normalizing to at least 3NF, and then layering indexes, caching, and scaling patterns (read replicas, sharding) to meet latency and throughput goals. Senior architects are expected to articulate trade-offs between strict relational guarantees (ACID, joins, constraints) and performance features (denormalization, caching, connection pooling) while tying every choice back to concrete access patterns and SLAs.[1][2][3][4]
+
+***
+
+## Keywords & Patterns
+- **Core Concepts**
+  - Tables, rows, columns, relations; primary key (PK), foreign key (FK), candidate key, composite key.[3][4]
+  - One-to-one, one-to-many, many-to-many relationships; junction/bridge tables for N:M.[3]
+  - Codd’s rules, relational model, SQL as the “complete” relational language.[4]
+
+- **Design Flow**
+  - Requirements → identify entities → attributes → PKs → relationships → normalize → indexing strategy → growth/scale plan.[5][3]
+  - Start from queries/access patterns, not tables in isolation (e.g., “list recent orders for customer” drives schema + indexes).[1]
+
+- **Normalization & Integrity**
+  - Aim for 3NF/BCNF in OLTP: remove repeating groups, partial dependencies, transitive dependencies.[2][6]
+  - Constraints: NOT NULL, UNIQUE, CHECK, FK for referential integrity.[4]
+  - Use transactions and isolation levels to preserve consistency under concurrency.[7]
+
+- **Performance & Scaling**
+  - Indexes: B‑tree (default), composite indexes aligned with WHERE/ORDER BY, covering indexes for hot queries.[8][2]
+  - Caching: application cache (Redis), query result cache, read-through/write-through/write-back patterns.[1]
+  - Scale-up (bigger box) vs scale-out: read replicas, sharding, partitioning, connection pooling.[9][1]
+
+- **Reliability**
+  - Backups, PITR, replication lag awareness, failover of primaries.[9]
+  - Schema migrations with forward/backward compatibility (blue/green, online DDL).[10]
+
+***
+
+## Common Trade-offs + Example Questions
+
+### Key Trade-offs
+- **Strict normalization vs performance**
+  - Pros: fewer anomalies, smaller storage, simpler writes, better concurrency.[6][2]
+  - Cons: more joins, query complexity, potential latency for read-heavy, high-traffic endpoints.[2]
+
+- **Relational features vs simplicity**
+  - Heavy FK/constraints give safety but can slow bulk loads and complex migrations at scale.[1]
+  - Dropping some FKs in favor of application-level checks yields performance but risks logical bugs.[1]
+
+- **Vertical vs horizontal scaling**
+  - Vertical: simpler but capped by hardware; horizontal: complex (sharding keys, cross-shard joins) but near-unbounded scale.[9][1]
+
+- **Cache vs DB truth**
+  - Aggressive caching reduces DB load but introduces staleness, cache-invalidation complexity, and potential inconsistency.[1]
+
+### Example Questions
+- Design the relational schema and indexes for an e-commerce system (users, products, orders, payments). Where would you denormalize and why?[11][2]
+- Your normalized DB has slow user dashboard queries; what options do you have (indexes, denormalization, caching, materialized views), and trade-offs of each?[8][2]
+- How would you shard a relational DB for a multi-tenant SaaS? How would you handle global queries across shards?[9][1]
+- When would you accept duplicate data across tables in an RDBMS, and how would you keep it consistent?[12]
+
+***
+
+## Use Cases
+
+- **OLTP line-of-business apps (banking, orders, billing)**  
+  - Normalized schema, strong constraints, well-designed indexes; transactions for correctness; occasional denormalized summary tables for reporting.[6][2]
+
+- **User-centric products (subscriptions, profiles, content)**  
+  - Relational base for accounts, permissions, billing; denormalized read models (e.g., “user dashboard” table) and caching for low latency.[10][1]
+
+- **Reporting & analytics on top of RDBMS**
+  - Normalized core with ETL into star/snowflake schemas; materialized views for aggregates (daily sales, active users).[2]
+
+- **Multi-tenant SaaS**
+  - Shared schema with tenant_id as part of PK vs database-per-tenant; trade-offs in isolation, noisy neighbors, and operations.[10][1]
+
+***
+
+## Big Tech / Engineering Blog References
+
+- **Shopify (MySQL at scale)**  
+  - Reports handling millions of writes/sec on MySQL 8 during Black Friday using careful schema design, indexing, and replication, plus caching layers.[9]
+
+- **Salesforce**  
+  - Describes relational DB as a “magician” that hides query-planning complexity; heavy use of multi-tenant schema patterns, indexing, and query optimization to support massive multi-tenant CRM workloads.[13]
+
+- **AWS RDS case studies**  
+  - Multiple customers tuning relational schemas, adding read replicas and caching to reduce latency and cost while meeting strict availability SLOs.[14][9]
+
+***
+
+## Cheat-sheet, Q&A Style
+
+- **Q: What are the core steps of relational database design?**  
+  - A: Identify entities/relationships → define PK/FK → normalize (to 3NF+) → define indexes based on queries → plan scaling (replicas/sharding) and caching.[3][2]
+
+- **Q: When do you denormalize a relational schema?**  
+  - A: For read-heavy, latency-sensitive queries where joins are the bottleneck and you can tolerate more complex writes/ETL to maintain duplicated data.[12][2]
+
+- **Q: How do you choose indexes?**  
+  - A: Start from top queries; index columns in predicates and joins; use composite indexes in the order of selectivity and WHERE/ORDER BY usage.[8][2]
+
+- **Q: What’s the role of foreign keys in large systems?**  
+  - A: Enforce integrity early and in smaller systems; at extreme scale, selectively drop FKs on hot paths and rely on strong application invariants and background checks.[1]
+
+- **Q: How do you scale a relational DB to millions of users?**  
+  - A: Optimize schema/indexes, add read replicas, introduce caching, and then shard by a stable key (e.g., tenant_id, user_id) while isolating cross-shard operations.[9][1]
+
+- **Q: When to move workload out of the RDBMS?**  
+  - A: When you need flexible schemas or analytical workloads unsuited to OLTP (move to OLAP warehouse / search / NoSQL while keeping RDBMS as source of truth).[12][2]
+
+***
+
+## Data Structures & Algorithms Involved
+
+- **Data structures**
+  - B‑tree and B+‑tree indexes for range scans, sorted retrieval, and most PK/FK indexing.[4][2]
+  - Hash indexes for exact lookups (engine-dependent); heap files and clustered indexes for table storage layouts.[4]
+  - Write-ahead logs (append-only files) and buffer pools (page caches) underneath transaction and recovery mechanisms.[15]
+
+- **Algorithms**
+  - Join algorithms: nested-loop join, hash join, merge join; cost-based query optimization to pick plans.[4]
+  - Index maintenance algorithms (rebalancing B-trees), transaction scheduling for isolation levels, and checkpointing + recovery.[15][2]
+  - Sharding/partitioning algorithms (hash/range partitioning) and load-balancing read queries across replicas.[1]
+
+***
+
+## Tools / Frameworks / Software
+
+| Tool / Tech | Purpose in RDBMS Design | Notes |
+|-------------|-------------------------|-------|
+| PostgreSQL, MySQL, SQL Server | Core relational engines | ACID, indexing, views, constraints; de facto choices for most designs.[4][9] |
+| ER/Modeling tools (e.g., Draw.io, Lucidchart, ER/Studio) | Schema & relationship design | Visual ERDs, normalization checks, documentation.[10] |
+| ORM frameworks (Hibernate, JPA, Sequelize) | Mapping domain models → RDBMS | Help enforce schema rules, relationships, migrations.[16] |
+| Connection pools (HikariCP, PgBouncer) | Efficient DB connections | Reduce overhead and improve throughput.[8] |
+| Caching layers (Redis, Memcached) | Offload reads from RDBMS | Store hot query results, session data, denormalized views.[1] |
+| Migration tools (Flyway, Liquibase) | Schema evolution | Versioned, repeatable changes, rollback options.[10] |
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- Relational model, table, row, column, relation.[4]
+- Primary key, foreign key, candidate key, composite key.[3]
+- One-to-one, one-to-many, many-to-many, junction table.[3]
+- Normalization (1NF, 2NF, 3NF, BCNF), denormalization, anomalies.[6][2]
+- Index, B‑tree/B+‑tree, composite index, covering index.[2][8]
+- Transaction, ACID, isolation level, lock, deadlock.[7]
+- Query optimizer, execution plan, join algorithms.[4]
+- Read replicas, sharding/partitioning, connection pooling, caching layer.[9][1]
+- OLTP vs OLAP, star schema, materialized view.[2]
+
+[1](https://hackernoon.com/the-system-design-cheat-sheet-relational-databases-part-1)
+[2](https://www.datacamp.com/tutorial/normalization-in-dbms)
+[3](https://www3.ntu.edu.sg/home/ehchua/programming/sql/Relational_Database_Design.html)
+[4](https://www.geeksforgeeks.org/dbms/relational-model-in-dbms/)
+[5](https://www.codecademy.com/learn/paths/full-stack-engineer-career-path/tracks/fscp-designing-relational-databases/modules/fscp-database-normalization/cheatsheet)
+[6](https://www.geeksforgeeks.org/dbms/normal-forms-in-dbms/)
+[7](https://www.almabetter.com/bytes/cheat-sheet/dbms-cheat-sheet)
+[8](https://www.linkedin.com/posts/alexxubyte_systemdesign-coding-interviewtips-activity-7292946390459035648-xzqW)
+[9](https://www.integrate.io/blog/database-replication-speed-metrics/)
+[10](https://www.knack.com/blog/how-to-design-an-effective-relational-database/)
+[11](https://www.geeksforgeeks.org/system-design/guide-to-system-design-interview-for-senior-engineers/)
+[12](https://dev.to/somadevtoo/15-system-design-tradeoffs-for-software-developer-interviews-613)
+[13](https://engineering.salesforce.com/the-architecture-files-ep-4-the-database-is-a-magician-b951945ea5b8/)
+[14](https://aws.amazon.com/blogs/database/category/case-study/)
+[15](https://cs186berkeley.net/notes/note14/)
+[16](https://blog.devgenius.io/part-2-5-more-database-architecture-questions-every-software-architect-should-ask-but-still-most-08d413af748a)
+[17](https://leetcode.com/discuss/study-guide/5362161/dbms-cheatsheet-part-3/)
+[18](https://jobbinge.in/dbms-cheat-sheet/)
+[19](https://www.rapydo.io/blog/relational-databases-in-the-near-and-far-future)
+[20](https://www.scribd.com/document/728280434/DBMS-Cheatsheet-withLinks-compressed)
+[21](https://neo4j.com/blog/graph-database/graph-database-use-cases/)
+[22](https://www.codecademy.com/learn/how-do-i-make-and-populate-my-own-database/modules/designing-a-database-schema/cheatsheet)
+[23](https://darrylt.me/blogs/cheat-sheets/cheatsheet-cpsc-304-relational-databases-mt1.pdf)
+[24](https://mrcet.com/downloads/digital_notes/ECE/III%20Year/DATABASE%20MANAGEMENT%20SYSTEMS.pdf)

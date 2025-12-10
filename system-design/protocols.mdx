@@ -1,0 +1,65 @@
+TCP (connection-oriented, reliable, ordered delivery via 3-way handshake/ACKs/retransmits) suits correctness-critical apps; UDP (connectionless, best-effort, low-overhead datagrams) prioritizes speed for real-time—architects choose based on tolerance for loss vs latency, often layering reliability on UDP (QUIC) for hybrid wins.[1]
+
+## Interview Summary
+- Core distinction: TCP = reliable stream (handshake → sequenced ACKed segments → graceful close); UDP = fire-and-forget datagrams (no connection/order/guarantees).[1]
+- Decision framework: Reliability/loss tolerance first → latency sensitivity → overhead budget; hybrid common (UDP + custom ACKs).[1]
+- System design flow: Profile app (order needed? loss OK?), measure baseline latency/jitter, pick protocol, add resilience (QUIC/TCP tuning/UDP reliability layer), test under loss.[1]
+
+## Keywords & Patterns (bullet-heavy)
+- TCP mechanics: 3-way handshake (SYN/SYN-ACK/ACK), sequence numbers, ACKs, retransmits (RTO), flow control (window), congestion control (slow start), 4-way close.[1]
+- UDP mechanics: datagram (self-contained), no handshake/ACK/order, minimal 8-byte header.[1]
+- Modern hybrids: QUIC (UDP+TCP reliability+multiplexing=HTTP/3), custom UDP reliability (game ACKs).[1]
+- Patterns: TCP tuning (buffer sizes, Nagle algo), UDP multicast, reliability layers (FEC/retransmits), QUIC 0-RTT.[1]
+- Metrics: latency (p99), jitter, packet loss %, throughput (Gbps), CPU overhead, connection setup time.[1]
+- Layer 4 role: process-to-process (ports), end-to-end vs IP host-to-host.[1]
+
+## Common Trade-offs + Example Questions
+- Trade-offs:  
+  - TCP: reliability/order vs higher latency (RTT*2+ for handshake/retransmits), head-of-line blocking.[1]
+  - UDP: low latency/overhead vs packet loss/ disorder/duplication handling.[1]
+  - QUIC: TCP features + speed vs deployment (UDP firewalls), complexity.[1]
+- Example questions:  
+  - "Live video streaming—TCP or UDP? Tradeoffs?".[1]
+  - "Design multiplayer FPS—handle loss/jitter?".[1]
+  - "HTTP/3 migration—QUIC vs TCP benefits?".[1]
+
+## Use Cases
+- TCP-dominant: Web (HTTP/1-2), APIs/REST, file transfer (FTP/SCP), databases (MySQL/Postgres), email (SMTP/IMAP).[1]
+- UDP-dominant: Video streaming (Netflix/DASH), VoIP (Zoom), gaming (position updates), DNS queries, live telemetry.[1]
+- Hybrid: QUIC/HTTP3 (Google/Cloudflare), games (UDP movement + TCP chat), WebRTC (UDP media + signaling).[1]
+
+## Big-Company Articles & Applications
+- Google QUIC→HTTP/3: 8% faster web globally; multiplexed streams eliminate HOL blocking, 0-RTT resumes cut latency.[1]
+- Netflix: UDP-based DASH streaming beats TCP buffering; custom reliability layer on UDP for adaptive bitrate.[1]
+- Cloudflare: QUIC deployment across 20M domains—3x connection migration success, massive mobile perf wins.[1]
+
+## Tools, Frameworks & Software Examples
+- TCP stacks: Linux kernel TCP (BBR/Cubic congestion), nginx (TCP proxy tuning), Wireshark (analysis).[1]
+- UDP apps: FFmpeg (streaming), GStreamer (media), QUIC (lsquic, msquic, quiche).[1]
+- Protocols: HTTP/3 (quiche), WebRTC (libwebrtc), gQUIC (old Google), Game engines (Unity Netcode=UDP+reliability).[1]
+- Testing: iperf3 (throughput), tc (loss/jitter simulation), QUIC Interop test suite.[1]
+
+## Cheat-sheet (Q&A Style)
+- Q: TCP handshake? A: SYN → SYN-ACK → ACK (3-way); close=FIN/ACK x2 (4-way).[1]
+- Q: UDP packet loss? A: App handles (ignore/retransmit/FEC); no built-in recovery.[1]
+- Q: Head-of-line blocking? A: TCP streams block on loss; QUIC/UDP streams independent.[1]
+- Q: Gaming choice? A: UDP (low jitter); TCP only critical messages.[1]
+- Q: Streaming choice? A: UDP (tolerate loss); adaptive bitrate masks drops.[1]
+- Q: QUIC advantages? A: UDP speed + TCP reliability + stream multiplexing + 0-RTT.[1]
+
+## Key Highlights / Possible Interview Questions / Tradeoffs
+- Highlights: UDP=80% faster setup, TCP=100% delivery; QUIC=modern sweet spot; measure your workload.[1]
+- Questions: "VoIP jitter mitigation?" / "TCP slow-start impact on APIs?" / "Scale WebRTC to 1M users?".[1]
+- Tradeoffs: Reliability vs latency; always profile—defaults often wrong for high-scale.[1]
+
+## Concise Summary (Important Terms & Keywords)
+- **Protocols**: TCP (connection-oriented, reliable, ordered), UDP (connectionless, best-effort, datagram)  
+- **TCP Features**: 3-way handshake, ACKs, sequence numbers, retransmits, flow/congestion control, 4-way close  
+- **UDP Features**: Minimal header, no guarantees, multicast support  
+- **Tradeoffs**: Reliability/latency, overhead/speed, HOL blocking  
+- **Modern**: QUIC (UDP+TCP features), HTTP/3, custom reliability layers  
+- **Use Cases**: TCP=web/API/DB, UDP=streaming/gaming/VoIP/DNS  
+- **Metrics**: RTT, jitter, packet loss, throughput, p99 latency  
+- **Tools**: nginx, FFmpeg, Wireshark, iperf3, lsquic/msquic[1]
+
+[1](https://algomaster.io/learn/system-design/tcp-vs-udp)

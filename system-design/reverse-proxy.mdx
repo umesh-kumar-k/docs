@@ -1,0 +1,90 @@
+Reverse proxies sit between clients and backend servers, forwarding requests while providing load balancing, caching, security (server hiding, DDoS mitigation), SSL termination, and routing—essential for scalable architectures; all load balancers and many API gateways are reverse proxies, but reverse proxies offer broader features like compression and A/B testing.[1]
+
+## Interview Summary
+
+- Core role: Intermediary that routes client requests to backends, hides server details, and optimizes traffic for performance/scalability/security.[1]
+- Decision triggers: High traffic (load distribution), read-heavy workloads (caching), microservices (routing/auth), security needs (DDoS/WAF), or global delivery (CDN).[1]
+- Architect flow: Define traffic patterns/SLOs → choose proxy type (L4/L7) → configure routing/load algorithms → add caching/SSL → monitor for bottlenecks → scale proxy cluster.[1]
+
+## Keywords & Patterns (bullet-heavy)
+
+- Core concepts: reverse proxy (server-side), forward proxy (client-side), SSL/TLS termination, server masking, request forwarding.[1]
+- Features: load balancing (round-robin, least connections), caching (static content, cache-aside), compression (gzip/brotli), rate limiting, A/B testing (traffic splitting), WAF (web app firewall).[1]
+- Patterns: API gateway (reverse proxy + auth/policy), CDN (global caching proxy), microservices gateway (routing + discovery), health checks (active/passive), sticky sessions.[1]
+- HTTPS handling: client-proxy TLS decrypt/re-encrypt or passthrough; backend often HTTP for perf.[1]
+- Observability: traffic logging, error rates, latency histograms, request tracing.[1]
+- Scaling: proxy clustering, autoscaling groups, anycast routing.[2]
+
+## Common Trade-offs + Example Questions
+
+- Trade-offs:
+  - Added latency (1-5ms) vs perf gains (caching 50-90% hit rate); single point of failure vs HA clustering complexity.[1]
+  - SSL termination (offloads CPU from backends) vs double encryption overhead.[1]
+  - Flexibility (custom routing) vs ops overhead (config management).[1]
+- Example questions:
+  - "How does a reverse proxy enable microservices scaling—tradeoffs?".[1]
+  - "Design URL-based routing for 10 services behind one endpoint.".[1]
+  - "Proxy bottlenecks during 10x traffic spike—mitigations?".[3]
+
+## Use Cases
+
+- High-traffic web (WordPress/e-commerce): caching static assets, load balancing, SSL offload.[1]
+- Microservices: centralized routing/auth/rate-limiting, hides internal topology.[1]
+- Security: DDoS filtering, IP masking, WAF before backends.[1]
+- Global apps: CDN edge caching, geo-routing, A/B testing.[1]
+- Monitoring: unified logging/traffic analytics across services.[1]
+
+## Big-Company Articles & Applications
+
+- Netflix: Uses NGINX/Zuul as reverse proxy for streaming traffic—handles millions of req/s, reduces latency via buffering tweaks, fault tolerance via failover; evolved to edge gateways for global routing.[4][2]
+- AWS: ALB/NLB as L7/L4 reverse proxies for traffic inversion, auto-scaling; used in hybrid setups for on-prem connectivity without firewall changes.[5]
+- Cloudflare: Acts as reverse proxy/CDN for DDoS mitigation/perf boosts across millions of sites.[2]
+
+## Tools, Frameworks & Software Examples
+
+- Core proxies: Nginx (high-perf config-driven), HAProxy (L4/L7 balancing), Apache (mod_proxy), Caddy (auto-HTTPS).[1]
+- Caching-focused: Varnish (HTTP accelerator).[1]
+- Enterprise: Envoy (service mesh proxy), Traefik (dynamic config).[6]
+- Cloud-managed: AWS ALB/API Gateway, GCP Load Balancer, Azure App Gateway.[5]
+- API gateways (enhanced proxies): Kong, Ambassador, AWS API Gateway.[1]
+
+## Cheat-sheet (Q&A Style)
+
+- Q: Reverse vs forward proxy? A: Reverse protects servers (hides backends); forward anonymizes clients.[1]
+- Q: Load balancer vs reverse proxy? A: All LBs are reverse proxies; proxies add caching/SSL/WAF.[1]
+- Q: API gateway vs reverse proxy? A: Gateway = proxy + API features (throttling, aggregation).[1]
+- Q: Single proxy failure? A: Cluster with HA (keepalives, health checks), DNS round-robin.[1]
+- Q: Caching pitfalls? A: Stale data (TTL/invalidation), cache stampede (probabilistic early refill).[1]
+- Q: HTTPS best practice? A: Terminate at proxy, HTTP to backends; passthrough for end-to-end TLS.[1]
+
+## Key Highlights / Possible Interview Questions / Tradeoffs
+
+- Highlights: Enables horizontal scaling via stateless routing; offload CPU-intensive tasks (SSL/caching); centralizes cross-cutting concerns.[1]
+- Questions: "Netflix-scale proxy for video streams?" / "Handle 1M RPS with <100ms P99?" / "Proxy + service mesh integration?".[4][2]
+- Tradeoffs: Complexity/cost rise with features; monitor proxy as new bottleneck.[3][1]
+
+## Concise Summary (Important Terms & Keywords)
+
+Reverse proxy, forward proxy, load balancing (round-robin/least conn), caching, SSL termination, compression, WAF, DDoS mitigation, rate limiting, A/B testing, traffic splitting, health checks, sticky sessions, API gateway, CDN, microservices routing, Nginx/HAProxy/Varnish/Caddy/Envoy, passthrough vs terminate TLS, single point of failure, proxy clustering.[1]
+
+[1](https://systemdesignschool.io/blog/reverse-proxy)
+[2](https://www.linkedin.com/pulse/reverse-proxies-behind-scenes-netflix-nginx-case-study-gaherwar-zntzf)
+[3](https://www.infoq.com/articles/scaling-reverse-proxies/)
+[4](https://netflixtechblog.com/pushy-to-the-limit-evolving-netflixs-websocket-proxy-for-the-future-b468bc0ff658)
+[5](https://aws.amazon.com/blogs/architecture/implementing-lightweight-on-premises-api-connectivity-using-inverting-traffic-proxy/)
+[6](https://www.youtube.com/watch?v=1B1Hr-lM7jg&vl=en)
+[7](https://netflixtechblog.com)
+[8](https://blog.algomaster.io/p/proxy-vs-reverse-proxy-explained)
+[9](https://dev.to/somadevtoo/10-things-you-can-learn-from-netflixs-architecture-1bnn)
+[10](https://systemdesignschool.io/blog/proxy-vs-reverse-proxy)
+[11](https://dev.to/karanpratapsingh/system-design-proxy-4e43)
+[12](https://www.linkedin.com/pulse/demystifying-proxies-managed-reverse-proxy-aws-alok-saraswat-vygrc)
+[13](https://deploy.equinix.com/blog/how-load-balancers-differ-from-reverse-proxies-and-when-to-use-each/)
+[14](https://github.com/donnemartin/system-design-primer)
+[15](https://www.reddit.com/r/aws/comments/1kmfun1/best_way_to_reverse_proxy_an_on_prem_application/)
+[16](https://www.ijcrt.org/papers/IJCRTBG02017.pdf)
+[17](https://interviewnoodle.com/system-design-basics-proxy-vs-reverse-proxy-90d48da385be)
+[18](https://www.geeksforgeeks.org/system-design/reverse-proxy-vs-load-balancer/)
+[19](https://blog.algomaster.io/p/load-balancer-vs-reverse-proxy-vs-api-gateway)
+[20](https://hectorproko.github.io/quartz/darey.io/Project15/Project15-AWS-CLOUD-SOLUTION-FOR-2-COMPANY-WEBSITES-USING-A-REVERSE-PROXY-TECHNOLOGY)
+[21](https://www.strongdm.com/what-is/reverse-proxy-vs-load-balancer)

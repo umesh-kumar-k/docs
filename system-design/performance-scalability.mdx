@@ -1,0 +1,82 @@
+Performance optimizations improve speed/latency for the current workload, while scalability ensures the system can grow (capacity/elasticity) without catastrophic degradation; design choices often trade one for the other, and an effective architect argues intent, quantifies targets, and chooses patterns (caching, sharding, stateless services, async queues) that meet product constraints.[1][2]
+
+## Interview summary
+- One-sentence framing: Performance = response speed/efficiency for current load; Scalability = ability to maintain acceptable performance as load increases.[3][1]
+- When to prioritize: pick performance for latency‑sensitive hot paths or early-stage MVPs; pick scalability for public APIs, spiky traffic, multi‑region or expected rapid growth.[1][3]
+- Key decision flow: define SLOs/SLAs and load targets → measure existing bottlenecks (latency/throughput) → decide vertical (perf) vs horizontal (scale) approach → select patterns/tools → iterate with capacity tests and monitoring.[3][1]
+
+## Keywords & patterns (bullet‑heavy)
+- Core terms: latency, throughput, QPS, P50/P95/P99, tail latency, resource utilization, elasticity, contention, bottleneck.[1][3]
+- Performance techniques: algorithmic optimization, profiling, native code / JIT tuning, in-memory caching (Redis, Memcached), connection pooling, query indexing, CDN, compression, batching, client‑side optimizations.[3][1]
+- Scalability techniques: horizontal scaling, stateless services, load balancers, sharding/partitioning, replication, eventual consistency, message queues (Kafka, RabbitMQ), autoscaling, service mesh for traffic control.[1][3]
+- Architecture patterns: cache‑aside, CQRS, bulkheads, circuit breaker, backpressure, throttling, leader election, consistent hashing, microservices vs modular monolith.[3][1]
+- Observability & testing: distributed tracing (OpenTelemetry), metrics (Prometheus), logs (ELK), load testing (k6, JMeter), chaos testing (Chaos Monkey).[1][3]
+- Quantification: capacity = users/sec or requests/sec; acceptable latency targets at P99; cost per request and cost/perf curve.[3][1]
+
+## Common trade‑offs + example questions
+- Trade‑offs (short):  
+  - Optimize single node (vertical) → better latency, higher per‑instance cost, limited headroom.[1]
+  - Scale horizontally → higher system complexity, cross‑node coordination, possible higher tail latency, but near‑unlimited capacity.[3][1]
+  - Strong consistency → simpler correctness, harder to scale/perform at global scale; eventual consistency → better scale/availability, more complex correctness handling.[3]
+- Example interview prompts:  
+  - "Design a read‑heavy social feed for 100M users — how are performance vs scalability balanced?".[1][3]
+  - "A checkout process must be sub‑200ms — which layers get priority and what sacrifices are acceptable?".[1]
+  - "Traffic spikes 10x during events — outline a design to survive spikes while minimizing cost.".[3]
+
+## Use cases (where one dominates)
+- Performance‑first: real‑time trading, ad bidding, game servers, payment authorization — low latency critical.[1]
+- Scalability‑first: social networks, analytics platforms, multi‑tenant SaaS, global APIs — capacity and availability critical.[3]
+- Mixed: e‑commerce checkout (latency for checkout flow; scalability for catalog & search) — split responsibilities and apply hybrid patterns (hot path optimized, cold path scalable).[1][3]
+
+## Big‑company articles that applied these ideas
+- Google / YouTube / Netflix engineering blogs regularly discuss moving work from vertical optimization into distributed architectures and tradeoffs around caching, sharding, and eventual consistency; those posts illustrate prioritizing tail‑latency and sharding strategies for scale.[2][3]
+- Case notes: Netflix on chaos engineering & resilience (improves scalability/availability under failure), Google on Spanner (global consistency vs latency tradeoffs) — both used to justify architecture shifts toward scalable, resilient platforms.[2][3]
+
+## Tools, frameworks and software examples
+- Caching: Redis, Memcached.[1]
+- Message buses/streaming: Kafka, RabbitMQ, Kinesis.[3]
+- Datastore scaling: MySQL sharding, CockroachDB, Cassandra, Spanner for geo scalability.[3]
+- Load balancing & autoscale: Nginx/Envoy, AWS ALB + EC2 autoscaling or Kubernetes HPA/VPA.[3]
+- Observability: Prometheus, Grafana, OpenTelemetry, Jaeger, ELK stack.[1][3]
+- Testing: k6, JMeter, Gatling, Locust; chaos tools: Chaos Monkey/Gremlin.[3]
+
+## Cheat‑sheet (Q&A style)
+- Q: What’s the difference between performance and scalability? A: Performance = speed for current load; scalability = ability to keep performance acceptable as load grows.[1]
+- Q: When to vertical vs horizontal scale? A: Vertical for short‑term perf boosts; horizontal for long‑term capacity and fault isolation.[1][3]
+- Q: How to quantify the tradeoff? A: Define SLOs (latency percentiles), estimate QPS at target scale, measure current capacity, and compute cost/perf curves.[3]
+- Q: How to avoid premature scaling complexity? A: Optimize hot paths, add caching, measure; introduce distributed complexity only when justified by growth forecasts.[1]
+- Q: Quick checklist for a design interview? A: Requirements (SLOs, load), data access patterns, bottleneck analysis, choose patterns (cache, shard, queue), recovery/failover, monitoring plan, cost estimate.[3][1]
+
+## Key highlights / possible interview questions / tradeoffs
+- Highlights: always quantify targets; separate hot vs cold paths; prefer stateless services for easy horizontal scaling; use async queues to decouple and improve both throughput and resilience.[1][3]
+- Possible interview follow‑ups: "How does caching affect cache stampede?" / "How to shard when access patterns change?" / "How to keep P99 latency low while scaling writes?".[3][1]
+- Typical tradeoffs: complexity vs cost vs latency vs consistency — call them out with numbers in interviews (e.g., P99 ≤ 200ms vs target 1M QPS).[3]
+
+## Compact summary (all important terms & keywords)
+Latency, throughput, QPS, P50/P95/P99, tail latency, vertical scaling, horizontal scaling, stateless, sharding/partitioning, replication, eventual consistency, strong consistency, cache‑aside, CDN, message queue, backpressure, autoscaling, load balancing, bulkhead, circuit breaker, profiling, capacity planning, cost/perf curve, observability (tracing/metrics/logs), chaos testing.[1][3]
+
+References: GeeksforGeeks — Performance vs Scalability in System Design.[1]
+Alokai — Performance vs Scalability blog.[2]
+
+If a compact one‑page PDF formatted for repeated spaced‑repetition reading is needed, confirm and a condensed 1‑page version optimized for Obsidian flashcards can be produced.
+
+[1](https://www.geeksforgeeks.org/system-design/performance-vs-scalability-in-system-design/)
+[2](https://www.linkedin.com/pulse/performance-vs-scalability-system-design-in-depth-analysis-firoz-khan-iifmc)
+[3](https://grokkingthesystemdesign.com/blog/performance-vs-scalability-system-design/)
+[4](https://www.geeksforgeeks.org/system-design/tradeoffs-in-system-design/)
+[5](https://www.youtube.com/watch?v=IDAf1D0HIOg)
+[6](https://www.linkedin.com/pulse/performance-vs-scalability-system-design-hari-mohan-prajapat-vc6mc)
+[7](https://dev.to/parulchaddha/scalability-vs-performance-16ab)
+[8](https://vahid.blog/post/2021-07-02-scalability-vs-performance/)
+[9](https://nerohoop.gitbooks.io/system-design/content/system-design-and-scalability/performance-vs-scalability.html)
+[10](https://akashrajpurohit.com/blog/performance-vs-scalability-understanding-the-key-differences/)
+[11](https://dev.to/decoders_lord/system-design-performance-scalability-latency-and-throughput-652)
+[12](https://blog.professorbeekums.com/performance-vs-scalability/)
+[13](https://www.dynatrace.com/resources/ebooks/javabook/performance-and-scalability/)
+[14](https://www.linkedin.com/posts/usealokai_learn-about-the-efficiency-and-scalability-activity-7252322927843373056-b97m)
+[15](https://www.youtube.com/watch?v=wJfI7VnyYPY)
+[16](https://www.alooba.com/skills/concepts/scalability-and-performance-163/)
+[17](https://blog.kundansingh.com/2010/09/scalability-vs-performance.html?m=0)
+[18](https://www.linkedin.com/posts/usealokai_frontend-performance-usecase-activity-7280961135153979392-i_dI)
+[19](https://powercommerce.com/bs/blogs/ecommerce-hub/unlocking-e-commerce-performance-a-comprehensive-review-of-alokai)
+[20](https://www.reddit.com/r/programming/comments/1m1hujc/scalability_is_not_performance/)

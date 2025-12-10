@@ -1,0 +1,174 @@
+Load balancers distribute traffic across multiple backend instances to improve availability, performance, and scalability, while reverse proxies and API gateways are broader front‑door components that can include load balancing plus additional routing, security, and API‑specific concerns. For interviews, be precise about L4 vs L7 load balancers, static vs dynamic algorithms, and how an LB differs from a reverse proxy and an API gateway in scope and capabilities.[1][2][3][4]
+
+***
+
+## Compact interview summary
+
+- **Load balancer (LB)**: Component that spreads incoming traffic across a pool of servers so no single instance is overloaded, often performing health checks and failover.[2][4]
+- **Types of load balancers (by OSI layer)**:  
+  - L4: routes based on IP/port and TCP/UDP info, fast and lightweight, content‑agnostic.[5][4][2]
+  - L7: uses HTTP/HTTPS headers, URLs, cookies, etc., to do content‑based routing, smarter policies, and often acts like a reverse proxy.[6][2]
+- **Algorithms**: Cloudflare and others group them into static (e.g., round robin, weighted) and dynamic (e.g., least connections, resource‑based, latency‑based) strategies.[1][2]
+- **Reverse proxy vs load balancer vs API gateway**:  
+  - Reverse proxy: single entry point in front of one or more servers, doing caching, TLS termination, header rewriting; may or may not balance load.[3][6]
+  - Load balancer: primarily concerned with distributing traffic and health‑based failover; may be implemented as a reverse proxy or as a lower‑level L4 device.[2][3]
+  - API gateway: specialized L7 reverse proxy for APIs that adds authentication, rate limiting, request shaping, versioning, and often protocol translation.[7][3]
+
+***
+
+## Keywords & patterns
+
+### Types of load balancers
+
+- **By layer**[4][5][2]
+  - Layer 4 (transport): routes based on IP + port, TCP/UDP; high performance, lower visibility into app‑level data.  
+  - Layer 7 (application): aware of HTTP(S), gRPC, WebSockets; can route by path/host/header/cookie, do SSL termination, compression, and caching.  
+  - Global / DNS‑level (GSLB): uses DNS or global routing service to steer traffic between regions or data centers.  
+
+- **By deployment**  
+  - Hardware LB appliances (e.g., F5 BIG‑IP).[4]
+  - Software LBs / proxies: Nginx, HAProxy, Envoy, Traefik.[6]
+  - Managed cloud LBs: AWS ALB/NLB, GCP Cloud Load Balancing, Azure Load Balancer, Cloudflare Load Balancing.[8][9]
+
+### Load‑balancing algorithms (Cloudflare + interview guides)
+
+- **Static algorithms**[1][2]
+  - Round robin: each new request goes to the next server in order.  
+  - Weighted round robin: use weights to send more traffic to stronger servers.  
+  - IP hash / session affinity: hash client IP (or cookie) so sessions stick to same server.  
+
+- **Dynamic algorithms**[2][1]
+  - Least connections: send to server with fewest active connections.  
+  - Least response time / latency‑based: send to endpoints that respond fastest.  
+  - Resource‑based / custom: use CPU, queue depth, or health probes to decide.  
+
+- **Advanced / multi‑site**[8][1]
+  - Geo‑based routing: route based on user location.  
+  - Failover: primary/secondary pools; automatic removal of unhealthy nodes.  
+  - Traffic shaping: weighted regional distribution for migrations or canaries.  
+
+### Hackernoon cheat‑sheet distinctions
+
+- **Forward proxy**: sits in front of clients, hides client identity from servers, used for outbound access control and caching; not a load balancer.[3]
+- **Reverse proxy**: sits in front of servers, hides server topology from clients, can:  
+  - Terminate TLS.  
+  - Cache responses.  
+  - Rewrite URLs/headers.  
+  - Forward to a single service or load balance across several.[6][3]
+- **Load balancer**:  
+  - Focus: distributing requests and maintaining availability via health checks and failover.[3][2]
+  - May be:  
+    - L4 only, without HTTP awareness.  
+    - L7, built as a reverse proxy.  
+- **API gateway**:  
+  - Focus: managing APIs for many services.[7][3]
+  - Common features: auth (OAuth/JWT), rate limiting, quota, API keys, request/response transformation, versioning, multi‑tenancy, routing to microservices.  
+
+***
+
+## Common trade‑offs + example questions
+
+### Trade‑offs
+
+- **L4 vs L7**[5][4][2]
+  - L4 pros: higher throughput, lower latency, simpler; cons: cannot make content‑aware decisions (e.g., route `/images` vs `/api`).  
+  - L7 pros: smart routing, can do auth, TLS offload, caching; cons: more CPU‑intensive, more complex, potential single point for app‑layer vulnerabilities.  
+
+- **Static vs dynamic algorithms**[1][2]
+  - Static (round robin, weighted): easy to reason about but can mis‑route during uneven load or slow nodes.  
+  - Dynamic (least connections, latency): better utilization and user experience but require active health checks/metrics and more complex implementation.  
+
+- **Reverse proxy LB vs dedicated API gateway**[7][3]
+  - Reverse proxy LB: great for web traffic distribution and TLS termination.  
+  - API gateway: adds cross‑cutting concerns for microservices, but can become a central choke point or monolith if overloaded with logic.  
+
+- **Centralization vs resilience**  
+  - Pushing all external traffic through one LB/gateway simplifies control and security but creates a critical dependency and must be made highly available (multi‑instance, multi‑AZ).  
+
+### Example interview questions
+
+- “Explain L4 vs L7 load balancers and when you would choose each.”[4][2]
+- “Compare round‑robin, least connections, and IP‑hash algorithms; what are their failure modes?”[1]
+- “How is a reverse proxy different from a load balancer? Can one component be both?”[6][3]
+- “What does an API gateway add on top of a basic load balancer in a microservices environment?”[3][7]
+- “Design load balancing for a global web application; which layers (DNS/GSLB, L4, L7) do you use and why?”[8][2]
+
+***
+
+## Use cases
+
+- **Classic web/app tier scaling**  
+  - Put an L7 reverse‑proxy LB (Nginx/HAProxy/ALB) in front of multiple app servers; use round‑robin or least‑connections, health checks, and sticky sessions if needed.[2][6]
+
+- **High‑performance, protocol‑agnostic services**  
+  - Use L4 LB (e.g., NLB, F5 L4) for TCP services like databases, message queues, or custom binary protocols where per‑packet overhead must be minimal.[5][4]
+
+- **Global, multi‑region setup**  
+  - Combine GSLB or Cloudflare Load Balancing (geo/latency‑based routing) with regional L7 LBs; DNS or anycast steers to nearest region, regional LBs distribute among instances.[8][1]
+
+- **Microservices APIs**  
+  - Use an API gateway (Kong, Apigee, AWS API Gateway, Istio ingress) as external entry point offering auth, throttling, and routing to microservices, with internal L7 LBs between services.[7][3]
+
+Big‑company blog angle: Cloudflare’s documentation highlights dynamic, health‑based, geo‑ and latency‑aware load balancing on a global anycast network, and F5’s glossary stresses L4 vs L7 roles and how enterprises use hardware/software LBs to scale applications reliably.[4][8][1]
+
+***
+
+## Cheat‑sheet, Q&A style
+
+**Q1. One‑line definitions?**  
+- Load balancer: distributes incoming traffic across multiple servers to improve availability and performance.[2][4]
+- Reverse proxy: sits in front of backend servers, terminates client connections, optionally caches and routes requests (may also do load balancing).[6][3]
+- API gateway: L7 reverse proxy focused on APIs, adding auth, rate limiting, and API management features on top of routing.[3][7]
+
+**Q2. L4 vs L7 LB?**  
+L4 uses IP/port and TCP/UDP info only; it is fast and content‑agnostic; L7 understands HTTP(S) and can route based on URL, headers, cookies, and perform TLS offload and request shaping.[5][4][2]
+
+**Q3. Common algorithms to name in interviews?**  
+Round robin, weighted round robin, IP hash (for sticky sessions), least connections, least response time/latency, and health‑based failover.[1][2]
+
+**Q4. When to use static vs dynamic algorithms?**  
+Static algorithms are fine when backends are homogeneous and stable; dynamic algorithms are better when load, capacity, and health vary significantly across instances or regions.[2][1]
+
+**Q5. Can a reverse proxy be a load balancer?**  
+Yes; many L7 load balancers (Nginx, HAProxy, Envoy, Cloudflare) are implemented as reverse proxies that also perform load distribution, TLS termination, and caching.[6][3]
+
+**Q6. Why use an API gateway instead of just an L7 LB?**  
+To centralize cross‑cutting concerns for APIs—authentication, authorization, quotas, rate limiting, request/response transformation, monitoring, and versioning—rather than implementing them in each service or generic LB.[7][3]
+
+**Q7. How do you make load balancers themselves highly available?**  
+Run multiple instances across zones/regions, use anycast/DNS for fronting, and health‑check and failover between LB instances; treat the LB tier as stateless where possible.[8][2]
+
+**Q8. Example tools to name‑drop?**  
+Cloudflare Load Balancing, AWS ALB/NLB, GCP Load Balancing, Azure Load Balancer, F5 BIG‑IP / NGINX Plus, Nginx/HAProxy/Envoy/Traefik, Kong/Apigee/AWS API Gateway for API gateways.[9][6][2]
+
+***
+
+## Concise terms & keywords summary
+
+- Load balancer, L4 LB, L7 LB, GSLB.[5][4][2]
+- Algorithms: round robin, weighted, IP hash, least connections, latency‑based, health‑based.[1]
+- Reverse proxy, forward proxy, API gateway; TLS termination, caching, header rewriting, session affinity.[3][7][6]
+- Health checks, failover, geo/latency routing, anycast, DNS‑based LB, managed cloud LB services.[8][2][1]
+
+These are the key hooks and distinctions to recall quickly when load balancing, proxies, or API gateways come up in senior‑level system‑design interviews.
+
+[1](https://www.cloudflare.com/learning/performance/types-of-load-balancing-algorithms/)
+[2](https://igotanoffer.com/blogs/tech/load-balancing-system-design-interview)
+[3](https://hackernoon.com/the-network-system-design-cheat-sheet-load-balancer-reverse-proxy-forward-proxy-api-gateway)
+[4](https://www.f5.com/glossary/layer-4-load-balancing)
+[5](https://www.geeksforgeeks.org/system-design/layer-4l4-layer-7l7-and-gslb-load-balancers/)
+[6](https://www.javacodegeeks.com/2024/03/three-titans-clash-api-gateway-reverse-proxy-and-load-balancer.html)
+[7](https://www.geeksforgeeks.org/system-design/api-gateway-vs-load-balancer-vs-reverse-proxy/)
+[8](https://developers.cloudflare.com/load-balancing/)
+[9](https://www.techtarget.com/searchcloudcomputing/answer/What-are-the-different-types-of-cloud-load-balancing)
+[10](https://www.youtube.com/watch?v=yjD136piimk)
+[11](https://devopsden.hashnode.dev/how-cloudflare-handles-load-balancing)
+[12](https://www.loadbalancer.org/blog/comparing-layer-4-layer-7-and-gslb-load-balancing-techniques/)
+[13](https://www.geeksforgeeks.org/system-design/load-balancing-using-cloudflare/)
+[14](https://www.geeksforgeeks.org/system-design/load-balancer-system-design-interview-question/)
+[15](https://convesio.com/knowledgebase/article/the-ultimate-guide-to-cloudflare-load-balancing/)
+[16](https://hackernoon.com/the-system-design-cheat-sheet-networks)
+[17](https://igotanoffer.com/blogs/tech/system-design-interview-tips)
+[18](https://www.youtube.com/watch?v=X73g2DjVwV4)
+[19](https://www.tryexponent.com/blog/load-balancers-system-design-interview)
+[20](https://www.f5.com/pt_br/glossary/layer-4-load-balancing)

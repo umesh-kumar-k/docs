@@ -1,0 +1,177 @@
+Database replication copies data across multiple database nodes to improve availability, fault tolerance, and read scalability, but introduces consistency and complexity trade-offs that senior architects must reason about explicitly. Interview focus is on when and how to use single-leader, multi-leader, and leaderless replication; sync vs async; and how replication interacts with caching, sharding, and failure modes.[1][2][3]
+
+***
+
+## Keywords & Patterns
+
+- **Core concepts**
+  - Replication: keeping multiple database copies in sync for reads, HA, and disaster recovery.[2][4]
+  - Leader / follower (master / replica), multi-leader, leaderless (e.g., Dynamo-style, Cassandra).[3][5][1]
+  - Synchronous, asynchronous, semi-synchronous replication; replication lag.[6][7][2]
+
+- **Replication models**
+  - **Single-leader (primary–replica)**: one write node, many read replicas; followers replay leader’s log or binlog.[1][2]
+  - **Multi-leader**: multiple regions/leaders accept writes, replicate to each other; conflict resolution required.[3][1]
+  - **Leaderless**: any node can accept reads/writes; quorum (R/W/N) and hinted handoff/repair for consistency.[8][5]
+
+- **Granularity & topology**
+  - Full, partial (table/row-level), filtered/column replication; same-region vs cross-region; active–passive vs active–active.[9][4]
+  - Log-based (CDC from WAL/binlog), trigger-based, snapshot + incremental streaming.[10][8][6]
+
+- **Consistency behavior**
+  - Strong vs eventual consistency; read-your-writes, monotonic reads, monotonic writes, consistent prefix.[5][8]
+  - Conflict handling: last-write-wins, version vectors, custom merge logic (e.g., CRDT-like for counters).[11][8]
+
+***
+
+## Common Trade-offs + Example Questions
+
+### Key trade-offs
+
+- **Sync vs async replication**
+  - Synchronous: stronger consistency, lower RPO, but higher write latency and risk of availability loss on replica failure.[7][2][6]
+  - Asynchronous: low write latency, tolerant of slow replicas, but risk of data loss on leader crash (lag window).[12][2]
+
+- **Single-leader vs multi-leader vs leaderless**
+  - Single-leader: simple mental model, easy constraints, but write bottleneck and potential cross-region latency.[13][1]
+  - Multi-leader: better write locality across regions but complex conflict resolution and schema changes.[1][3]
+  - Leaderless: high availability and horizontal scale but complex consistency tuning, repair, and client logic.[8][5]
+
+- **Replication vs partitioning**
+  - Replication duplicates same data for availability/reads; sharding spreads different data for write scale.[5]
+  - Many large systems use both: within-shard replication for HA, cross-shard partitioning for scale.[13][5]
+
+### Example interview questions
+
+- Design database replication for a global read-heavy product catalog with strict durability but relaxed read consistency. What model and sync/async mode would you choose and why?[4][1]
+- How would you handle leader failure in a primary–replica setup? Describe promotion, failover, and dealing with potentially lost writes.[2][7]
+- Compare multi-region multi-leader vs single global leader with read replicas for a social network write path.[13][1]
+- For a leaderless store like Dynamo/Cassandra, how do you choose N, R, W, and what consistency guarantees do you get?[8][5]
+
+***
+
+## Use Cases
+
+- **Read-heavy web applications (dashboards, profiles, feeds)**  
+  - Single-leader with multiple read replicas behind a read-aware load balancer; async replication acceptable; possibly region-local replicas for latency.[2][1]
+
+- **Multi-region low-latency writes (collaboration, messaging)**  
+  - Multi-leader replication where each region writes locally, with conflict resolution and eventual convergence; e.g., chat or docs edited globally.[3][5][1]
+
+- **Internet-scale key-value and event stores**  
+  - Leaderless replication with quorums (Dynamo/Cassandra-style) for high availability and tunable consistency.[5][8]
+
+- **Analytics and search offloading**  
+  - Log-based CDC from OLTP DB to downstream warehouse/search index to reduce load and improve query performance.[14][10][8]
+
+***
+
+## Big Tech / Engineering Blog References
+
+- **Datadog** – low-latency CDC replication  
+  - Replicates PostgreSQL data into a search platform via a CDC pipeline, reducing page load times by up to ~97% and keeping replication lag around hundreds of milliseconds.[14]
+
+- **Bolt (ride-hailing)** – log-based replication to Kafka  
+  - Migrated from ad-hoc polling to binlog-based replication into Kafka + ksqlDB, improving reliability and real-time analytics across OLTP sources.[10]
+
+- **Societe Generale (financial)** – global async replication  
+  - Built a platform that replicates data asynchronously across global regions (Paris, New York, London, Hong Kong) to keep trading and reporting systems in sync with low downtime.[10]
+
+- **Retail / social media examples**  
+  - Amazon, Facebook, Twitter replicate databases across regions to maintain availability and fast local reads under heavy load.[4]
+
+***
+
+## Cheat-Sheet, Q&A Style
+
+- **Q: What is database replication and why is it used?**  
+  - A: Copying data from one database node to others to improve availability, read scalability, and disaster recovery (lower RPO/RTO).[4][2]
+
+- **Q: Single-leader vs multi-leader vs leaderless?**  
+  - Single-leader: one write node, simple, great for most OLTP.  
+  - Multi-leader: multiple write nodes (often per-region), needs conflict resolution.  
+  - Leaderless: any node can serve reads/writes with quorum-based consistency.[1][8][5]
+
+- **Q: Synchronous vs asynchronous replication?**  
+  - Sync: leader waits for replica ACK, strong consistency, higher latency, reduced availability.  
+  - Async: leader returns once local commit is done, lower latency, but recent writes can be lost on leader crash.[6][12][2]
+
+- **Q: How does replication improve read performance?**  
+  - Offloads reads from the primary and serves them from geo-distributed replicas; can co-locate replicas close to users.[4][1]
+
+- **Q: What is replication lag and why does it matter?**  
+  - Delay between primary commit and replica applying it; affects read-your-writes, cross-node consistency, and failover correctness.[2][4]
+
+- **Q: How do you handle conflicts in multi-leader or leaderless setups?**  
+  - Last-write-wins (timestamps), version vectors, or domain-specific merge rules (e.g., “max”, “sum”, or CRDT-like data types).[11][8]
+
+- **Q: How is replication different from backup?**  
+  - Replication keeps live copies in sync for availability; backups are point-in-time snapshots used for long-term recovery and corruption scenarios.[2][4]
+
+- **Q: How does CDC-based replication work?**  
+  - Reads change logs (binlog/WAL) from the source DB, streams them to consumers (e.g., Kafka), and applies changes downstream without hitting the primary with polling queries.[14][8][10]
+
+***
+
+## Data Structures & Algorithms Used
+
+- **Data structures**
+  - **Write-ahead / binary logs**: append-only log of changes used as replication stream (e.g., MySQL binlog, PostgreSQL WAL).[6][14]
+  - **Replication queues**: in-memory or durable queues/buffers holding log entries per replica.[12][8]
+  - **Version metadata**: timestamps, logical sequence numbers (LSN), vector clocks for ordering and conflict detection.[7][11][6]
+
+- **Algorithms**
+  - **Log shipping & replay**: sequentially apply log records on followers to reach leader’s state.[6][2]
+  - **Leader election**: consensus-based (Raft/Paxos/Zab) or system-specific methods to pick a new leader on failure.[13][5]
+  - **Quorum protocols**: choose N, R, W such that R + W > N for strong-ish guarantees; used in leaderless stores.[8][5]
+  - **Catch-up and snapshotting**: create point-in-time snapshot + apply logs from a recorded LSN/binlog position until follower catches up.[12][10][6]
+  - **Conflict resolution**: last-write-wins (compare timestamps/LSN), or vector-clock-based resolution and CRDT merge for complex state.[11][8]
+
+***
+
+## Tools / Frameworks / Software
+
+| Tool / Tech | Role in Replication | Notes |
+|-------------|---------------------|-------|
+| **PostgreSQL streaming replication / logical replication** | Primary–replica, logical CDC | Sync/async streaming; logical slots for selective / cross-version replication.[6][14] |
+| **MySQL replication (binlog)** | Leader–follower and multi-source | Async by default, semi-sync options; widely used in web-scale stacks.[2][6] |
+| **AWS RDS/Aurora replication** | Managed multi-AZ, read replicas | Cross-AZ + cross-region replicas; failover automation.[15][4] |
+| **Kafka + Debezium / CDC connectors** | Log-based replication out of DBs | Stream binlog/WAL changes into Kafka for analytics/search/microservices.[8][10] |
+| **Cassandra / DynamoDB** | Built-in leaderless replication | Tunable consistency via quorum reads/writes, hinted handoff, repair.[8][5] |
+| **Vitess, Patroni, Orchestrator** | MySQL/Postgres HA and failover orchestration | Automated promotion, topology management on leader failure.[13] |
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- Database replication, primary–replica, leader–follower.[1][2]
+- Multi-leader replication, active–active, conflict resolution.[3][1]
+- Leaderless replication, Dynamo/Cassandra, quorum (N, R, W).[5][8]
+- Synchronous, asynchronous, semi-synchronous replication; replication lag.[7][6][2]
+- Full / partial / filtered replication; log-based (CDC), snapshot + incremental, trigger-based.[9][10][8]
+- Read scalability, high availability (HA), disaster recovery (DR), RPO, RTO.[10][4]
+- Write-ahead log, binlog coordinates, LSN, catch-up, snapshot.[12][6]
+- Leader election, failover, promotion, split-brain risks.[13][5]
+- Consistency levels: strong vs eventual, read-your-writes, monotonic reads, consistent prefix.[8][5]
+
+[1](https://www.designgurus.io/blog/database-replication)
+[2](https://www.geeksforgeeks.org/system-design/database-replication-and-their-types-in-system-design/)
+[3](https://fredkamau.com/posts/database-replication/)
+[4](https://rivery.io/data-learning-center/complete-guide-to-data-replication/)
+[5](https://hayksimonyan.substack.com/p/database-replication-and-sharding)
+[6](https://swsmile.info/post/architecture-leader-based-replication/)
+[7](https://dev.to/the_infinity/database-replication-encyclopaedia-single-leader-replication-13-2l5c)
+[8](https://dev.to/karanpratapsingh/system-design-database-replication-26ld)
+[9](https://www.geeksforgeeks.org/system-design/strategies-of-database-replication-system-design/)
+[10](https://estuary.dev/blog/data-replication-strategies/)
+[11](https://blog.bytebytego.com/p/data-replication-a-key-component)
+[12](https://jbcodeforce.github.io/data/data-replication/)
+[13](https://www.karanpratapsingh.com/courses/system-design/database-replication)
+[14](https://www.datadoghq.com/blog/engineering/cdc-replication-search/)
+[15](https://aws.amazon.com/blogs/database/category/case-study/)
+[16](https://www.designgurus.io/answers/detail/what-is-database-replication-and-how-does-it-improve-reliability-and-read-performance)
+[17](https://www.youtube.com/watch?v=bI8Ry6GhMSE)
+[18](https://www.integrate.io/blog/database-replication-speed-metrics/)
+[19](https://www.youtube.com/watch?v=iSwbaHJmrhg)
+[20](https://netflixtechblog.com/building-a-resilient-data-platform-with-write-ahead-log-at-netflix-127b6712359a)
+[21](https://www.youtube.com/watch?v=WG6k74VSOOU)

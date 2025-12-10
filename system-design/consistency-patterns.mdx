@@ -1,0 +1,235 @@
+Consistency patterns describe how and when updates become visible across replicas in a distributed system, trading strict correctness for availability, latency, and scalability. For interviews, focus on strong vs eventual vs weak consistency plus linearizability and causal consistency, and be explicit about which parts of the system use which model and why.[1][2]
+
+***
+
+## Compact interview summary
+
+- **Why consistency patterns matter**  
+  Replication, sharding, and multi–data‑center setups make it hard to keep every copy of data perfectly in sync, so systems deliberately choose different consistency models per use case.[2][1]
+  At a high level, you choose along a spectrum: strong/linearizable → causal → eventual → weak, balancing user‑visible correctness vs availability, latency, and cost.[3][1]
+
+- **Core models**  
+  - **Strong consistency**: every read sees the latest write; usually synchronous replication and single‑leader flows.[1][2]
+  - **Eventual consistency**: replicas may be temporarily stale, but if no new updates occur they converge to the same value.[4][5][1]
+  - **Weak consistency**: best‑effort propagation; no guarantee when reads will see the latest write.[1]
+  - **Linearizability**: a strict form of strong consistency where operations appear to execute atomically in real time.[6][1]
+  - **Causal consistency**: respects cause‑and‑effect order (e.g., reply after post) while allowing unrelated operations to be seen in different orders; sits between strong and eventual.[7][1]
+
+***
+
+## Keywords & patterns
+
+### Global vocabulary
+
+- Consistency model  
+- Strong consistency / atomic consistency  
+- Linearizability  
+- Sequential consistency (often mentioned alongside)  
+- Causal consistency  
+- Eventual consistency  
+- Weak consistency  
+- Stale reads / inconsistency window  
+- CAP theorem (C, A, P – pick any two under partitions)[8][5][1]
+
+### Strong consistency & linearizability
+
+- Synchronous replication  
+- Single‑leader (primary) for reads and writes  
+- Quorum protocols  
+- Consensus (Paxos, Raft) for replicated logs  
+- Use cases: banking, monetary balances, inventory with strict guarantees, ID uniqueness, many relational DB workloads, Google Spanner/Bigtable.[9][2][1]
+
+### Eventual & weak consistency
+
+- Asynchronous replication  
+- Inconsistency window (time until replicas converge)[5][4]
+- Convergence, conflict resolution, last‑write‑wins, CRDTs  
+- Use cases: DNS, search indexes, social feeds, S3‑style object stores, comment counts, analytics.[2][4][9][1]
+- Weak consistency: write‑behind cache, lossy streaming, telemetry and backups where some loss is acceptable.[1]
+
+### Causal consistency
+
+- Causality, happens‑before relations  
+- Vector clocks / version vectors  
+- Per‑user or per‑session order guarantee (e.g., replies follow posts, messages appear in sent order).[10][7][1]
+- Use cases: comment threads, chat conversations, collaborative editing ordering.[1]
+
+### Supporting patterns
+
+- Leader–follower and multi‑leader replication  
+- Quorum reads/writes (e.g., R+W > N vs R=1/W=1 etc.)  
+- Write‑behind cache (weak consistency)  
+- Read‑repair, anti‑entropy, background reconciliation (eventual consistency)[11][2]
+- Distributed consensus / transaction protocols (2PC, Paxos, Raft) for strong consistency zones.[2][1]
+
+***
+
+## Trade‑offs + example questions
+
+### Key trade‑offs
+
+- **Strong / linearizable consistency**  
+  - Pros: simple app logic, users always see the latest state, good for invariants and financial correctness.[2][1]
+  - Cons: higher latency, lower throughput, reduced availability during partitions; often single‑leader or quorum based.[6][1]
+
+- **Eventual consistency**  
+  - Pros: very high availability and scalability, low latency for writes/reads, good for geo‑distributed systems.[4][5][1]
+  - Cons: temporary staleness, potential conflicts, more complex client logic to tolerate or repair inconsistencies.[12][1]
+
+- **Weak consistency**  
+  - Pros: ultra‑low latency, resilient to lossy networks, simple in high‑throughput, best‑effort contexts.  
+  - Cons: data loss and divergence are possible and expected; unsuitable for critical data.[1]
+
+- **Causal consistency**  
+  - Pros: preserves intuitive user‑facing order where it matters (cause→effect) while allowing high concurrency elsewhere.[10][1]
+  - Cons: more complex metadata (vector clocks), overhead vs plain eventual consistency.  
+
+### Example senior‑level questions
+
+- “Explain strong vs eventual vs weak consistency with concrete system examples and when you would use each.”  
+- “For a social network with likes, comments, and balances for ad billing, which parts need strong consistency and which can be eventual?”  
+- “Describe causal consistency and give an example where eventual consistency alone would create a bad UX.”  
+- “How would you design a write‑behind caching layer and what consistency risks does it introduce?”  
+
+***
+
+## Use cases (by model)
+
+From the articles and well‑known systems:[5][4][2][1]
+
+- **Strong / linearizable**  
+  - Banking and financial account balances.  
+  - Relational DB transactions where invariants must always hold.  
+  - ID uniqueness (usernames, primary keys).  
+  - Configuration values where conflicting reads can break the system (feature gates controlling critical behavior).  
+  - Google Spanner (globally consistent SQL) and Bigtable strong consistency.[9][1]
+
+- **Eventual consistency**  
+  - DNS propagation, TTL‑based updates.  
+  - Search index updates; user sees slightly stale search results.  
+  - Object storage (S3), user uploads and analytics where a short delay is fine.[9][1]
+  - Social feeds, likes, view counters, recommendation signals.  
+
+- **Weak consistency**  
+  - Live video / audio streaming (lost frames or packets not retransmitted).  
+  - Real‑time games and VoIP: prioritize timeliness over exact correctness.  
+  - Write‑behind caches and async backup pipelines.[1]
+
+- **Causal consistency**  
+  - Comment threads (replies after parent), chat timelines, issue tracking events.[7][1]
+  - Some “lightweight transaction” features in distributed DBs (e.g., Cassandra LWT at causal levels).  
+
+***
+
+## References & big‑company material
+
+- **Werner Vogels – Eventually Consistent (Amazon)**: classic article explaining eventual consistency and the idea of “inconsistency window” vs user‑perceived consistency in Amazon’s infrastructure and S3‑style systems.[8][4][9]
+- **Designing Data‑Intensive Applications (Kleppmann)**: widely cited for consistency model taxonomy and trade‑offs; referenced by the systemdesign.one article.[1]
+- **AWS / Dynamo‑style systems**: eventual consistency and quorum configuration; forms basis of many NoSQL stores powering Amazon‑scale workloads.[13][9]
+- **Distributed databases blogs** (e.g., Aerospike, etc.) discussing implementing strong consistency or strong eventual consistency at scale.[14][6]
+
+Mention lines like: “As Vogels describes for Amazon’s systems, you often optimize the inconsistency window so it’s smaller than the time until a user’s next read, which is a practical way to exploit eventual consistency without hurting UX.”[8][5]
+
+***
+
+## Tools / frameworks / systems that embody these patterns
+
+- **Strong/linearizable**  
+  - Google Spanner, Etcd, Consul (via consensus), ZooKeeper coordination data.[15][16][9]
+  - Many SQL databases in single‑region setups.  
+
+- **Eventual / causal**  
+  - Amazon Dynamo‑style stores, Apache Cassandra, Riak (tunable consistency, eventual by default).[17][13][1]
+  - S3, DynamoDB eventually consistent reads (where configured).  
+
+- **Weak**  
+  - Redis write‑behind cache patterns.  
+  - Kafka‑based pipelines where consumers accept lag and possible loss in edge cases.  
+
+These can be name‑dropped as examples when asked “which systems implement which model.”  
+
+***
+
+## Cheat‑sheet Q&A
+
+**Q1. What are the main consistency models you should know?**  
+Strong (often linearizable), eventual, weak, and causal consistency, plus awareness of linearizability as the strictest variant and causal as a middle ground between strong and eventual.[6][2][1]
+
+**Q2. When would you choose strong consistency?**  
+When correctness of each read is critical (money, invariants, config that can bring down the system), and you can afford higher latency and potentially reduced availability during failures.[2][1]
+
+**Q3. When is eventual consistency appropriate?**  
+When short‑term staleness is acceptable and you care more about availability, low latency, and geo‑distribution—social features, counters, recommendations, logs, DNS, and object storage.[4][5][1]
+
+**Q4. What is causal consistency and where is it useful?**  
+Causal consistency ensures that operations with cause‑effect relationships are seen in the same order everywhere (e.g., reply after post), while allowing unrelated operations to be seen in different orders, which preserves intuitive UX with better availability than full strong consistency.[7][10][1]
+
+**Q5. How does weak consistency differ from eventual consistency?**  
+Eventual consistency guarantees convergence if the system is idle long enough; weak consistency does not guarantee when or if replicas converge, making it suitable only for best‑effort, lossy scenarios like streaming and some caches.[18][1]
+
+**Q6. How do you choose a consistency model in system design?**  
+Identify data that must never be stale (balances, critical config) and keep that in strong/linearizable zones; for the rest, decide whether causal or eventual is enough and design replication, caching, and user flows around the acceptable inconsistency window.[5][2][1]
+
+***
+
+## Concise terms & keywords summary (for quick skim)
+
+**General**  
+- Consistency model  
+- CAP theorem  
+- Inconsistency window  
+- Replication (sync/async)  
+- Quorum  
+
+**Strong / linearizable**  
+- Strong consistency  
+- Linearizability / atomic consistency  
+- Single leader  
+- Synchronous replication  
+- Consensus (Paxos, Raft)  
+
+**Eventual / weak**  
+- Eventual consistency  
+- Stale read  
+- Convergence  
+- Asynchronous replication  
+- Read‑repair, anti‑entropy  
+- Weak consistency  
+- Write‑behind cache  
+
+**Causal & others**  
+- Causal consistency  
+- Vector clocks / version vectors  
+- Happens‑before, causality  
+- Sequential consistency (contrast)  
+
+**Systems / examples**  
+- Spanner, Bigtable (strong)  
+- Dynamo, Cassandra, S3 (eventual/tunable)  
+- DNS, search index, social feeds (eventual)  
+- Live games, VoIP, streaming, cache (weak)  
+- Reddit threads, chat, collaborative editing (causal)  
+
+
+[1](https://systemdesign.one/consistency-patterns/)
+[2](https://www.designgurus.io/blog/consistency-patterns-distributed-systems)
+[3](https://en.wikipedia.org/wiki/Consistency_model)
+[4](https://www.allthingsdistributed.com/2007/12/eventually_consistent.html)
+[5](https://www.allthingsdistributed.com/2008/12/eventually_consistent.html)
+[6](https://www.baeldung.com/cs/eventual-consistency-vs-strong-eventual-consistency-vs-strong-consistency)
+[7](https://en.wikipedia.org/wiki/Causal_consistency)
+[8](https://www.infoq.com/news/2008/01/consistency-vs-availability/)
+[9](https://dl.acm.org/doi/abs/10.1145/1466443.1466448)
+[10](https://learningdaily.dev/introduction-to-consistency-models-for-system-design-bc20beef843f)
+[11](https://www.geeksforgeeks.org/system-design/consistency-patterns/)
+[12](https://newsletter.systemdesigncodex.com/p/eventual-consistency-is-tricky)
+[13](https://blog.algomaster.io/p/strong-vs-eventual-consistency)
+[14](https://aerospike.com/blog/implementing-strong-consistency-in-distributed-database-systems/)
+[15](https://developers-heaven.net/blog/case-study-apache-zookeeper-etcd-for-distributed-coordination/)
+[16](https://ezyinfra.dev/blog/raft-algo-backup-etcd)
+[17](https://www.geeksforgeeks.org/system-design/consistency-in-system-design/)
+[18](https://codeburst.io/consistency-guarantees-in-distributed-systems-explained-simply-720caa034116)
+[19](https://www.designgurus.io/answers/detail/how-to-understand-eventual-consistency-in-distributed-systems)
+[20](https://www.geeksforgeeks.org/system-design/eventual-consistency-in-distributive-systems-learn-system-design/)
+[21](https://blog.devtrovert.com/p/3-consistency-patterns-strong-eventual)
+[22](https://blog.csdn.net/icycolawater/article/details/7282363)

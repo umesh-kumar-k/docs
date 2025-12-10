@@ -1,0 +1,141 @@
+Event‑driven messaging with Kafka uses append‑only topics as the backbone for services to publish “facts that happened” and “current state,” enabling loosely coupled microservices, replayable streams, and high‑throughput async communication. In interviews, focus on topic and event design (entity vs event topics, keys, schemas), partitioning and ordering, consumer groups, and trade‑offs versus request/response or traditional queues in terms of coupling, consistency, latency, and observability.[1][2][3][4]
+
+***
+
+## Keywords & Patterns
+
+- **Core Kafka EDA concepts**  
+  - Producers, consumers, topics, partitions, consumer groups, offsets.[2][5]
+  - Topics as ordered logs; partitions for parallelism; consumer groups for load balancing.[3][2]
+  - Event as “state change” or “fact that something happened.”[6][3]
+
+- **Topic design patterns (Stack Overflow blog)**  
+  - **Entity topics** – “current state of X” (compactable, key = entity id, one record per entity).[1]
+  - **Event topics** – “X happened” (immutable history of events, often many per entity).[1]
+  - **Request–response topics** – async APIs: request topic (“please do X”) and response topic (“X has been done”).[1]
+
+- **Event modeling patterns**  
+  - Fact vs delta: full state events vs partial updates.[7][3]
+  - Internal vs external events (inside vs outside service boundaries).[6][7]
+  - Single vs multiple event types per topic; envelope events vs one topic per event type.[8][9][1]
+
+***
+
+## Common Trade‑offs + Example Questions
+
+### Trade‑offs
+
+- **Entity vs event topics**  
+  - Entity topics (compacted): easy to get latest state, smaller storage; but less suited for audit/temporal analysis.[1]
+  - Event topics: perfect for audit, debugging, replays, projections; require more storage and careful schema evolution.[3][1]
+
+- **Granularity of topics**  
+  - One topic per entity type vs per event type vs per service; fine‑grained topics give type‑safety but increase operational complexity; coarse‑grained topics simplify infra but complicate consumers and can hurt ordering semantics.[9][10][11]
+
+- **Ordering vs parallelism**  
+  - More partitions → more parallelism, but ordering only within a partition (per key); fewer partitions keep stronger ordering but may bottleneck throughput.[12][3]
+
+- **Coupling vs discoverability**  
+  - Rich event payloads (many fields) reduce downstream lookups but increase coupling and risk of schema drift.[7][1]
+
+### Example interview questions
+
+- How would you design Kafka topics for an order management system (entity vs event topics, keys, partitions)?[3][1]
+- When would you use entity topics with compaction vs pure event topics in a microservice architecture?[4][1]
+- For a multi‑tenant SaaS, how would you partition Kafka topics to balance isolation, ordering, and throughput?[5][3]
+- Design an async API using Kafka (request/response topics). How do you correlate requests and responses and handle failures?[3][1]
+
+***
+
+## Use Cases
+
+- **Async APIs and microservices**  
+  - Services publish domain events (e.g., OrderCreated, PaymentCaptured) and react to them to update local stores, send notifications, and trigger workflows.[4][3][1]
+
+- **CQRS and projections**  
+  - Use event topics to build read models and materialized views (e.g., user dashboards, search indexes) asynchronously.[5][3]
+
+- **Audit, compliance, and debugging**  
+  - Event topics provide immutable history; consumers can replay to reproduce bugs or rebuild state.[6][3][1]
+
+- **Real‑time analytics and streaming**  
+  - Kafka topics feed stream processors (Kafka Streams, Flink) for aggregations, anomaly detection, and data pipelines into warehouses/lakes.[5][3]
+
+- **Big‑tech / engineering blog examples**  
+  - Stack Overflow describes using Kafka topics (entity/event/request‑response) to decouple services and support async APIs across their platform.[13][1]
+  - Confluent and others document large enterprises using Kafka as the central event bus for microservices and real‑time analytics (payments, retail, IoT).[6][5][3]
+
+***
+
+## Cheat‑sheet, Q&A Style
+
+- **Q: What is event‑driven architecture with Kafka?**  
+  - A: A pattern where services publish events to Kafka topics and other services subscribe and react, using Kafka’s log as the backbone for async communication and state propagation.[3][6]
+
+- **Q: Entity topics vs event topics?**  
+  - A: Entity topics hold latest state per key and are usually compacted; event topics hold immutable facts (“X happened”) and support replay and auditing.[1]
+
+- **Q: How do you choose topic granularity?**  
+  - A: Default to one topic per entity type or domain aggregate, and consider separate topics for high‑value event types; avoid extremes of a single topic for everything or a topic per tiny event unless justified.[10][9][1]
+
+- **Q: How do you guarantee ordering where it matters?**  
+  - A: Use partition keys (e.g., `orderId`, `userId`) so all events for an aggregate go to the same partition, which preserves per‑key order.[8][3]
+
+- **Q: How are async APIs built on Kafka?**  
+  - A: Producers send requests to a request topic with correlation IDs; consumers process and write responses to a response topic keyed by correlation ID; callers track responses via consumer groups or reply queues.[3][1]
+
+- **Q: When is Kafka a bad idea?**  
+  - A: For low‑volume, simple request/response RPC where HTTP/REST or gRPC is simpler; or when strong transactional semantics across multiple services are required synchronously.[14][4]
+
+***
+
+## Data Structures & Algorithms
+
+- **Data structures**  
+  - Append‑only partition logs segmented into files with index metadata (offset → file position).[5][3]
+  - In‑memory indexes and consumer offset stores (Kafka internal topics) for tracking progress.[5][3]
+
+- **Algorithms**  
+  - Partition assignment and consumer group rebalancing (range, round‑robin, sticky strategies) to distribute partitions among consumers.[5][3]
+  - Log compaction for entity topics (keeping latest record per key) vs retention‑time/size deletion for event topics.[1][3]
+  - Exactly‑once or effectively‑once semantics via idempotent producers and transactional writes for some use cases.[6][3]
+
+***
+
+## Tools / Frameworks / Software
+
+- Apache Kafka and compatible platforms (Confluent, Redpanda) as the core event bus.[3][5]
+- Kafka Streams, ksqlDB, Flink, Spark Streaming for processing and projections.[5][3]
+- Schema Registry (Avro/JSON Schema/Protobuf) for evolving event schemas safely.[6][3]
+- Connectors (Kafka Connect) to integrate DBs, queues, and external systems into the event‑driven backbone.[3][5]
+
+***
+
+## Concise Summary: Important Terms & Keywords
+
+- Event‑driven architecture, domain events, event storming.[6][3]
+- Kafka topics, partitions, keys, consumer groups, offsets.[2][5]
+- Entity topics, event topics, request‑response topics; compaction vs retention.[1][3]
+- Fact vs delta events, internal vs external events, event schemas.[7][1]
+- Topic design and naming conventions, partitioning strategy, ordering vs parallelism.[11][12][1]
+
+[1](https://stackoverflow.blog/2022/07/21/event-driven-topic-design-using-kafka/)
+[2](https://estuary.dev/blog/kafka-event-driven-architecture/)
+[3](https://dzone.com/articles/building-an-event-driven-architecture-using-kafka)
+[4](https://www.prodyna.com/insights/event-driven-architecture-and-kafka)
+[5](https://www.redpanda.com/guides/kafka-use-cases-event-driven-architecture)
+[6](https://www.confluent.io/learn/event-driven-architecture/)
+[7](https://www.youtube.com/watch?v=zOWJ5hAcp9Y)
+[8](https://stackoverflow.com/questions/66983382/event-sourcing-with-kafka)
+[9](https://stackoverflow.com/questions/44625192/apache-kafka-for-inter-microservice-communication-at-what-level-to-map-topics-t)
+[10](https://www.reddit.com/r/apachekafka/comments/m5dtn5/kafka_topic_strategy/)
+[11](https://www.confluent.io/learn/kafka-topic-naming-convention/)
+[12](https://www.gravitee.io/blog/guide-on-kafka-topic-creation-setup-to-automation)
+[13](https://stackoverflow.blog/kafka/)
+[14](https://www.infosys.com/iki/techcompass/microservice-communication.html)
+[15](https://stackoverflow.com/questions/61702954/keeping-services-in-sync-in-a-kafka-event-driven-backbone)
+[16](https://blog.nashtechglobal.com/event-driven-architecture-using-kafka/)
+[17](https://solace.com/event-driven-architecture-patterns/)
+[18](https://hevodata.com/learn/kafka-event-driven-architecture/)
+[19](https://www.youtube.com/watch?v=inXS5XEYGnc)
+[20](https://fenilsonani.com/articles/event-driven-architecture-kafka)

@@ -1,0 +1,246 @@
+---
+title: "High Availability (HA)"
+description: "Concise reference for designing highly available systems: definitions, core principles, strategies, trade‑offs, tools, and interview‑ready cheat sheets."
+notes: |
+    - Audience: system designers, SREs, and candidates preparing for system-design interviews.
+    - Purpose: serve as an Obsidian/MDX-friendly HA section with quick checklists, implementation concerns, and sample questions.
+    - Usage tips:
+        - Start answers by stating SLO/SLA targets (nines) and acceptable RTO/RPO.
+        - Walk through failure modes, redundancy, detection, and failover sequence when designing.
+        - Keep cost/complexity trade-offs explicit.
+    - Tags: [high-availability, HA, reliability, scalability, SRE, system-design]
+---
+
+
+High availability (HA) for interviews boils down to: design so that no single failure meaningfully affects user-visible uptime, while meeting clear “nines” goals and business cost constraints.[1]
+
+***
+
+## Core HA definitions and “nines”
+
+- High availability: ability of a system to stay operational and accessible despite failures, measured as uptime percentage over a period (e.g., 99.9%, 99.99%).[1]
+- Goal: minimize both planned and unplanned downtime by removing single points of failure (SPOFs), adding redundancy, and automating detection and recovery.[1]
+- Distributed angle: HA must cover node failures, network partitions, zone outages, traffic spikes, and maintenance events while still delivering acceptable performance.[1]
+
+**Skimmable formula you can memorize**
+
+- Availability = uptime / (uptime + downtime), expressed as a percentage.[1]
+- In interviews, always pair "nines" with SLOs/SLA wording: "We target 99.99% availability for the core read API; writes can be at 99.9% due to maintenance windows."
+
+***
+
+## Fundamental principles (for mental checklist)
+
+Think “HA = scalability + reliability + operations maturity”.[1]
+
+- Scalability:  
+  - Horizontal scaling (add nodes) vs vertical scaling (bigger nodes); prefer horizontal for HA because it naturally introduces redundancy.[1]
+  - Use load balancing, partitioning, caching, and DB optimization so failure of one node does not overload the remaining ones.[1]
+
+- Reliability:  
+  - Design for failure: every dependency can fail, so use fault-tolerant architectures (replication, clusters, retries with backoff, idempotency).[1]
+  - Error handling: log, degrade gracefully, and provide fallbacks instead of hard failure paths.[1]
+  - Monitoring: detect anomalies early and auto-remediate if possible (autoscaling, restart, failover).[1]
+
+Use this as a 10‑second pre‑answer checklist: “SPOFs? Redundancy? Failover? Load path? Data path? Monitoring? Ops?”
+
+***
+
+## Core HA strategies (interview-ready bullets)
+
+You can treat these as “15 strategies” compressed into 7 buckets.[1]
+
+### 1. Redundancy and replication
+
+- Duplicate critical components (stateless services, databases, caches, queues) so any single instance can fail without user impact.[1]
+- Replicate data (sync or async) so loss of a node or zone does not lose data or make it unavailable.[1]
+
+Key trade‑offs:  
+- Synchronous replication → better RPO/RTO, but higher latency and tighter coupling.  
+- Asynchronous replication → better latency and throughput, but risk of data loss on failover.
+
+### 2. Load balancing
+
+- Distribute requests across multiple backend instances to avoid hotspots and allow instance failure without downtime.[1]
+- Use L4/L7 load balancers with health checks and intelligent algorithms (round robin, least connections, weighted). NGINX, HAProxy, Envoy, or cloud LBs are typical choices.[2][3]
+
+Key trade‑offs:  
+- Simpler algorithms vs more stateful ones (session affinity, consistent hashing) which improve UX but complicate failure handling.  
+- Centralized LB as SPOF vs using redundant LBs and DNS‑based or VIP‑based failover.[4]
+
+### 3. Failover clustering
+
+- Cluster a set of nodes so if the active node fails, a standby takes over automatically (for DBs, message brokers, etc.).[1]
+- DB example: primary + multiple standbys with an orchestrator (e.g., PostgreSQL plus repmgr or pg_auto_failover) that promotes a standby on primary failure.[5][6]
+
+Key trade‑offs:  
+- Active‑passive: simpler, cheaper, but waste of standby capacity and non‑zero failover time.  
+- Active‑active: better resource use and faster recovery, but harder consistency and conflict management.
+
+### 4. Distributed data storage
+
+- Store and replicate data across multiple nodes and often multiple regions or availability zones.[1]
+- Strategies: sharding, multi‑AZ deployments, multi‑region active‑active or active‑passive topologies.[1]
+
+Key trade‑offs:  
+- Strong consistency vs eventual consistency; cross‑region latency vs durability.  
+- Write‑local/read‑global patterns vs fully global consensus (Paxos/Raft) with higher latency.
+
+### 5. Health monitoring and alerts
+
+- Continuous health checks at multiple layers: instance, process, endpoint, and user‑level SLOs.[1]
+- Automated alerts on error rate, latency, saturation, and resource usage; tie to on‑call processes and runbooks.[1]
+
+Key trade‑offs:  
+- Too sensitive health checks → flapping and unnecessary failovers.  
+- Too lenient → slow detection and longer outages.
+
+### 6. Regular maintenance and updates
+
+- Patch and upgrade proactively to reduce security incidents and software bugs that can cause outages.[1]
+- Use rolling deployments, blue‑green, or canary releases to keep services available during changes.[1]
+
+Key trade‑offs:  
+- Faster change velocity vs stability.  
+- Operational complexity of sophisticated rollouts vs simpler, riskier all‑at‑once changes.
+
+### 7. Geographic distribution
+
+- Deploy across multiple AZs/regions so a zone or regional failure does not fully take down the system.[1]
+- Use DNS‑level routing (GeoDNS, latency‑based routing), global load balancers, and region‑aware data replication.[1]
+
+Key trade‑offs:  
+- Multi‑region strongly consistent writes are expensive (latency, complexity).  
+- Active‑active multi‑region read/write vs “primary region + DR region” with simpler failover but longer RTO.
+
+***
+
+## Implementation concerns and common pitfalls
+
+From the article’s “choosing strategy” and “challenges” sections:[1]
+
+- Selection factors:  
+  - Criticality: healthcare/finance may require immediate failover and near‑zero data loss; internal tools can tolerate more downtime.[1]
+  - Scale: strategies must scale as traffic and data volume grow (LB capacity, replication topology, DB sharding).[1]
+  - Budget: redundancy and clustering cost money (extra hardware, licenses, cross‑region traffic). Cloud managed services can offset operational cost but add lock‑in.[1]
+  - Performance: some HA techniques add latency (sync replication, cross‑region calls, encryption, complex routing).[1]
+
+- Typical challenges:  
+  - Complexity: clusters, multi‑region routing, failover logic, and data replication increase operational complexity.[1]
+  - Cost: duplicated infra, underutilized standby capacity, and cross‑region networking bills.[1]
+  - Performance trade‑offs: replication overhead, quorum protocols, extra hops through proxies/LBs.[1]
+
+- Lessons from failure case in article:  
+  - Poorly tested failover clustering led to prolonged downtime at a financial institution; lack of rigorous testing, maintenance, and clear failover runbooks.[1]
+  - Takeaway: test failovers regularly (game days), document procedures, and ensure monitoring covers the failover path, not just the happy path.[1]
+
+***
+
+## Tools, frameworks, and platforms (with example references)
+
+You can drop a few concrete names in interviews to signal real‑world experience.
+
+### Load balancers and API gateways
+
+- NGINX / NGINX Plus: HTTP/TCP load balancing with multiple algorithms, health checks, and HA using keepalived and VRRP/VIP.[2][4]
+- HAProxy: high‑performance L4/L7 load balancer widely used for HA frontends.[7]
+- Envoy / Istio: service mesh data plane providing resilient traffic routing, retries, circuit breaking, and mTLS between services, improving availability in microservices.[8]
+
+### Orchestration and cluster‑level HA
+
+- Kubernetes:  
+  - Achieves HA through multiple replicas (Deployments/StatefulSets), pod rescheduling across nodes, service‑level load balancing, and multi‑AZ clusters.[9][10]
+  - HA control plane setups use multiple API servers and etcd instances across zones; kubeadm and managed clusters document recommended HA topologies.[11][10]
+
+### Databases and storage
+
+- PostgreSQL:  
+  - Built‑in replication and HA approaches: streaming replication, synchronous replication, log‑shipping, hot standby.[6]
+  - Tooling: repmgr, pg_auto_failover, and Postgres Automatic Failover (PAF) automate monitoring and failover.[12][5]
+
+- Distributed stores:  
+  - Systems like Cassandra, CockroachDB, and YugabyteDB use replication, quorum reads/writes, and multi‑region topologies specifically to offer HA under node and zone failures.[13]
+
+### Cloud‑native HA
+
+Most major cloud providers offer managed HA patterns:  
+
+- AWS:  
+  - Multi‑AZ RDS, cross‑region read replicas, global DynamoDB tables; NLB/ALB plus auto scaling; NGINX Plus HA reference architectures on AWS Network Load Balancer.[14]
+- GCP/Azure: similarly provide multi‑zone/region options and managed LB/DBs with built‑in failover.[15][11]
+
+***
+
+## Big‑company tech blog / doc references you can name‑drop
+
+These are useful to mention in interviews and good for deeper reading:
+
+- PostgreSQL documentation: “High Availability, Load Balancing, and Replication” (covers standby servers, replication modes, HA options).[6]
+- Kubernetes docs: “Creating Highly Available Clusters with kubeadm” and ecosystem blogs on multi‑AZ / multi‑region clusters.[10][11]
+- Various vendor and cloud docs on NGINX/HAProxy HA with keepalived, VIPs, and AWS NLB.[4][14]
+- Blogs and guides on PostgreSQL HA tooling and trade‑offs (synchronous vs async replication, orchestrators).[5][13][12]
+
+Use lines like: “For example, the PostgreSQL HA chapter and kubeadm HA guide recommend multi‑AZ control planes with etcd replicated across zones.”
+
+***
+
+## Interview‑oriented “cheat sheet” highlights
+
+You can treat this as a pre‑interview skim section.
+
+**Core sound bites**
+
+- “HA is about minimizing downtime by removing single points of failure and automating failover, guided by business SLOs and cost/performance trade‑offs.”[1]
+- “HA design is incomplete without strong observability, operational processes, and regular failover testing.”[1]
+- “Every redundancy mechanism introduces complexity and cost; design for the minimum HA level that meets business impact tolerance.”[1]
+
+**Concepts to quickly recall**
+
+- Nines of availability and rough downtime budgets.  
+- Horizontal vs vertical scaling for HA.  
+- Active‑active vs active‑passive clusters.  
+- Synchronous vs asynchronous replication.  
+- Multi‑AZ vs multi‑region strategies.  
+- Health checks, circuit breakers, retries, and backoff.  
+- Rollout strategies: rolling, blue‑green, canary.
+
+***
+
+## Sample interview questions (with implicit trade‑offs)
+
+Use these to practice your own structured answers:
+
+1. **Define high availability and how you would measure it for an API serving user traffic globally.**  
+2. **Design a highly available read‑heavy service (e.g., product catalog) that must survive an AZ failure. Discuss load balancing, data replication, and failover flows.**  
+3. **You have a primary database and two replicas across regions. How do you design failover, and what are your trade‑offs between consistency, RPO, and RTO?**  
+4. **Explain the difference between high availability and fault tolerance, and give examples of when you would choose one over the other.**  
+5. **How would you achieve high availability for a stateful service running on Kubernetes? Talk about pods, PVCs, and cluster topology.**  
+6. **Describe a time when a failover strategy failed. What went wrong (e.g., configuration, monitoring, testing), and how would you redesign it?**  
+7. **Your system currently runs single‑region, single‑AZ. The business wants 99.99% availability. What changes would you propose, and what are the cost and complexity implications?**  
+
+When answering, explicitly call out: failure modes considered, redundancy design, detection and failover sequence, and trade‑offs in cost, complexity, latency, and consistency.
+
+***
+
+
+[1](https://www.designgurus.io/blog/high-availability-system-design-basics)
+[2](https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/)
+[3](http://nginx.org/en/docs/http/load_balancing.html)
+[4](https://docs.nginx.com/nginx/admin-guide/high-availability/ha-keepalived/)
+[5](https://scalegrid.io/blog/managing-high-availability-in-postgresql-part-1/)
+[6](https://www.postgresql.org/docs/current/high-availability.html)
+[7](https://www.tencentcloud.com/techpedia/102117)
+[8](https://www.xcubelabs.com/blog/high-availability-kubernetes-architecting-for-resilience/)
+[9](https://k21academy.com/docker-kubernetes/high-availability-and-scalable-application-in-kubernetes/)
+[10](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/)
+[11](https://trilio.io/kubernetes-disaster-recovery/kubernetes-high-availability/)
+[12](https://www.pgedge.com/blog/postgresql-high-availability-strategies-tools-best-practice)
+[13](https://www.yugabyte.com/postgresql/postgresql-high-availability/)
+[14](https://docs.nginx.com/nginx/deployment-guides/amazon-web-services/high-availability-network-load-balancer/)
+[15](https://kubeops.net/blog/achieving-high-availability-in-kubernetes-clusters)
+[16](https://docs.nginx.com/nginx/admin-guide/high-availability/ha-keepalived-nodes/)
+[17](https://www.linkedin.com/pulse/ultimate-guide-high-availability-load-balancing-nginx-govind-yadav-x1ctf)
+[18](https://nginx.org/en/docs/http/load_balancing.html)
+[19](https://www.youtube.com/watch?v=jxFHRu_5zpg)
+[20](https://www.enterprisedb.com/postgres-tutorials/postgresql-replication-and-automatic-failover-tutorial)
+[21](http://chakray.com/nginx-high-availability-through-keepalived-virtual-ip/)

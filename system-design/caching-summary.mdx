@@ -1,0 +1,113 @@
+---
+name: Caching Summary
+description: Concise guide to caching and distributed caching concepts, strategies, trade‑offs, and interview‑focused Q&A for designing scalable, low‑latency systems.
+---
+
+
+Below is a compact “keywords sheet” for Caching & Distributed Caching, optimized for quick skims and recall before interviews.[1]
+
+***
+
+## Core concepts
+
+- Cache  
+- Distributed cache  
+- Key–value store  
+- Cache hit / cache miss  
+- Hit ratio / miss ratio  
+- Warm cache / cold cache  
+- Hot key / hot partition  
+- Cache stampede / thundering herd  
+
+***
+
+## Layers & locations
+
+- Client / browser cache  
+- CDN cache  
+- Reverse proxy / gateway cache  
+- Application in‑process cache  
+- Distributed cache tier  
+- Database cache / materialized views  
+- DNS cache  
+
+***
+
+## Strategies (reads & writes)
+
+- Cache‑aside (lazy loading)  
+- Read‑through  
+- Write‑through  
+- Write‑around  
+- Write‑back / write‑behind  
+- Refresh‑ahead / pre‑warming  
+
+***
+
+## Eviction & expiry
+
+- TTL (Time‑to‑live)  
+- Soft TTL / hard TTL  
+- LRU (Least Recently Used)  
+- LFU (Least Frequently Used)  
+- FIFO (First In, First Out)  
+- Size‑based eviction  
+- Time‑based eviction  
+
+***
+
+## Distributed caching patterns
+
+- Sharding / partitioning  
+- Consistent hashing  
+- Replication (primary–replica)  
+- Cluster membership / rebalancing  
+- Client‑side sharding vs proxy‑side sharding  
+- L1 (local) + L2 (distributed) cache  
+
+***
+
+## Consistency & correctness
+
+- Strong vs eventual consistency  
+- Read‑your‑writes  
+- Stale data  
+- Cache invalidation  
+- Versioned keys / namespacing  
+- Cache coherency / synchronization  
+- Source of truth (DB vs cache)  
+
+***
+
+## Performance & reliability
+
+- Latency reduction  
+- Tail latency (P95/P99)  
+- Offloading database load  
+- Scaling read‑heavy workloads  
+- Backpressure via cache  
+- Fault tolerance vs cache loss (best‑effort store)  
+
+***
+
+## Risks / pitfalls
+
+- Stale or inconsistent data  
+- Cache poisoning  
+- Cache stampede / dog‑pile effect  
+- Hotspot keys / skewed traffic  
+- Over‑caching vs under‑caching  
+- Complex invalidation logic  
+
+***
+
+## Common technologies (good to name‑drop)
+
+- Redis, Redis Cluster  
+- Memcached  
+- Hazelcast, Apache Ignite, Ehcache  
+- In‑process caches (Caffeine, Guava Cache)  
+
+
+
+[1](https://redis.io/glossary/distributed-caching/)

@@ -1,0 +1,186 @@
+Cloud storage for system design interviews is mainly about when to use **object**, **file**, or **block** storage based on data shape, access patterns, performance needs, and durability/cost goals. Each type optimizes a different axis: object for massive unstructured data and rich metadata, file for shared hierarchical access, and block for low‑latency, high‑IOPS workloads like databases and VM disks.[1][2][3]
+
+***
+
+## Compact interview summary
+
+- **Object storage**  
+  - Stores data as self‑contained objects (data + rich metadata + ID) in a flat namespace, accessible via APIs, typically over HTTP.[3][1]
+  - Optimized for large amounts of unstructured data, durability, and scalability; good for backups, media, logs, analytics data.[4][1]
+
+- **File storage**  
+  - Stores data as files organized in directories; exposed via standard file protocols (NFS/SMB) and paths.[5][1]
+  - Optimized for shared access and hierarchical organization; good for home directories, content repositories, legacy apps expecting POSIX‑like semantics.[1][5]
+
+- **Block storage**  
+  - Splits data into fixed‑size blocks with identifiers and presents them as raw volumes to OS or hypervisor; filesystem is added on top by the OS.[3][1]
+  - Optimized for low latency and high IOPS; ideal for databases, VM disks, transactional and latency‑sensitive workloads.[2][3]
+
+- **Design stance**  
+  - There is no “winner”; combine them: object for bulk data at rest, block for hot transactional workloads, file for shared filesystem needs.[6][7][8]
+
+***
+
+## Keywords & patterns
+
+### Object storage
+
+- Flat namespace  
+- Object (data + metadata + ID)  
+- Custom / rich metadata  
+- HTTP / REST API access  
+- Strong / eventual consistency (provider‑specific)  
+- High durability, geo‑replication  
+- Cold / archive tiers (lifecycle policies)  
+- Use cases: backups, media, logs, data lake, ML datasets  
+
+### File storage
+
+- Hierarchical filesystem (folders, paths)  
+- NFS, SMB/CIFS protocols  
+- NAS, cloud file shares  
+- POSIX semantics (locks, permissions)  
+- Shared access across multiple clients  
+- Use cases: user directories, CMS, shared config, legacy line‑of‑business apps  
+
+### Block storage
+
+- Volumes / LUNs  
+- Fixed‑size blocks, IDs  
+- SAN, iSCSI, NVMe, cloud block volumes  
+- High IOPS, low latency  
+- OS‑level filesystem (ext4, XFS, NTFS)  
+- Use cases: relational/NoSQL DBs, VM boot volumes, transactional systems  
+
+### Cross‑cutting concepts
+
+- Latency vs throughput vs capacity  
+- IOPS and bandwidth  
+- Durability (replication, erasure coding)  
+- Availability zones / multi‑AZ / multi‑region  
+- Cost tiers (hot, cool, archive)  
+- Hybrid storage architectures (mix types per component)  
+
+### Example services (name‑drop)
+
+- **Object**:  
+  - AWS S3, Azure Blob Storage, GCP Cloud Storage, IBM Cloud Object Storage.[9][10][11][1]
+
+- **File**:  
+  - AWS EFS / FSx, Azure Files, GCP Filestore, IBM Cloud File Storage.[12][6][5]
+
+- **Block**:  
+  - AWS EBS, Azure Managed Disks, GCP Persistent Disk, IBM Cloud Block Storage.[11][9][2][12]
+
+Big‑tech style references: AWS’s “Block vs File vs Object Storage” guide, Google Cloud’s “How Object vs Block vs File Storage differ”, and IBM’s “Object vs File vs Block Storage” articles all emphasize the same distinctions and mixed usage patterns.[9][2][3]
+
+***
+
+## Trade‑offs + example questions
+
+### Core trade‑offs
+
+- **Performance vs scalability**  
+  - Block: lowest latency, highest IOPS, limited to attached compute and volume limits.[2][3]
+  - Object: massively scalable, high throughput, but higher per‑request latency and API overhead.[2][3]
+  - File: somewhere in between, with the benefit of shared filesystem semantics.[8][5]
+
+- **Structure vs flexibility**  
+  - File: intuitive hierarchy, good for human management, worse at web‑scale analytics or billions of objects.[5][1]
+  - Object: flat with rich metadata, great for search and analytics, but no directories or traditional file locking.[13][3]
+
+- **Cost vs durability / access pattern**  
+  - Object tiers (standard, infrequent access, archive) allow aggressive cost optimization for rarely accessed data.[10][14]
+  - Block/file are often priced more for performance and consistent access.  
+
+- **Application coupling**  
+  - Block/file tie closer to OS and legacy apps.  
+  - Object is accessed via APIs, easier for cloud‑native microservices and decoupled architectures.[7][3]
+
+### Example interview questions
+
+- “Design storage for a photo/video‑sharing app: how would you mix object, file, and block storage and why?”  
+- “You need storage for a high‑QPS OLTP database, a data lake, and user‑shared documents. Which storage types do you pick for each?”  
+- “Explain performance and cost implications of storing log data in object storage vs file or block.”  
+- “When would you still pick block storage in a cloud‑native architecture where object storage is widely available?”  
+
+***
+
+## Cheat‑sheet Q&A
+
+**Q1. What’s the difference between object, file, and block storage?**  
+- Object: stores data as objects with custom metadata and unique IDs in a flat namespace, accessed via APIs; optimized for scalable, durable unstructured data.[1][3]
+- File: stores data as files in directories, accessed via file protocols; optimized for shared hierarchical access and user‑oriented workloads.[5][1]
+- Block: exposes raw volumes of fixed‑size blocks to OS; optimized for low‑latency, high‑IOPS workloads like DBs and VM disks.[3][2]
+
+**Q2. When do you choose object storage?**  
+When storing massive unstructured data (media, logs, backups, analytics data) that must be durable, cost‑efficient, and accessible over HTTP, with rich metadata and lifecycle policies.[10][4][1]
+
+**Q3. When do you choose file storage?**  
+When apps expect a POSIX‑like filesystem, need shared access with simple permissions, and benefit from directories (home dirs, project shares, content repos, legacy apps).[1][5]
+
+**Q4. When do you choose block storage?**  
+When you need very low latency and high IOPS, close to the compute node: databases, VM root disks, transactional systems, and systems that manage their own filesystem and caching.[2][3]
+
+**Q5. How do you combine them in a real system?**  
+Common pattern: block storage for DB volumes and critical transactional data, object for user‑generated content and logs, file for shared config, reports, and internal collaboration assets.[6][7][8]
+
+**Q6. What are pitfalls of using the wrong type?**  
+Using object storage for DB files leads to poor latency; using block storage for cheap archival explodes costs; using file storage as a data lake limits scalability and analytics flexibility.[14][13][2]
+
+***
+
+## Concise terms & keywords summary
+
+Use this as a skim block before storage‑related questions.
+
+**Object storage**  
+- Flat namespace, object, metadata, object ID  
+- API/HTTP access, buckets, scalable, durable  
+- Unstructured data, backups, logs, media, data lake  
+- S3, Azure Blob, GCS, IBM Cloud Object Storage  
+
+**File storage**  
+- Files, folders/directories, paths  
+- NFS, SMB/CIFS, NAS, cloud file share  
+- Shared filesystem, POSIX semantics  
+- Home dirs, office docs, content repos  
+- EFS, Azure Files, Filestore, IBM Cloud File Storage  
+
+**Block storage**  
+- Volume, LUN, blocks, SAN  
+- High IOPS, low latency  
+- OS filesystem on top (ext4, NTFS, XFS)  
+- DB disks, VM boot/root volumes  
+- EBS, Managed Disks, Persistent Disk, IBM Cloud Block Storage  
+
+**Cross‑cutting**  
+- Latency, throughput, IOPS  
+- Capacity, durability, availability  
+- Storage tiers: hot, cool, archive  
+- Hybrid mix of object + file + block  
+
+
+
+
+
+[1](https://www.geeksforgeeks.org/system-design/block-object-and-file-storage-in-cloud-with-difference/)
+[2](https://aws.amazon.com/compare/the-difference-between-block-file-object-storage/)
+[3](https://cloud.google.com/discover/object-vs-block-vs-file-storage)
+[4](https://aws.amazon.com/what-is/object-storage/)
+[5](https://www.redhat.com/en/topics/data-storage/file-block-object-storage)
+[6](https://dev.to/pkkolla/aws-storage-explained-choosing-between-file-block-and-object-storage-like-a-pro-2061)
+[7](https://www.divio.com/blog/cloud-storage-file-block-object/)
+[8](https://www.nutanix.com/blog/block-storage-vs-object-storage-vs-file-storage)
+[9](https://www.ibm.com/think/topics/block-storage)
+[10](https://www.automq.com/blog/azure-blob-storage-vs-google-cloud-storage-object-storage-comparison)
+[11](https://www.netapp.com/learn/object-storage-block-and-shared-file-storage-in-google-cloud/)
+[12](https://www.youtube.com/watch?v=5EqAXnNm0FE)
+[13](https://linbit.com/blog/file-vs-block-vs-object-storage/)
+[14](https://www.freecodecamp.org/news/cloud-storage-options/)
+[15](https://www.ibm.com/think/topics/object-vs-file-vs-block-storage)
+[16](https://www.youtube.com/watch?v=PmxWTTpXNLI)
+[17](https://www.linkedin.com/pulse/what-block-vs-object-file-storage-aws-storages-naim-hossen-ac4bc)
+[18](https://cloud.google.com/discover/object-vs-block-vs-file-storage?hl=en)
+[19](https://www.youtube.com/watch?v=btcbNARavUM)
+[20](https://www.geeksforgeeks.org/cloud-computing/cloud-storage-in-google-cloud-platform-gcp/)

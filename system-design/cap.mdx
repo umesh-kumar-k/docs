@@ -1,0 +1,177 @@
+CAP is about how a distributed system behaves when the network misbehaves: under a partition you must choose whether to keep responses always available (A) or keep all replicas consistent (C), while tolerating partitions (P) is mandatory in real systems. The “modern” view is to treat CAP as a per‑operation, per‑invariant design tool, maximizing useful combinations of consistency and availability rather than picking a single global CA/CP/AP label.[1][2][3]
+
+***
+
+## Compact interview summary
+
+- CAP theorem: in a distributed data store, during a network partition you cannot simultaneously provide single‑copy consistency and 100% availability; you must trade one off against the other while remaining partition‑tolerant.[2][3][1]
+- C (CAP): every read sees the latest write or an error; A: every request returns a non‑error response but may be stale; P: the system continues to operate despite message loss, delay, or split‑brain.[3][1][2]
+- Classic framing (“pick any two”) is oversimplified: partitions are relatively rare, and real systems are CA most of the time, entering explicit “partition mode” with specialized rules when partitions are suspected.[2]
+- Modern guidance (Brewer 12 years later):  
+  - Detect partitions/slow links, enter partition mode, constrain operations, and then run a recovery process that reconciles state and compensates for invariant violations.[2]
+  - Choose C vs A at fine granularity: by data type, endpoint, user, or context (e.g., checkout vs feed), not per‑system.[2]
+- PACELC extension: if Partition (P) then trade Availability vs Consistency (A/C); Else (E) trade Latency vs Consistency (L/C), making explicit the “latency vs C” tension even without failures.[3]
+
+***
+
+## Keywords & patterns
+
+### Core CAP & modern extensions
+
+- CAP theorem, Eric Brewer.[3][2]
+- Consistency (single‑copy / linearizable at the intuitive level).[1][2]
+- Availability (non‑error, bounded‑latency response).[1][2]
+- Partition tolerance, network partition, split‑brain.[1][3][2]
+- CA, CP, AP (classic but simplistic categories).[3][2]
+- “2 of 3” is misleading; P is non‑optional in distributed systems.[2][3]
+- Partition mode, recovery, compensating actions.[2]
+- PACELC: P ⇒ A/C, else L/C.[3]
+
+### Consistency spectrum & invariants
+
+- Strong consistency, linearizability (implied), serializability; single‑copy semantics.[3][2]
+- Eventual consistency, soft state, BASE (Basically Available, Soft state, Eventually consistent).[2][3]
+- Read‑your‑writes, monotonic reads, causal consistency, convergence.[2]
+- Inconsistency window: time between diverging and converging replicas.[3][2]
+- Invariants: uniqueness constraints, non‑negative balances, no double booking; need explicit invariant modeling if sacrificing consistency.[2]
+- CRDTs (Conflict‑free Replicated Data Types) to get automatic convergence under AP behavior.[2]
+
+### Design patterns & tactics
+
+- Operation‑level CAP choice: constrain risky ops during partitions (e.g., cash withdrawal) and allow safe ones (e.g., balance read, idempotent add) with different semantics.[2]
+- Quorum reads/writes (R+W > N) for configurable C/A balance.[3]
+- Home‑node / master‑local writes + async replication (PNUTS‑style) to trade some consistency for better latency.[2]
+- Version vectors / vector clocks to track causality and reconcile concurrent updates.[2]
+- Sagas / compensating transactions for long‑running workflows and partition recovery.[2]
+
+### Systems, tools, frameworks
+
+- C‑leaning / CP contexts:  
+  - SQL DBs in a single site (MySQL, PostgreSQL) configured for strong consistency.[3][2]
+  - MongoDB, Redis, HBase when used for consistent slices (e.g., critical metadata).[1]
+- A‑leaning / AP contexts:  
+  - Dynamo‑style key‑value stores (Amazon Dynamo, Cassandra, Riak) emphasizing availability and eventual consistency.[1][3][2]
+  - Cosmos DB, DynamoDB with default high availability, tunable consistency.[1][3]
+- Tunable consistency platforms:  
+  - Cassandra, Cosmos DB, DynamoDB let you specify consistency level per request (e.g., ONE, QUORUM, ALL).[1][3]
+- Frameworks & algorithms:  
+  - Paxos, Raft (consensus for strongly consistent replication).[3][2]
+  - JGroups, Bayou, CRDT libraries for partition‑tolerant replication.[2]
+
+***
+
+## Common trade‑offs + example questions
+
+### Typical trade‑offs
+
+- C vs A under partition:  
+  - Choose **C** ⇒ reject/queue some reads/writes; system appears partially down but invariants preserved (CP).[1][2]
+  - Choose **A** ⇒ always accept operations; risk divergence and require reconciliation and compensation (AP).[1][2]
+- Latency vs C (PACELC):  
+  - Cross‑region strong consistency ⇒ higher tail latency; local reads and async replication ⇒ lower latency, weaker consistency.[3][2]
+- UX / business metrics vs guarantees:  
+  - Banking/health: users prefer correct values over uptime spikes; commerce/social: often prefer responsiveness over perfect consistency.[1][2]
+
+### Sample interview questions (ready‑made)
+
+- “Explain CAP with a concrete example of a partition between two data centers. How does a CP system behave vs an AP system?”  
+- “In a multi‑region e‑commerce platform, which parts are CP, which AP, and why?”  
+- “What does Brewer’s ‘CAP twelve years later’ change about how you use CAP in real design?”[2]
+- “How would you design partition mode and recovery for an ATM or order‑processing system?”[2]
+- “Explain PACELC and give examples of P‑A/C vs E‑L/C trade‑offs in practice.”[3]
+- “How do systems like Cassandra or DynamoDB let you tune consistency, and what are typical settings for reads vs writes?”[1][3]
+
+***
+
+## Use cases (C vs A focus)
+
+### Prioritize consistency (CP‑leaning behavior)
+
+- Scenarios:  
+  - Bank account balances, payments, ATM withdrawals with bounded overdraft risk.[1][2]
+  - Airline/rail seat reservations, ticketing, inventory that must not oversell.[1][2]
+  - Payroll, student and health records, energy management, compliance‑sensitive ledgers.[1]
+- Typical choices:  
+  - Strongly consistent DB in a region; multi‑region via leader and synchronous replication for small, critical datasets.  
+  - Disable or limit high‑risk ops in partition mode (e.g., cap withdrawals, queue card charges, force read‑only views).[2]
+
+### Prioritize availability (AP‑leaning behavior)
+
+- Scenarios:  
+  - E‑commerce catalog browsing and shopping cart that should “never fail to add”.[1][2]
+  - Social feeds, likes, views, notifications, recommendation tracking.[2]
+  - Logging, metrics, behavioral analytics, ad‑impression counters.  
+- Typical choices:  
+  - Dynamo‑style key‑value store, multi‑master writes, eventual consistency with CRDTs for counters and sets.[3][2]
+  - “Last‑write‑wins” or union semantics for carts and feeds, with periodic cleanup of anomalies (e.g., reappearing items).[2]
+
+### Mixed / operation‑level design
+
+- Commerce example:  
+  - Product list, reviews, recommendations: AP, cached, eventually consistent.  
+  - Cart operations: AP with convergence (union semantics, CRDT set); orders: CP, single region or strongly consistent store.[2]
+- Banking example:  
+  - Read balance: allow cached / stale reads with explicit “as of” or a spinner in degraded mode.  
+  - Withdraw/transfer: CP; use stand‑in limits during partitions (e.g., max k cash) and reconcile later.[2]
+
+***
+
+## Big‑company tech blog references
+
+These are useful to name‑drop or connect to CAP reasoning:
+
+- **Amazon Dynamo**: “Dynamo: Amazon’s Highly Available Key‑Value Store” describes an AP, partition‑tolerant design, using techniques like vector clocks, hinted handoff, and quorum to improve availability and convergence.[2]
+- **Yahoo PNUTS**: host data serving platform that deliberately accepts some inconsistency via async replication to reduce latency while keeping a master copy logically consistent.[2]
+- **Facebook scaling notes**: strategy of maintaining a master copy in one region and temporarily routing updates and reads to that master to provide a consistency window, then falling back to faster, possibly stale copies.[2]
+- **Google Chubby & Megastore**: use Paxos across data centers, trading latency for stronger consistency and global invariants in configuration and some state.[2]
+
+These examples show how large systems tune CAP behaviors to improve user‑visible latency, uptime, and correctness in different components.  
+
+***
+
+## Cheat‑sheet: CAP Q&A
+
+**Q1. What exactly does CAP forbid?**  
+CAP forbids a distributed system from guaranteeing both perfect single‑copy consistency and 100% availability for all requests when a network partition happens; you must give up strict C or strict A in that situation.[1][2]
+
+**Q2. How is CAP‑consistency different from ACID consistency?**  
+CAP consistency means all replicas behave as if there is a single up‑to‑date copy; ACID consistency means each transaction preserves database invariants (constraints) but does not directly speak to cross‑replica replication semantics; a system can be ACID yet still be AP under CAP during partitions.[1][2]
+
+**Q3. What is the “new CAP theorem” view?**  
+The updated guidance is to explicitly detect partitions, enter a partition mode that restricts or annotates operations, and design a recovery process that restores convergence and invariants, thereby maximizing useful combinations of C and A instead of permanently labeling the system CP or AP.[2]
+
+**Q4. What does PACELC add to CAP?**  
+PACELC says: if a Partition occurs (P), you choose Availability or Consistency (A/C); Else (no partition), you still choose between Latency and Consistency (L/C), acknowledging that strong C usually costs extra latency even in healthy networks.[3]
+
+**Q5. Give a CP example and its behavior during partition.**  
+A strongly consistent bank ledger might block new withdrawals or run in severely constrained stand‑in mode during a link failure between replicas, preserving global balances at the expense of availability; when the partition heals, it reconciles logs and ensures no double spending.[1][2]
+
+**Q6. Give an AP example and its behavior during partition.**  
+A shopping cart built on a Dynamo‑style store accepts adds/removes on both sides of a partition, merges carts by set union or CRDT semantics later, and may need cleanup for anomalies (e.g., resurrected items) but almost never rejects a user request.[3][1][2]
+
+**Q7. How do Cassandra / DynamoDB / Cosmos expose CAP‑related knobs?**  
+They let clients choose consistency levels per operation (e.g., strong, bounded‑staleness, session, eventual; or QUORUM vs ONE vs ALL), trading off higher latency and reduced availability for stronger consistency when necessary.[3][1]
+
+**Q8. How do you reason about UX under CAP?**  
+Identify which user actions can tolerate stale or tentative data, characterize what errors or delays are acceptable, design partition mode UI (e.g., “syncing…”, limited actions), and define compensation paths for mistakes made during degraded operation.[1][2]
+
+***
+
+## Concise terms & keywords summary (for last‑minute skim)
+
+- CAP theorem; Eric Brewer.  
+- C (single‑copy consistency), A (non‑error response), P (partition tolerance).[1][2]
+- CA / CP / AP; “2‑of‑3” oversimplification; P is mandatory.[3][2]
+- Partition, split‑brain, partition mode, recovery, compensating transactions, invariants.[2]
+- ACID vs BASE; soft state, eventual consistency.[2]
+- Strong consistency, eventual consistency, tunable consistency, inconsistency window, causal consistency, convergence.[3][2]
+- PACELC: P ⇒ A/C; Else ⇒ L/C.[3]
+- Quorums, Paxos, Raft, CRDTs, version vectors.[3][2]
+- Systems: Dynamo, Cassandra, DynamoDB, Cosmos DB, PNUTS, Chubby, Megastore, MongoDB, Redis, HBase, classic SQL DBs.[3][1][2]
+- Domains: banking, reservations, inventory, health records (C); e‑commerce catalog/cart, social feed, logs, analytics (A).[1][2]
+
+These are the hooks that interviewers will expect you to recall and connect to concrete design choices and trade‑offs.
+
+[1](https://www.bmc.com/blogs/cap-theor)
+[2](https://www.bmc.com/blogs/cap-theore)
+[3](https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/)

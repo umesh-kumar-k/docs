@@ -1,0 +1,112 @@
+Consistent hashing assigns keys and nodes to a hash “ring” so that adding/removing nodes only remaps a small, contiguous slice of keys, solving the rebalancing problem of modulo‑based sharding and enabling elastic scaling of caches, DBs, and brokers.[1][2]
+
+## Interview summary
+- Basic idea: Hash both nodes (servers) and keys onto a circular hash space; a key belongs to the first node encountered when walking clockwise from the key’s position on the ring.[2][1]
+- Problem it solves: With simple `hash(key) % N`, any change in N reshuffles almost all keys; with consistent hashing, only keys in the affected segment move, keeping most key→node mappings stable.[3][1]
+- Real systems: Cassandra and Dynamo/DynamoDB partition data around a token ring using consistent hashing; CDNs and large distributed caches use it to choose which node holds a given object.[4][5][2]
+
+## Keywords & patterns
+- Core concepts: hash ring, tokens, partition key, node position, clockwise search, minimal remapping.[1][2]
+- Virtual nodes (vnodes): each physical node is mapped to many points on the ring to smooth distribution and avoid hot spots; higher‑capacity nodes get more virtual nodes.[3][4][1]
+- Operations:  
+  - Add node: place node (and its vnodes) on ring; only keys between predecessor and new node move.  
+  - Remove/fail node: its key range moves to next node(s) on ring.[2][1]
+- Replication: store each key on the primary node plus the next R–1 nodes on the ring (replication factor R) for fault tolerance.[6][4]
+- Implementation details: good hash function (uniform), ring represented as sorted map from token→node, binary search for next node ≥ keyToken, wrap‑around support.[7][1]
+
+## Common trade-offs + example questions
+- Trade-offs:  
+  - Simplicity vs balance: basic ring w/o vnodes is simple but can lead to skew; vnodes improve balance at the cost of metadata and routing complexity.[6][3]
+  - Routing cost: lookups add a log(N) search over ring vs O(1) modulo; usually acceptable but matters for ultra‑low‑latency paths.[8][1]
+  - Operational complexity: must manage ring metadata and node joins/leaves consistently across cluster; misconfigured tokens or uneven vnode counts can cause hot spots.[9][4]
+- Example questions:  
+  - “Design a distributed cache (like Memcached) that can add/remove nodes without massive cache misses—how would you use consistent hashing?”.[1][6]
+  - “Cassandra/Dynamo token ring: how does consistent hashing help them scale and survive node failures?”.[10][4]
+  - “How do virtual nodes help with heterogeneous nodes (different capacities)?”.[9][3]
+
+## Use cases
+- Distributed cache: map keys (e.g., session IDs, user IDs) to cache nodes so that adding/removing nodes only affects a small subset of keys, limiting cache warm‑up cost.[6][1]
+- Distributed databases / key‑value stores: partition ranges of partition keys across storage nodes (e.g., Cassandra, Dynamo) to balance load and simplify rebalancing in elastic clusters.[5][4]
+- CDNs and load balancers: choose which edge server or proxy should cache/serve a given object or user to improve locality and cache hit rate.[2][1]
+- Message brokers and streams: assign partitions/consumer groups to nodes in a way that minimizes reshuffling when consumers join/leave.[11]
+
+## Big‑company references & applications
+- Amazon Dynamo & DynamoDB: core partitioning scheme is a consistent hashing ring with replication to subsequent nodes; this underpins high availability and incremental scaling for key‑value workloads.[4][10]
+- Apache Cassandra: adopts the Dynamo consistent hashing/token ring model, using vnodes to distribute partitions evenly and simplify adding/removing nodes in large deployments.[5][4][9]
+- Many large caches (e.g., Facebook‑style Memcached pools, CDNs) and real‑time platforms document consistent hashing‑based routing to minimize cache churn and maintain high hit ratios during resizes.[12][6]
+
+## Tools / frameworks / software examples
+- Datastores: Apache Cassandra, Amazon DynamoDB, Riak, Voldemort all use consistent hashing/token rings under the hood.[4][5]
+- Libraries:  
+  - Java: implementations in popular system‑design libraries and interview repos; many load‑balancer/proxy libraries (e.g., gRPC, Envoy configs) support ring‑hash load balancing.[8][12]
+  - Go/Python: open‑source consistent hashing libraries for client‑side sharding in caches and services.[8]
+- Systems: distributed caches and CDNs (Nginx/Envoy consistent‑hash upstreams, proprietary cache routers) expose consistent hashing as a balancing algorithm.[12][8]
+
+## Cheat‑sheet (Q&A style)
+- Q: Why isn’t `hash(key) % N` good enough?  
+  A: Because changing N (adding/removing servers) remaps almost all keys, causing massive cache misses and rebalancing overhead.[3][1]
+
+- Q: How does consistent hashing reduce remapping?  
+  A: Keys and nodes share the same hash ring; adding/removing a node only affects the segment between it and its predecessor, leaving other key→node mappings unchanged.[1][2]
+
+- Q: What problem do virtual nodes solve?  
+  A: They distribute each physical node across many points on the ring so that keys are more evenly balanced and capacity differences can be reflected by assigning more vnodes to stronger nodes.[9][3][4]
+
+- Q: How is replication typically implemented on a ring?  
+  A: Store a key on the primary node where it lands plus the next R–1 nodes clockwise, where R is the replication factor.[5][4]
+
+- Q: When would you NOT use consistent hashing?  
+  A: When N is fixed and tiny, or where you need strict contiguous ranges for range queries (then range partitioning may be better), or where ring metadata overhead is unjustified.[8][1]
+
+- Q: How would you explain where a given key goes on the ring in an interview?  
+  A: “Hash the key → locate its position on the ring → walk clockwise to the first node token ≥ that position (wrapping around if needed); that node owns the key”.[2][1]
+
+## Datastructures
+For consistent hashing implementations, the usual underlying data structures are:
+
+- A **sorted associative structure** over the hash space for node positions:  
+  - Self‑balancing **binary search tree** (e.g., `TreeMap` in Java) keyed by token/hash → node.  
+  - Or a **sorted array/list** of tokens plus **binary search** to find the next node on the ring.  
+- A **hash function** (MD5/SHA‑1 or similar) to map both keys and nodes into the numeric ring.  
+- For **virtual nodes (vnodes)**, a mapping from **physical node → many logical tokens**, e.g.:  
+  - A hash map `token → nodeId` plus a sorted structure of all tokens.  
+- Optionally, **additional per‑node structures** to track owned keys/partitions:  
+  - Internal maps or trees inside each node for its local key→value or key→partition metadata.
+
+So in interview terms:
+
+- “Ring representation” → sorted map / ordered structure (tree or sorted array + binary search).  
+- “Lookup” → binary search (or tree search) on the ordered token set.  
+- “Virtual nodes” → multiple entries in that same ordered structure, plus a node‑id lookup.
+
+
+## Concise summary – important terms & keywords (bullets)
+- Problem: modulo hashing rehashes most keys when node count changes.  
+- Core idea: hash ring, keys and nodes in same space, clockwise assignment, minimal remapping.[1][2]
+- Key elements: token, partition key, node position, primary node, successor nodes, wrap‑around.[1]
+- Virtual nodes (vnodes): multiple tokens per physical node, better balance, capacity‑proportional placement.[3][4][9]
+- Replication: key stored on primary + next R–1 nodes on ring for HA.[4]
+- Use cases: distributed cache, sharded DB/key‑value store, CDN edge selection, message partitioning.[6][4][2]
+- Trade‑offs: balance vs complexity, lookup overhead (log N), ring metadata management, not ideal for strict range queries.[8][1]
+- Real systems: Amazon Dynamo/DynamoDB, Apache Cassandra, Riak, large Memcached/Redis clusters, CDNs/load balancers.[12][5][4]
+
+[1](https://systemdesign.one/consistent-hashing-explained/)
+[2](https://www.hellointerview.com/learn/system-design/core-concepts/consistent-hashing)
+[3](https://blog.algomaster.io/p/consistent-hashing-explained)
+[4](https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html)
+[5](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/architecture/archDataDistributeHashing.html)
+[6](https://acodersjourney.com/system-design-interview-consistent-hashing/)
+[7](https://en.wikipedia.org/wiki/Consistent_hashing)
+[8](https://celerdata.com/glossary/consistent-hashing)
+[9](https://docs.datastax.com/en/dse/6.9/architecture/database-architecture/virtual-nodes.html)
+[10](https://cassandra.apache.org/doc/4.0/cassandra/architecture/dynamo.html)
+[11](https://dev.to/arslan_ah/how-to-use-consistent-hashing-in-a-system-design-interview-33ge)
+[12](https://bytebytego.com/guides/consistent-hashing/)
+[13](https://stackoverflow.com/questions/69841546/consistent-hashing-why-are-vnodes-a-thing)
+[14](https://www.geeksforgeeks.org/system-design/consistent-hashing/)
+[15](https://www.interviewcake.com/concept/java/consistent-hashing)
+[16](https://www.youtube.com/watch?v=sl9pJqIA1hg)
+[17](https://arpitbhayani.me/blogs/consistent-hashing/)
+[18](https://www.youtube.com/watch?v=vccwdhfqIrI)
+[19](https://www.youtube.com/watch?v=qqqdAPM1l2M)
+[20](https://ably.com/blog/implementing-efficient-consistent-hashing)
