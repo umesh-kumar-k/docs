@@ -1,0 +1,76 @@
+JWT (RFC 7519) enables stateless auth via compact `header.payload.signature` (Base64Url encoded), signed with HMAC/RS256/ECDSA, carrying claims like `sub/iss/aud/exp/iat/nbf` for server verification without DB lookups.[jwt.io][auth0] Senior architects use short-lived access tokens (15m) + refresh tokens for microservices, trading readability (Base64 payload) for scalability vs revocable sessions.[supertokens]
+
+## Interview Summary
+**Structure**: `xxxxx.yyyyy.zzzzz` → Header (`{"alg":"HS256","typ":"JWT"}`), Payload (`{"sub":"123","exp":1712345678}`), Signature (`HMACSHA256(base64(header)+"."+base64(payload), secret)`).[jwt.io] **Flow**: Login → JWT in `Authorization: Bearer <token>` → verify signature/claims → access granted. **Claims**: Registered (`iss/exp/sub/aud`), Public (IANA), Private (custom). **Validation**: Structure + claims check; **Verification**: Signature + iss/aud match.[auth0][1]
+
+## Keywords & Patterns
+- **Structure**: `header.payload.signature`, Base64Url encoding, JOSE Header (`alg/typ/kid`).[jwt.io]
+- **Claims**: `sub`(subject), `iss`(issuer), `aud`(audience), `exp`/ `iat`/ `nbf`(times), `jti`(ID).[auth0]
+- **Algs**: HMAC (HS256/384/512, symmetric secret), RSA/ECDSA (RS256/ES256, asymmetric).[jwt.io]
+- **Flow**: `POST /auth` → `Authorization: Bearer <jwt>` → verify + claims check.[supertokens]
+- **Storage**: HttpOnly cookie (web), localStorage (SPA, XSS risk), Authorization header (API).[1]
+
+## Common Trade-offs + Questions
+**JWT vs Sessions**: Stateless/no-DB-lookup vs no-instant-revocation (needs blacklist/jti); compact vs readable payload; scales horizontally vs sticky sessions. **HMAC vs RSA**: Fast/simple vs secure/federated; short expiry (15m) vs refresh token dance.[supertokens][2]
+
+**Example questions**:
+- Revoke active JWT? (Short expiry + jti Redis blacklist).[supertokens]
+- Payload secrets? (Never—Base64 decodable).[jwt.io]
+- HMAC key rotation? (Reissue all tokens).[auth0]
+
+| Aspect | JWT | Session Cookie |
+|--------|-----|----------------|
+| Storage | Stateless | Server (Redis) [supertokens] |
+| Revocation | Blacklist/jti | Instant delete [3] |
+| Scale | Horizontal | Sticky/Redis [4] |
+| Payload | Readable (Base64) | Opaque ID [jwt.io] |
+
+## Use Cases
+- **Microservices**: Stateless inter-service auth (Netflix).[5]
+- **SSO**: Cross-domain (Auth0/Okta).[jwt.io]
+- **Mobile/SPA**: Bearer tokens (no cookie CORS).[1]
+- **Federation**: RSA public keys (Google/Apple).[auth0]
+- **API Gateways**: Validate + pass claims (Kong/Zuplo).[6]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix TechBlog: JWT cut session DB lookups 99%, enabling 1000+ microservices stateless auth. Auth0 docs detail RS256 federation across 10k+ customers, zero shared secrets.[auth0] ByteByteGo: JWT + Redis jti blacklist handles 1B tokens/day with < 1ms validation.[7][5]
+
+## Cheat-Sheet Q&A
+**Q: Structure?** A: `header.payload.signature` (Base64Url).[jwt.io]  
+**Q: Verify HMAC?** A: `HMACSHA256(base64(h)+"."+base64(p), secret)`.[auth0]  
+**Q: Claims check?** A: `exp>now`, `iss=expected`, `aud=service`.[1]
+**Q: Revocation?** A: Short expiry (15m) + `jti` Redis blacklist.[supertokens]  
+**Q: RSA verify?** A: Public key from `kid` JWKS endpoint.[auth0]  
+**Q: Payload safe?** A: No secrets—Base64 decodable.[jwt.io]
+
+## Tools/Frameworks
+- **Java**: Spring Security JWT, Nimbus JOSE+JWT, jjwt.[1]
+- **Node**: jsonwebtoken, jwks-rsa (remote keys).[supertokens]
+- **Services**: Auth0/Okta (managed), Keycloak (OIDC).[auth0]
+- **Validate**: jwt.io debugger, Postman JWT tests.[1]
+- **Redis**: jti blacklist (`SETEX jti:uuid 900 1`).[supertokens]
+
+## Data Structures & Algorithms
+**Signature**: HMAC-SHA256 (hash chaining), RSA/ECDSA (elliptic curves). **JWKS**: Map `kid` → public key (JSON array). **Blacklist**: Redis Hash `jti:<uuid>` or SortedSet by `exp`. **Token rotation**: Sliding window refresh (pairwise tokens). **Cache**: LRU public keys (Guava Caffeine).[auth0][supertokens]
+
+## Key Highlights & Tradeoffs
+- **Scale**: Stateless > session store (10x less DB).[5]
+- **Security**: Short expiry + jti > long-lived; RS256 > HMAC (federation).[auth0]
+- **DX**: Compact vs opaque session ID.[jwt.io]
+- **Mobile**: Bearer perfect vs cookie emulation.[supertokens]
+- **Interviews**: "RS256 short-lived + Redis jti + JWKS rotation".[7]
+
+## Concise Keywords Summary
+- JWT, RFC 7519, `header.payload.signature`, Base64Url, HMAC/RS256/ES256
+- Claims: `sub/iss/aud/exp/iat/nbf/jti/kid`, JOSE Header (`alg/typ`)
+- Bearer Token, Stateless Auth, JWKS (JSON Web Key Set), Short Expiry
+- Revocation (jti blacklist), Validation vs Verification, None Algorithm Attack
+- Microservices, SSO, Federation, API Gateway
+
+[1](https://www.jwt.io/introduction)
+[2](https://ssojet.com/ciam-qna/jwt-vs-session-cookies-when-to-use-each)
+[3](https://dev.to/emmykolic/cookies-based-authentication-vs-session-based-authentication-1f6)
+[4](https://systemdesignschool.io/blog/auth-cookies)
+[5](https://netflixtechblog.com)
+[6](https://zuplo.com/learning-center/top-7-api-authentication-methods-compared)
+[7](https://blog.bytebytego.com/p/ep34-session-cookie-jwt-token-sso)

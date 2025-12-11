@@ -1,0 +1,91 @@
+Real-time data architectures enable sub-second latency processing using streaming pipelines, pub-sub messaging, and push protocols like WebSocket/SSE over polling.[medium] Senior architects justify choices via CAP trade-offs (AP for availability), backpressure handling, and exactly-once semantics for financial vs at-least-once for analytics.[qlik][1]
+
+## Interview Summary
+Core patterns include event-driven ingestion (Kafka), stream processing (Flink/Spark Streaming), and fan-out delivery (WebSocket/SSE/Webhook). Polling wastes bandwidth (short/long variants); WebSocket offers bidirectional full-duplex; SSE suits server-push; Webhooks event-driven push to callbacks.[medium] Architectures like Lambda (batch+stream) or Kappa (stream-only) balance completeness vs simplicity; Kafka+WebSocket hybrids scale to millions via partitioning/replication.[2][3][4][5]
+
+## Keywords & Patterns
+- **Protocols**: WebSocket (bidirectional TCP, persistent), SSE (server→client, auto-reconnect), Long Polling (held connection), Webhook (HTTP POST callback).[medium][6]
+- **Ingestion**: Kafka (topics/partitions), Pulsar (multi-tenancy), Kinesis (AWS managed).[4][5]
+- **Processing**: Flink (event-time, stateful), Spark Streaming (micro-batches), Storm (low-latency).[2]
+- **Delivery**: Pub-Sub (fan-out), Push (SSE/WebSocket), Pull (polling).[1]
+- **Architectures**: Lambda (batch+speed layer), Kappa (stream-only), Data Mesh (decentralized).[qlik][2]
+- **Features**: Backpressure (flow control), Exactly-once (idempotency), At-least-once (dedup).[3]
+
+## Common Trade-offs + Questions
+WebSocket connection overhead (stateful) vs polling simplicity; SSE lightweight but unidirectional; Kafka high throughput vs memory for stateful streams.[medium] Micro-batches (Spark) trade latency for exactly-once; pure streaming (Flink) risks data loss without checkpoints.[1][2]
+
+**Example questions**:
+- WebSocket vs SSE for stock ticker? (SSE: server-push, simpler).[medium]
+- Scale chat to 1M users? (Sharding + Kafka fan-out).[1]
+- Handle backpressure in streams? (Buffers, rate limiting).[3]
+
+| Technique | Latency | Bidirectional | Scalability | Complexity |
+|-----------|---------|---------------|-------------|------------|
+| Polling | High | No | Low (bandwidth) | Low [medium] |
+| WebSocket | Low | Yes | High (persistent) | High [1] |
+| SSE | Low | No | High (auto-reconnect) | Low [6] |
+| Kafka Streams | Sub-sec | N/A | Very High | Medium [4] |
+
+## Use Cases
+- **Chat/Live Updates**: WebSocket (Slack, Discord).[7]
+- **Dashboards/Monitoring**: SSE (stock prices, logs).[medium][qlik]
+- **Recommendations**: Kafka+Flink (Netflix user events).[4]
+- **Ride Matching**: Kafka streaming (Uber real-time locations).[5][8]
+- **Fraud Detection**: Exactly-once streams (banking).[2]
+- **IoT**: MQTT over WebSocket (sensor data).[3]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix TechBlog details Kafka+Flink for real-time recommendations, processing billions events/day with <1s latency via event-time processing. Uber Engineering Blog redesigned Kafka ingestion for peak ride matching, cutting latency 50%. Qlik highlights real-time fraud reduction via streaming alerts.[qlik][9][5][4]
+
+## Cheat-Sheet Q&A
+**Q: Bidirectional real-time?** A: WebSocket (full-duplex TCP).[medium]  
+**Q: Server-push only?** A: SSE (EventSource API).[6]
+**Q: Event-driven 3rd-party?** A: Webhook (register callback).[medium]  
+**Q: High-throughput ingestion?** A: Kafka (partitioned topics).[4]
+**Q: Stateful processing?** A: Flink (checkpoints, rocksDB state).[2]
+**Q: Browser limitations?** A: Proxy WebSocket; SSE native.[1]
+
+## Tools/Frameworks
+- **Messaging**: Kafka, Pulsar, RabbitMQ, Kinesis.[4]
+- **Processing**: Apache Flink, Spark Streaming, Kafka Streams.[2]
+- **Protocols**: Socket.io (WebSocket), Server-Sent Events API.[medium]
+- **Full-stack**: Ably/Pusher (managed WebSocket), AWS AppSync.[3]
+- **Java**: Spring WebFlux (reactive), Reactor (backpressure).[10]
+
+## Data Structures & Algorithms
+Kafka uses log-structured appends (segment files), partitioned ring buffers (compaction); Flink rocksDB state stores (LSM-trees). WebSocket frames employ sliding windows (TCP flow control); stream joins use hash joins/windows (time-based heaps). Dedup leverages Bloom filters; backpressure via token buckets/priority queues.[3][2]
+
+## Key Highlights & Tradeoffs
+- **Latency**: Streaming <1s vs batch hours; choose AP over CP for availability.[2]
+- **Cost**: Persistent connections (WebSocket) > polling bandwidth.[medium]
+- **Reliability**: Checkpoints vs WAL; at-least-once simpler than exactly-once.[4]
+- **Scale**: Sharding + replication; monitor backpressure metrics.[5]
+
+## Concise Keywords Summary
+- WebSocket, SSE, Long Polling, Webhook, HTTP Polling
+- Kafka, Flink, Spark Streaming, Lambda/Kappa Architecture
+- Event-time Processing, Backpressure, Exactly-once/At-least-once
+- Pub-Sub, Fan-out, Bidirectional Full-duplex, Partitioning/Replication
+- Real-time Analytics, Fraud Detection, Live Updates, IoT Streaming
+
+[1](https://www.hellointerview.com/learn/system-design/patterns/realtime-updates)
+[2](https://www.designgurus.io/answers/detail/how-to-understand-real-time-data-processing-for-interviews)
+[3](https://ably.com/topic/websockets-kafka)
+[4](https://superagi.com/real-time-data-enrichment-case-studies-success-stories-from-netflix-uber-and-walmart/)
+[5](https://www.landskill.com/blog/real-time-data-pipelines-patterns/)
+[6](https://www.aklivity.io/post/streaming-apis-and-protocols-sse-websocket-mqtt-amqp-grpc)
+[7](https://ably.com/blog/scaling-kafka-with-websockets)
+[8](https://www.dynamixcloud.com/blog/what-netflix-spotify-and-uber-teach-us-about-cloud-architecture/)
+[9](https://netflixtechblog.com)
+[10](https://apidog.com/articles/)
+[11](https://hellointerview.substack.com/p/the-7-must-know-patterns-for-system)
+[12](https://bytebytego.com/courses/system-design-interview/scale-from-zero-to-millions-of-users)
+[13](https://www.hellointerview.com/learn/system-design/in-a-hurry/patterns)
+[14](https://www.interviewbit.com/system-design-interview-questions/)
+[15](https://interviewing.io/guides/system-design-interview/part-three)
+[16](https://www.geeksforgeeks.org/system-design/data-driven-architecture-system-design/)
+[17](https://stackoverflow.com/questions/63583989/performance-difference-between-websocket-and-server-sent-events-sse-for-chat-r)
+[18](https://www.designgurus.io/blog/system-design-interview-fundamentals)
+[19](https://zuplo.com/learning-center/guide-to-real-time-data-stream-apis)
+[20](https://bytebytego.com/guides/real-world-case-studies/)
+[21](https://igotanoffer.com/blogs/tech/system-design-interviews)

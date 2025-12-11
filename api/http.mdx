@@ -1,0 +1,66 @@
+HTTP versions evolve from HTTP/1.1's text-based TCP sequential requests to HTTP/2's binary multiplexing (HPACK) and HTTP/3's QUIC/UDP eliminating HOL blocking for 33-55% faster loads on lossy networks.[pubnub][cloudpanel] Senior architects weigh TCP reliability vs QUIC resilience, deployment complexity, and browser/server support when justifying protocol choices.[1]
+
+## Interview Summary
+HTTP/1.1 introduced persistent connections/pipelining but suffers HOL blocking and header bloat; HTTP/2 adds multiplexing, server push, and HPACK compression over TCP for 2-3x gains; HTTP/3 swaps TCP for QUIC (UDP+TLS1.3) enabling 0-RTT, connection migration, and per-stream loss recovery—ideal for mobile/microservices.[pubnub][cloudpanel]
+
+## Keywords & Patterns
+- **HTTP/1.1**: Text protocol, TCP, persistent connections, pipelining (HOL-prone), chunked encoding, cache-control.[pubnub]
+- **HTTP/2**: Binary framing, HPACK header compression, multiplexing (streams), server push, prioritization, TCP.[cloudpanel]
+- **HTTP/3**: QUIC (UDP-based), 0-RTT/1-RTT handshakes, QPACK compression, no HOL blocking, connection IDs (migration), TLS1.3 integrated.[pubnub]
+- **Core Concepts**: Head-of-Line (HOL) blocking, Stream multiplexing, Connection coalescing, ALPN negotiation.[1]
+- **Metrics**: TTFB (33% faster H3), page load (55% mobile gain), throughput (lossy networks).[cloudpanel]
+
+## Common Trade-offs + Questions
+HTTP/2 multiplexing still TCP-bound (entire connection HOL); HTTP/3 QUIC fixes this but UDP firewall blocks + higher CPU (crypto); HTTP/1.1 simplest but bandwidth-inefficient.[pubnub] Migration cost: H2 widespread vs H3 ~70% browser support (2025).[cloudpanel]
+
+**Example questions**:
+- Fix HOL in video streaming? (HTTP/3 QUIC per-stream recovery).[pubnub]
+- Mobile network switches? (H3 connection migration via IDs).[cloudpanel]
+- When stick with HTTP/2? (TCP-only infra, legacy compatibility).[1]
+
+| Version | Transport | HOL Blocking | Conn Setup | Lossy Net Perf | CPU Overhead |
+|---------|-----------|--------------|------------|----------------|--------------|
+| 1.1 | TCP | Per-request | 2-3 RTT | Poor | Low [pubnub] |
+| 2 | TCP | Connection-wide | 2 RTT | Medium | Medium [cloudpanel] |
+| 3 | QUIC/UDP | Per-stream | 0-1 RTT | Excellent (55%↑) | High [pubnub] |
+
+## Use Cases
+- **HTTP/1.1**: Legacy/simple sites, no multiplexing needs.[pubnub]
+- **HTTP/2**: Content-heavy sites (e-commerce, SPAs), CDNs (Cloudflare), API-heavy microservices.[cloudpanel]
+- **HTTP/3**: Mobile apps, video streaming (Netflix), real-time (gaming/chat), IoT, lossy networks (3G/5G).[pubnub][2]
+
+## Big Tech Blogs & Efficiency Wins
+Cloudflare blogs detail HTTP/3's 33% TTFB reduction via QUIC 0-RTT, deployed globally for mobile traffic.[cloudpanel] Google (QUIC creators) reports 50% connection migration success on Android, cutting drops 20%.[pubnub] Netflix uses H2+ for content delivery, testing H3 for live events.[3]
+
+## Cheat-Sheet Q&A
+**Q: Primary HTTP/3 gain?** A: QUIC eliminates TCP HOL via independent streams.[pubnub]  
+**Q: Check H3 support?** A: curl --http3; Chrome devtools Protocol column shows h3.[cloudpanel]  
+**Q: HPACK vs QPACK?** A: HPACK (H2 static/dynamic); QPACK (H3 stream-safe).[1]
+**Q: 0-RTT risks?** A: Replay attacks; use for idempotent GETs only.[pubnub]  
+**Q: Firewall issues?** A: H3 UDP/443; fallback to H2 via ALPN.[cloudpanel]  
+**Q: Server push in H3?** A: Yes, but client controls via SETTINGS_ENABLE_PUSH=0.[1]
+
+## Tools/Frameworks
+- **Servers**: NGINX 1.26+ (QUIC module), Apache (experimental), CloudPanel v2.4.[cloudpanel]
+- **Testing**: curl --http3, wrk2 (H2/H3), WebPageTest, Lighthouse.[pubnub]
+- **CDNs**: Cloudflare (H3 default), Akamai Edge, Fastly.[1]
+- **Java**: Spring WebFlux (H2/H3 reactive), Netty (QUIC support).[1]
+- **Browsers**: Chrome/Edge/Firefox (h3 flags), Safari 17+.[cloudpanel]
+
+## Data Structures & Algorithms
+HTTP/2 streams use binary trees for prioritization (dependency-weighted); HPACK/QPACK employ Huffman coding + static/dynamic tables (hash maps). QUIC packet framing leverages varint encoding, stream IDs as monotonic counters. Congestion control: BBR/CUBIC (bandwidth-delay product estimation via moving averages). Connection migration: connection ID rotation (arrays/hashtables).[pubnub][cloudpanel]
+
+## Key Highlights & Tradeoffs
+- **Performance**: H3 > H2 > 1.1 (lossy nets: 55% page load win).[cloudpanel]
+- **Deployment**: H2 mature ecosystem; H3 growing (70% browsers) but infra upgrades needed.[pubnub]
+- **Interviews**: Mention fallback (h2/h3 ALPN), measure TTFB/under load.[1]
+
+## Concise Keywords Summary
+- HTTP/1.1, HTTP/2, HTTP/3, QUIC, UDP, TCP, HOL Blocking
+- HPACK/QPACK, Binary Framing, Multiplexing, Server Push, Stream Prioritization
+- 0-RTT/1-RTT, Connection Migration, TLS1.3, ALPN, TTFB, Connection IDs
+- BBR/CUBIC Congestion, Packet Loss Recovery, Mobile Networks, CDN Optimization
+
+[1](https://apidog.com/articles/)
+[2](https://superagi.com/real-time-data-enrichment-case-studies-success-stories-from-netflix-uber-and-walmart/)
+[3](https://netflixtechblog.com)

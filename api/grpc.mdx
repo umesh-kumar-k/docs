@@ -1,0 +1,66 @@
+gRPC excels in microservices with HTTP/2 multiplexing, Protobuf serialization for 7-10x faster throughput than REST, and four RPC types (unary, streaming). Senior architects emphasize schema contracts (.proto), deadlines/cancellation, and trade-offs like browser incompatibility vs low-latency IPC.[grpc.io][1]
+
+## Interview Summary
+gRPC defines services in .proto files using Protobuf IDL, generating strongly-typed stubs for clients/servers across languages.[grpc.io] Built on HTTP/2, it supports unary RPCs (request-response), server/client streaming, and bidirectional for real-time; channels manage connections with metadata, interceptors, TLS security.[learn.microsoft.com] Code generation ensures contract-first consistency, outperforming JSON in bandwidth-constrained or high-throughput scenarios.[pflb.us][1]
+
+## Keywords & Patterns
+- **Core**: .proto files, Protobuf (binary serialization), HTTP/2 (multiplexing, header compression), Channels (connections), Stubs (client proxies).[grpc.io]
+- **RPC Types**: Unary (single req/res), Server-streaming (1 req → stream res), Client-streaming (stream req → 1 res), Bidirectional (stream ↔ stream).[1]
+- **Lifecycle**: Deadlines/timeouts (DEADLINE_EXCEEDED), Cancellation (no rollback), Metadata (key-value, grpc- reserved), Initial/Trailing metadata.[grpc.io]
+- **Features**: Interceptors (logging/auth), Sync/Async calls, Load balancing, Retries, TLS/mTLS security.[pflb.us][learn.microsoft.com]
+- **Patterns**: Contract-first, Schema evolution (backwards compatible), Codegen (protoc compiler).[apidog.com]
+
+## Common Trade-offs + Questions
+gRPC trades human-readable payloads/debugging for 7-10x speed/smaller size; excels internally but needs gRPC-Web/JSON transcoding for browsers.[learn.microsoft.com] Steep learning curve vs REST simplicity; firewall/HTTP/2 issues vs multiplexing gains.[pflb.us]
+
+**Example questions**:
+- Unary vs bidirectional for chat app? (Bidirectional streaming).[1]
+- Handle deadlines in microservices? (Propagate to child calls).[grpc.io]
+- gRPC vs REST for mobile? (gRPC smaller payloads).[learn.microsoft.com]
+
+| Aspect | Pros | Cons | When |
+|--------|------|------|------|
+| Performance | Protobuf/HTTP/2: 7-10x faster | Binary opaque | Microservices [1] |
+| Streaming | All types native | No broadcast | Real-time [grpc.io] |
+| Browser | gRPC-Web workaround | No native | Internal APIs [learn.microsoft.com] |
+
+## Use Cases
+- **Microservices**: Inter-service calls (Netflix internals).[pflb.us]
+- **Real-time**: Chat/gaming (bidirectional), live updates (server-streaming).[1]
+- **IoT/Mobile**: Low-bandwidth (small payloads).[learn.microsoft.com]
+- **IPC**: Unix sockets/named pipes same-machine.[grpc.io]
+- **Polyglot**: Java/Go/Python services.[apidog.com]
+
+## Big Tech Blogs & Efficiency Wins
+Google's gRPC docs detail HTTP/2 + Protobuf cutting latency in distributed systems.[grpc.io] Microsoft ASP.NET Core highlights 7x recv/10x send speedups vs JSON APIs.[learn.microsoft.com] Netflix/Cisco use gRPC for microservices, reducing streaming pipeline latency.[pflb.us]
+
+## Cheat-Sheet Q&A
+**Q: Define service?** A: .proto with rpc Method(Req) returns(Res);[grpc.io]  
+**Q: Protoc command?** A: protoc --grpc_out=. --plugin=protoc-gen-grpc=grpc_java_plugin.jar helloworld.proto.[1]
+**Q: Deadline prop?** A: Client sets; server queries remaining time.[grpc.io]  
+**Q: Browser support?** A: gRPC-Web or JSON transcoding.[learn.microsoft.com]  
+**Q: Cancel RPC?** A: Client/server independently; no rollback.[grpc.io]  
+**Q: Metadata use?** A: Auth/tracing (keys: ascii/-bin).[1]
+
+## Tools/Frameworks
+- **Core**: protoc (compiler), grpcurl (CLI testing), Envoy (proxy/gateway).[grpc.io]
+- **Java**: Spring Boot gRPC, gRPC-Java.[1]
+- **.NET**: ASP.NET Core gRPC, Grpc.Tools.[learn.microsoft.com]
+- **Testing**: Postman/Apidog (gRPC support), BloomRPC.[apidog.com]
+- **Gateways**: gRPC-Gateway (REST bridge), Traefik.[pflb.us]
+
+## Data Structures & Algorithms
+Protobuf uses varint encoding (compact integers), zigzag for signed, nested messages as trees; schema evolution via tag numbers.[grpc.io] HTTP/2 streams employ priority queues (HPACK compression); channels use connection pools (hash maps). Streaming leverages iterators/queues; deadlines via timers/heaps.[1]
+
+## Key Highlights & Tradeoffs
+- **Wins**: Codegen saves dev time; streaming > polling; polyglot contracts.[learn.microsoft.com]
+- **Pains**: Debug binary (use grpcurl/JSON transcode); no browser native.[pflb.us]
+- **Interviews**: Justify vs REST (internal/low-latency); mention hybrids (gRPC + gateway).[1]
+
+## Concise Keywords Summary
+- gRPC, Protobuf, .proto, HTTP/2, Unary/Server-Client/Bidirectional Streaming
+- Channels, Stubs, Metadata, Deadlines, Cancellation, Interceptors
+- TLS/mTLS, Codegen (protoc), Schema Evolution, Multiplexing, gRPC-Web
+- Microservices, IPC, Polyglot, Low-Latency, Contract-First
+
+[1](https://apidog.com/articles/)

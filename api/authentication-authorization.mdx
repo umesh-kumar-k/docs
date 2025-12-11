@@ -1,0 +1,96 @@
+API authentication verifies identity (who?), authorization checks permissions (what?), using methods from Basic Auth (simplest, least secure) to mTLS (mutual certs, highest security).[zuplo][apideck] Senior architects select based on threat model: API keys for devx/public APIs, JWT for stateless microservices, OAuth2 for 3rd-party delegation, mTLS for zero-trust internal.[kong][frontegg]
+
+## Interview Summary
+Core methods: **Basic Auth** (Base64 username:pass, HTTPS-only), **API Keys** (simple strings, scoped), **JWT** (signed stateless claims), **OAuth2** (token delegation w/ scopes/refresh), **Bearer** (token in Authorization header), **mTLS** (mutual TLS certs), **OIDC** (OAuth2+ID tokens), **HMAC** (signed requests), **ISU** (service accounts).[zuplo][apideck] Gateways (Kong/Zuplo) enforce via policies; trade complexity for granularity.[kong]
+
+## Keywords & Patterns
+- **Basic Auth**: `Authorization: Basic dXNlcjpwYXNz` (Base64), stateless, every request.[apideck]
+- **API Keys**: `X-API-Key: sk_abc123`, query/header, revocable, scoped (read/write).[zuplo]
+- **JWT**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (header.payload.signature), claims (exp/iss/sub/aud/scope).[zuplo]
+- **OAuth2**: Flows (auth-code/PKCE/client-creds), scopes, access/refresh tokens, grant types.[apideck]
+- **Bearer**: `Authorization: Bearer <token>`, JWT/opaque, stateless validation.[zuplo]
+- **mTLS**: Client/server certs, PKI, CRL/OCSP revocation, no tokens over wire.[apideck]
+- **OIDC**: `openid` scope, ID tokens (JWT user info), discovery endpoints.[apideck]
+- **HMAC**: Sign(request+timestamp+nonce+key), replay protection.[apideck]
+
+## Common Trade-offs + Questions
+API Keys: dev-friendly but key exposure = full access; JWT: stateless/fast but no revocation (blacklists bloat); OAuth2: secure delegation but 3-5x complexity; mTLS: zero-trust but PKI overhead.[zuplo] Basic: simple/legacy vs NEVER public; Bearer scales but token theft = compromise.[apideck]
+
+**Example questions**:
+- Public API devx vs security? (API Keys + rate limits).[zuplo]
+- Microservices auth? (JWT short expiry + refresh).[zuplo]
+- 3rd-party user data? (OAuth2 PKCE).[apideck]
+- Zero-trust internal? (mTLS + SPIFFE).[1]
+
+| Method | Security | Complexity | Scalability | Revocation |
+|--------|----------|------------|-------------|------------|
+| Basic | Low | Low | Medium | Password reset [apideck] |
+| API Key | Medium | Low | High | Instant block [zuplo] |
+| JWT | High | Medium | High (stateless) | Blacklist/jti [zuplo] |
+| OAuth2 | Very High | High | High | Token expiry/revoke [apideck] |
+| mTLS | Highest | High | High | CRL/OCSP [apideck] |
+
+## Use Cases
+- **Public APIs**: API Keys (Stripe/Twilio dev portals).[zuplo]
+- **Microservices**: JWT (internal, short-lived).[zuplo]
+- **3rd-party**: OAuth2 (Google/Facebook login).[apideck]
+- **B2B Enterprise**: mTLS + OAuth (Salesforce/Workday).[apideck]
+- **Webhooks**: HMAC signatures (GitHub/Slack).[apideck]
+- **SSO**: OIDC (Okta/Auth0).[apideck]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix uses JWT + gateway for microservices (stateless, 10x less DB hits). Stripe API keys optimize devx (scoped, instant revoke) for 1M+ devs.[zuplo] Google Cloud mTLS enforces zero-trust, cutting lateral movement 90%. Kong blogs detail hybrid (JWT+Oauth) reducing auth latency 70% via caching.[kong][2][1]
+
+## Cheat-Sheet Q&A
+**Q: JWT revocation?** A: Short expiry (15m) + refresh + jti blacklist.[zuplo]  
+**Q: OAuth2 PKCE why?** A: Public clients (SPA/mobile) no client_secret.[apideck]  
+**Q: mTLS vs JWT?** A: mTLS no bearer tokens over wire; mutual auth.[1]
+**Q: API Key security?** A: HTTPS + rotation + scoped + rate limit.[zuplo]  
+**Q: Basic Auth ever?** A: Internal/HTTPS-only dev tools.[apideck]  
+**Q: OIDC vs OAuth2?** A: OIDC adds ID token (user info); OAuth2 authorization only.[apideck]
+
+## Tools/Frameworks
+- **Gateways**: Kong (plugins), Zuplo (policies), AWS API Gateway.[kong][zuplo]
+- **Java**: Spring Security OAuth2/JWT, Keycloak (OIDC).[3]
+- **Auth Servers**: Auth0/Okta (OIDC), Ory (headless).[4]
+- **mTLS**: Envoy/Istio (SPIFFE/SPIRE), cert-manager.[1]
+- **Testing**: Postman (all methods), Apidog (OAuth/JWT).[3]
+
+## Data Structures & Algorithms
+JWT parsing: Base64 decode + HMAC/RS256 verify (hash maps for claims). OAuth token store: Redis (sliding window expiry), Bloom filters (blacklist check). mTLS: X.509 cert chains (tree validation), CRL (distributed hash tables). Rate limiting: Token bucket/Leaky bucket (Redis counters). Scope checks: RBAC graphs (adjacency lists).[zuplo]
+
+## Key Highlights & Tradeoffs
+- **DevX**: API Keys > JWT > OAuth2 > mTLS.[zuplo]
+- **Security**: mTLS > OAuth2+JWT > API Keys > Basic.[apideck]
+- **Scale**: Stateless (JWT/Bearer) > Stateful sessions.[zuplo]
+- **Interviews**: "Hybrid: API Gateway terminates auth, passes user context".[kong]
+
+## Concise Keywords Summary
+- Basic Auth, API Keys, JWT, OAuth2, Bearer Token, mTLS, OIDC, HMAC, ISU
+- Scopes, Access/Refresh/ID Tokens, Claims (sub/iss/aud/exp/jti)
+- PKCE, Client Credentials, Authorization Code Flow, PKI/CRL/OCSP
+- Stateless, Revocation (blacklist/jti), Rate Limiting (token bucket)
+- Zero-Trust, RBAC/ABAC, Gateway Policies, HTTPS Mandatory
+
+[1](https://www.solo.io/blog/jwts-authenticate-services-api-gateways)
+[2](https://netflixtechblog.com)
+[3](https://apidog.com/articles/)
+[4](https://workos.com/blog/api-authentication-methods)
+[5](https://www.tryexponent.com/courses/system-design-interviews/authentication-authorization)
+[6](https://www.geeksforgeeks.org/system-design/tradeoffs-in-system-design/)
+[7](https://zuplo.com/learning-center/top-7-api-authentication-methods-compared)
+[8](https://www.hellointerview.com/learn/system-design/in-a-hurry/core-concepts)
+[9](https://www.devopsschool.com/blog/a-comprehensive-guide-to-api-authentication-methods-mechanisms-and-tools/)
+[10](https://algomaster.io/learn/system-design/authentication-authorization)
+[11](https://frontegg.com/guides/api-authentication-api-authorization)
+[12](https://igotanoffer.com/blogs/tech/system-design-interviews)
+[13](https://tyk.io/blog/api-authentication-methods/)
+[14](https://www.designgurus.io/blog/system-design-interview-fundamentals)
+[15](https://www.scalekit.com/blog/api-authentication-b2b-saas)
+[16](https://roadmap.sh/questions/system-design)
+[17](https://www.securityium.com/essential-api-authentication-methods-for-secure-data-access-in-2025/)
+[18](https://gocobalt.io/blog/9-best-practices-for-api-authentication-and-authorization-2/)
+[19](https://webflow.com/blog/api-authentication)
+[20](https://refold.ai/blog/9-best-practices-for-api-authentication-and-authorization-2/)
+[21](https://www.blackduck.com/blog/api-authentication-authorization-best-practices.html)
+[22](https://www.elysiate.com/blog/api-authentication-oauth-jwt-api-keys-compared)

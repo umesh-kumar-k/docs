@@ -1,0 +1,89 @@
+API styles like REST, gRPC, GraphQL, WebSocket, Webhook, RPC, and SOAP offer distinct paradigms for system communication, each balancing performance, simplicity, and flexibility. For senior architect interviews, focus on trade-offs in scalability, latency, and use cases to demonstrate design rationale.[1][2]
+
+## Interview Summary
+REST dominates public APIs with stateless HTTP/1.1 and JSON for broad compatibility. gRPC excels in microservices via HTTP/2, Protocol Buffers (Protobuf), and bidirectional streaming for 7-10x faster throughput. GraphQL reduces over-fetching with client-driven queries; WebSockets enable real-time bidirectional; Webhooks push events; SOAP provides WS-Security for enterprises; RPC suits procedure calls.[3][2][4][5]
+
+## Keywords & Patterns
+- **REST**: Stateless, uniform interface (GET/POST/PUT/DELETE), cacheable, layered, resources via URIs, JSON/XML.[3]
+- **gRPC**: RPC-based, unary/bidirectional streaming, Protobuf serialization, HTTP/2 multiplexing, code generation via protoc.[6][3]
+- **GraphQL**: Single endpoint, schema-driven queries/mutations/subscriptions, no over/under-fetching.[1]
+- **WebSocket**: Persistent full-duplex, real-time (chat, live updates), handshake over HTTP.[4]
+- **Webhook**: Event-driven push (server-to-client), HTTP callbacks.[4]
+- **SOAP**: XML envelopes, WS-Security, enterprise transactions.[2]
+- **RPC**: Remote procedure calls, argument-based (e.g., POST /deleteResource?id=3).[3]
+
+## Common Trade-offs + Questions
+REST trades performance for simplicity and browser support; gRPC prioritizes speed but lacks native browser compatibility and human-readable payloads. REST suits public/CRUD APIs; gRPC for internal microservices; GraphQL for complex graphs; WebSocket for latency-sensitive real-time.[7][2]
+
+**Example questions**:
+- When would you choose gRPC over REST for a payment system? (Low-latency inter-service calls).[8]
+- How does GraphQL mitigate REST's N+1 problem? (Batched queries).[1]
+- Trade-offs of WebSocket vs polling? (Connection overhead vs constant open channel).[9]
+
+| Style | Pros | Cons | Latency | Scalability |
+|------|------|------|---------|-------------|
+| REST | Simple, cacheable, universal | Over-fetching, HTTP/1.1 overhead | Medium | High (stateless) [5] |
+| gRPC | 7-10x faster, streaming, typed | Browser-limited, binary opaque | Low | High (HTTP/2) [8] |
+| GraphQL | Flexible queries | Schema complexity, caching hard | Medium | Medium [2] |
+
+## Use Cases
+- **REST**: Public web/mobile APIs, CRUD (e.g., Netflix, Uber user data).[3]
+- **gRPC**: Microservices, real-time streaming (e.g., Netflix internal, Cisco).[6]
+- **GraphQL**: Mobile apps with relational data (e.g., Facebook).[10]
+- **WebSocket**: Chat, live dashboards, gaming (e.g., stock tickers).[9]
+- **Webhook**: Notifications, CI/CD (e.g., GitHub events).[4]
+- **SOAP**: Banking/finance transactions (legacy enterprise).[2]
+
+## Big Tech Blogs & Efficiency Wins
+Google Cloud blog highlights gRPC's HTTP/2 + Protobuf for efficient connections in distributed systems. Netflix uses gRPC for microservices to cut latency in streaming pipelines. ByteByteGo notes gRPC's edge in low-latency microservices vs REST's broader tooling.[11][6][2]
+
+## Cheat-Sheet Q&A
+**Q: Default for interviews?** A: REST—safe, familiar.[1]
+**Q: Need speed in services?** A: gRPC (Protobuf + HTTP/2).[8]
+**Q: Real-time bidirectional?** A: WebSocket or gRPC streaming.[9]
+**Q: Event push?** A: Webhook (validate signatures).[2]
+**Q: Complex client data?** A: GraphQL (one endpoint).[6]
+**Q: Typed contracts?** A: gRPC (.proto files).[3]
+
+## Tools/Frameworks
+- **REST**: Spring Boot (Java), Express.js, Swagger/OpenAPI for docs.[3]
+- **gRPC**: protoc compiler, Envoy proxy, Spring gRPC, gRPC-Gateway (REST bridge).[6]
+- **GraphQL**: Apollo Server/Client, Hasura.[2]
+- **WebSocket**: Socket.io, Spring WebSocket.[9]
+- **SOAP**: Apache CXF, WCF.[2]
+- **Webhook**: Stripe/Zapier handlers, ngrok for testing.[4]
+
+## Data Structures & Algorithms
+Minimal direct DSA; focus on serialization efficiency. Protobuf uses compact binary trees/hashtables for schema evolution; HTTP/2 multiplexing leverages priority queues for streams. REST/JSON parsing involves tree traversals (e.g., Jackson for Java). GraphQL resolvers use graph traversal algorithms to avoid N+1 queries.[1][3]
+
+## Key Highlights & Tradeoffs
+- **Performance**: gRPC > WebSocket > REST > SOAP (binary vs text).[8]
+- **Complexity**: REST < GraphQL < gRPC (setup time: REST 10min vs gRPC 45min).[5]
+- **Interviews**: Justify with CAP (e.g., REST eventual consistency), mention hybrids (gRPC + REST gateway).[7]
+
+## Concise Keywords Summary
+- REST, gRPC, GraphQL, WebSocket, Webhook, RPC, SOAP
+- HTTP/1.1 vs HTTP/2, JSON vs Protobuf, Unary/Streaming/Bidirectional
+- Stateless, Cacheable, Idempotent, Schema Evolution, Multiplexing
+- Microservices, N+1 Problem, Over-fetching, Event-driven, Typed Contracts
+
+[1](https://www.youtube.com/watch?v=DQ57zYedMdQ)
+[2](https://blog.bytebytego.com/p/api-protocols-101-a-guide-to-choose)
+[3](https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery)
+[4](https://arnab2001.hashnode.dev/demystifying-api-architectures-a-comprehensive-guide)
+[5](https://blog.dreamfactory.com/grpc-vs-rest-how-does-grpc-compare-with-traditional-rest-apis)
+[6](https://blog.algomaster.io/p/30-system-design-concepts)
+[7](https://speedscale.com/blog/choosing-an-api-technology-grpc-rest-graphql/)
+[8](https://www.step2gen.com/blogs/performance-comparison-of-rest-and-grpc-apis)
+[9](https://dev.to/ivannalon/the-6-api-architecture-styles-rest-restful-graphql-soap-grpc-websockets-and-mqtt-2a9h)
+[10](https://interviewing.io/guides/system-design-interview/part-two)
+[11](https://cloud.google.com/blog/products/api-management/understanding-grpc-openapi-and-rest-and-when-to-use-them)
+[12](https://igotanoffer.com/blogs/tech/system-design-interviews)
+[13](https://dev.to/somadevtoo/15-system-design-tradeoffs-for-software-developer-interviews-613)
+[14](https://www.designgurus.io/blog/complex-system-design-tradeoffs)
+[15](https://www.tryexponent.com/courses/system-design-interviews/intro-architecture)
+[16](https://www.geeksforgeeks.org/blogs/graphql-vs-rest-vs-soap-vs-grpc/)
+[17](https://eluminoustechnologies.com/blog/grpc-vs-rest/)
+[18](https://www.greatfrontend.com/front-end-system-design-playbook/introduction)
+[19](https://www.resolutesoftware.com/blog/rest-vs-graphql-vs-grpc-vs-websocket/)
+[20](https://www.systemdesignhandbook.com/system-design-interview-handbook/)

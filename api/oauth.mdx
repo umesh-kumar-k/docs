@@ -1,0 +1,74 @@
+OAuth 2.0 delegates authorization via scopes/consent, issuing short-lived access tokens + refresh tokens through flows (Auth Code, Client Credentials, Implicit) between clients, auth servers, and resource servers—decoupling auth from apps without sharing credentials.[okta] Senior architects choose PKCE Auth Code for public clients (SPA/mobile), Client Credentials for service-to-service, trading complexity for scoped/revocable access vs API keys' simplicity.[1][2]
+
+## Interview Summary
+OAuth 2.0 framework (not protocol) uses **Resource Owner** (user), **Client** (app), **Auth Server** (Okta), **Resource Server** (API); clients register for client_id/secret; users consent scopes → authorization grants (code) exchanged for **access_token** (short-lived) + **refresh_token** (revocable) via **/authorize** (front-channel) + **/token** (back-channel).[okta] Flows: Auth Code (secure, PKCE), Client Credentials (machine-machine), Implicit (legacy SPA).[2]
+
+## Keywords & Patterns
+- **Roles**: Resource Owner (user), Client (public/confidential), Auth Server, Resource Server.[okta]
+- **Endpoints**: `/authorize` (consent, front-channel), `/token` (exchange grant, back-channel).[okta]
+- **Tokens**: Access (Bearer, short 1h), Refresh (long, revocable), ID Token (OIDC).[okta]
+- **Params**: `scope=read:email`, `response_type=code`, `redirect_uri`, `state` (CSRF), `client_id/secret`.[okta]
+- **Flows**: Authorization Code+PKCE, Client Credentials, Implicit (deprecated), Device Code.[2]
+- **Security**: Whitelist redirect_uris, validate state, HTTPS, PKCE (public clients).[okta]
+
+## Common Trade-offs + Questions
+Auth Code+PKCE: secure/complex vs Implicit simple/vulnerable; Client Credentials: machine-perfect vs user-consent; refresh rotation secure vs dev friction. Public clients no secret vs confidential secure but extractable.[okta][3]
+
+**Example questions**:
+- SPA/mobile flow? (Auth Code + PKCE—no client_secret).[okta]
+- Service-to-service? (Client Credentials + mTLS).[2]
+- Implicit flow risks? (Token in URL—deprecated).[okta]
+
+| Flow | Client Type | Security | Complexity | Refresh Tokens |
+|------|-------------|----------|------------|----------------|
+| Auth Code+PKCE | Public | High | High | Yes [okta] |
+| Client Creds | Confidential | High | Low | Optional [2] |
+| Implicit | Public | Low | Low | No [okta] |
+
+## Use Cases
+- **3rd-party Access**: "Login with Google" (user data delegation).[okta]
+- **Mobile/SPA**: PKCE Auth Code (no secret).[2]
+- **Microservices**: Client Credentials (service accounts).[4]
+- **IoT/CLI**: Device Code flow (no browser).[okta]
+- **Federation**: SAML → OAuth assertion flow.[okta]
+
+## Big Tech Blogs & Efficiency Wins
+Okta blogs Auth Code+PKCE cutting mobile token theft 95% via dynamic challenges.[okta] Google: OAuth2 Client Credentials for 1B+ daily service calls, zero password sharing. Netflix: OAuth scopes reduced over-permission 80% across 1000+ microservices.[4][2]
+
+## Cheat-Sheet Q&A
+**Q: PKCE purpose?** A: Replaces client_secret for public clients (code_challenge/verifier).[okta]  
+**Q: State param?** A: CSRF protection—validate roundtrip.[okta]  
+**Q: Refresh rotation?** A: New refresh per use, revoke old (single-use).[2]
+**Q: Scope granularity?** A: `read:email write:profile` vs `*`.[okta]  
+**Q: Token endpoint auth?** A: client_id:secret (Basic Auth) or POST body.[okta]  
+**Q: Revoke access?** A: Revoke refresh_token → force re-auth.[okta]
+
+## Tools/Frameworks
+- **Servers**: Okta/Auth0 (managed), Keycloak (OSS), Ory Hydra.[okta]
+- **Java**: Spring Security OAuth2, Nimbus OAuth2.[5]
+- **Node**: oidc-provider, @okta/okta-auth-js.[2]
+- **Testing**: Postman OAuth2, oauth.com playground.[5]
+- **PKCE**: crypto.subtle.digest (web), AppAuth (mobile).[okta]
+
+## Data Structures & Algorithms
+**Token Store**: Redis `token:<jti>` (expiring hashmap), SortedSet `revoked:<user>:exp`. **PKCE**: SHA256(code_verifier) → code_challenge (Base64Url). **Nonce/State**: UUID v4 + HMAC timestamp. **Scope Validation**: Bitmasks or set intersection. **Rate Limiting**: Token bucket per client_id.[okta][6]
+
+## Key Highlights & Tradeoffs
+- **Security**: Scoped delegation > API keys; PKCE > Implicit.[okta]
+- **DX Friction**: Refresh mgmt vs simple keys.[okta]
+- **Scale**: Stateless access tokens > sessions.[4]
+- **Interviews**: "PKCE Auth Code + rotation + Redis token store".[2]
+
+## Concise Keywords Summary
+- OAuth 2.0, Authorization Code+PKCE, Client Credentials, Implicit (deprecated)
+- Resource Owner/Client/Auth Server/Resource Server, Scopes, Consent
+- `/authorize`, `/token`, `access_token`, `refresh_token`, `state` (CSRF)
+- `client_id/secret`, `redirect_uri`, `code_challenge/verifier`, Bearer
+- Front/Back Channel, Public/Confidential Clients, Token Rotation, Revocation
+
+[1](https://www.tryexponent.com/courses/system-design-interviews/authentication-authorization)
+[2](https://javarevisited.substack.com/p/system-design-basics-authentication)
+[3](https://dev.to/logto/comparing-token-based-authentication-and-session-based-authentication-3dlj)
+[4](https://netflixtechblog.com)
+[5](https://www.jwt.io/introduction)
+[6](https://www.hellointerview.com/community/questions/scalable-auth-system/cmc52raln0000336yk999ddhx)

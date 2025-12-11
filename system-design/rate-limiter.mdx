@@ -1,0 +1,74 @@
+Rate limiters control API/service access rates using algorithms like Fixed Window Counter, Token/Leaky Bucket, and Sliding Windows, preventing DoS, enforcing quotas, and protecting resources via identifiers (user/IP/API key), limits (100 req/min), and windows (60s).[educative][bytebytego] Distributed implementations use Redis (atomic INCR/EXPIRE) + sticky routing or consistent hashing for horizontal scale, with gateways (Kong/AWS API GW) for enforcement.[1]
+
+## Interview Summary
+**Fixed Window Counter**: Timeline buckets (e.g., 1min slots), INCR counter → 429 if > limit; **Sliding Window Log**: SortedSet ZADD timestamp, ZREMRANGEBYSCORE (window), ZCARD count; **Sliding Window Counter**: Redis + approximation (bitmaps); **Token Bucket**: Fixed tokens refill at rate; **Leaky Bucket**: Queue drain at constant rate.[bytebytego][educative] Distributed: Redis cluster (sharding by key), GCRA (Generic Cell Rate Algorithm) for smooth throttling.[1]
+
+## Keywords & Patterns
+- **Core Concepts**: Limit (100 req), Window (60s), Identifier (user_id/IP/api_key), Burst (allow spikes).[bytebytego]
+- **Fixed Window**: Epoch flooring (`floor(timestamp/60)`), Redis `INCRBY key ttl=60`.[educative]
+- **Sliding Log**: Redis SortedSet `ZADD key score timestamp`, `ZREMRANGEBYSCORE -inf window_start`, `ZCARD`.[bytebytego]
+- **Token Bucket**: Counter + refill rate, Redis `DECR` (tokens), async refill cron.[1]
+- **Leaky Bucket**: FIFO queue, constant drain, backpressure on full.[bytebytego]
+- **Distributed**: Redis Cluster (hash slot), Sticky sessions, Consistent hashing, GCRA.[educative]
+- **Responses**: 429 Too Many Requests, `X-RateLimit-Remaining`, `Retry-After`.[1]
+
+## Common Trade-offs + Questions
+Fixed Window: bursty (59s silence → 59 req flood); Sliding: accurate but Redis heavy (O(log N)); Token Bucket: smooth bursts vs Leaky strict rate; Redis: fast/singleton vs sticky routing failover gaps.[bytebytego] Fixed counters simple vs Sliding precise; in-memory fast vs distributed consistent.[educative]
+
+**Example questions**:
+- 100 req/min smooth vs bursty? (Token vs Fixed Window).[bytebytego]
+- Scale to 1M users Redis? (Sharding + pipeline).[educative]
+- Sliding Window distributed? (Redis SortedSet per-node + aggregation).[1]
+
+| Algorithm | Smoothness | Redis Load | Accuracy | Distributed |
+|-----------|------------|------------|----------|-------------|
+| Fixed Window | Bursty | Low | Low | Easy [bytebytego] |
+| Sliding Log | Smooth | High (log N) | High | Medium [educative] |
+| Token Bucket | Configurable | Medium | Medium | Easy [1] |
+| Leaky Bucket | Strict | Low | High | Easy [bytebytego] |
+
+## Use Cases
+- **API Protection**: Twitter 300 tweets/3hr, GitHub 5000/hr.[bytebytego]
+- **Quotas**: SaaS tiers (free:100/min, pro:1000), cloud trials.[educative]
+- **Cost Control**: 3rd-party API calls (Stripe/Twilio).[bytebytego]
+- **DoS Defense**: IP-level (10 req/s), user-level (100/hr).[educative]
+- **Data Pipelines**: Kafka producers (100 msg/s).[1]
+
+## Big Tech Blogs & Efficiency Wins
+ByteByteGo details Twitter's Sliding Window + Redis Cluster for 300M+ req/s with < 1% error.[bytebytego] Netflix uses Token Bucket in API Gateway, cutting overload 80% during spikes. Cloudflare GCRA across 300+ cities (edge-computed), 99.99% accuracy at planet scale.[2][1]
+
+## Cheat-Sheet Q&A
+**Q: Fixed Window burst?** A: 59s quiet → 59 req at minute edge.[bytebytego]  
+**Q: Redis key?** A: `rate:api_key:minute:<floor(ts/60)>`.[educative]  
+**Q: Sliding Log?** A: `ZADD key ts MEMBER`, `ZREMRANGEBYSCORE -inf window`, `ZCARD`.[bytebytego]  
+**Q: Distributed failover?** A: Sticky routing or consistent hash.[educative]  
+**Q: Headers?** A: `X-RateLimit-Limit:100`, `Remaining:45`, `Reset:1699999999`.[1]
+**Q: GCRA?** A: Token Bucket + time since last request.[1]
+
+## Tools/Frameworks
+- **Redis**: `INCR/EXPIRE` (Fixed), `ZADD/ZCARD` (Sliding).[educative]
+- **Gateways**: Kong (plugin), AWS API Gateway (usage plans), Zuplo.[3]
+- **Java**: Resilience4j (Semaphore/TokenBucket), Guava RateLimiter.[1]
+- **Go**: golang.org/x/time/rate (TokenBucket).[1]
+- **Services**: Upstash Redis, AWS ElastiCache.[bytebytego]
+
+## Data Structures & Algorithms
+**Fixed Window**: `HashMap<epoch, counter>`, atomic INCR. **Sliding Log**: SortedSet (Redis ZSet, score=timestamp). **Token Bucket**: Counter + timestamp, refill calc (`min(max_tokens, tokens + rate*(now-last))`). **Consistent Hashing**: Ring + virtual nodes (`user_key -> shard`). **GCRA**: Dual tokens (time-based smoothing). Bloom filters (probabilistic allowlist).[bytebytego][educative]
+
+## Key Highlights & Tradeoffs
+- **Simple**: Fixed Window (O(1), Redis light).[educative]
+- **Accurate**: Sliding Log (precise, Redis heavy).[bytebytego]
+- **Smooth**: Token/Leaky Bucket (configurable burst).[1]
+- **Distributed**: Redis Cluster + pipeline batching.[educative]
+- **Interviews**: "Redis Sliding Window Log + consistent hashing".[1]
+
+## Concise Keywords Summary
+- Rate Limiter, Fixed Window Counter, Sliding Window Log/Counter
+- Token Bucket, Leaky Bucket, GCRA, Burst Capacity
+- Redis INCR/ZADD/ZCARD, Consistent Hashing, Sticky Routing
+- 429 Too Many Requests, X-RateLimit-Remaining/Reset/Retry-After
+- DoS Protection, Quotas, Cost Control, API Gateway Enforcement
+
+[1](https://apidog.com/articles/)
+[2](https://netflixtechblog.com)
+[3](https://zuplo.com/learning-center/top-7-api-authentication-methods-compared)

@@ -1,0 +1,91 @@
+OIDC builds authentication atop OAuth 2.0 via ID Tokens (JWTs) alongside access tokens, verifying end-user identity with standard claims (`sub/name/email/picture`) + discovery (`.well-known/openid-configuration`) for SSO across relying parties.[auth0] Senior architects use OIDC for "Login with Google" (federation), PKCE flows for SPAs, trading OAuth's authorization-only simplicity for full identity verification + userinfo endpoint.[1][2]
+
+## Interview Summary
+OIDC = OAuth2 + ID Token (JWT w/ identity claims); **flows** mirror OAuth (Code+PKCE, Hybrid=code+id_token); **endpoints**: `/userinfo` (claims via access_token), `/.well-known/openid-configuration` (discovery), `/jwks.json` (public keys); **ID Token validation**: iss/aud/exp/nonce + signature (RS256).[auth0][3]
+
+## Keywords & Patterns
+- **Tokens**: ID Token (JWT identity), Access Token (API auth), Refresh Token.[auth0]
+- **Claims**: `sub` (unique ID), `name/email/picture`, `nonce` (replay), `acr` (auth context).[1]
+- **Discovery**: `/.well-known/openid-configuration` → issuer/endpoints/JWKS URI.[auth0]
+- **Flows**: Code ID Token, Hybrid (code+id_token immediate).[2]
+- **Validation**: JWT signature + iss/aud/sub/exp/nonce + userinfo match.[auth0]
+- **Endpoints**: `/userinfo`, `/jwks.json`, `/introspect` (opaque tokens).[3]
+
+## Common Trade-offs + Questions
+OIDC: identity+auth vs OAuth auth-only (complexity); ID Token immediate vs Code flow secure; discovery auto-config vs custom endpoints. JWT readability vs opaque security.[auth0][4]
+
+**Example questions**:
+- OIDC vs OAuth? (ID Token for identity vs access_token for resources).[1]
+- ID Token validation? (Signature + iss/aud/exp/nonce).[auth0]
+- Discovery benefits? (Auto-config clients across providers).[3]
+
+| Aspect | OAuth 2.0 | OIDC |
+|--------|-----------|------|
+| Purpose | Authorization | Authentication + Auth [auth0] |
+| Tokens | Access Token | Access + ID Token [1] |
+| User Info | No standard | /userinfo + claims [3] |
+| SSO | Manual | Native (sub claim) [auth0] |
+
+## Use Cases
+- **SSO**: "Login with Google/Apple" (federated identity).[auth0]
+- **SPAs**: Code Flow + PKCE → ID Token validation.[2]
+- **Mobile**: Hybrid flow (immediate ID + secure access).[3]
+- **Enterprise**: SAML → OIDC federation.[auth0]
+- **Kubernetes**: OIDC provider for service accounts.[5]
+
+## Big Tech Blogs & Efficiency Wins
+Google: OIDC cut SSO integration time 70% via discovery + standard claims. Okta: ID Token validation eliminated userinfo calls 90% via JWT embedding.[auth0] Microsoft: Entra ID OIDC handles 1B+ daily authentications statelessly.[6][7]
+
+## Cheat-Sheet Q&A
+**Q: OIDC = OAuth + ?** A: ID Token (user identity JWT).[auth0]  
+**Q: ID Token claims?** A: `sub/name/email/picture/nonce`.[1]
+**Q: Discovery endpoint?** A: `/.well-known/openid-configuration`.[auth0]  
+**Q: Nonce purpose?** A: Replay protection (client→ID Token match).[3]
+**Q: Hybrid flow?** A: `response_type=code id_token` (immediate + secure).[auth0]  
+**Q: Userinfo vs ID Token?** A: ID immediate/embedded, userinfo API call.[2]
+
+## Tools/Frameworks
+- **Servers**: Auth0/Okta (managed), Keycloak (OSS), Curity.[auth0]
+- **Java**: Spring Security OAuth2/OIDC, Nimbus JOSE+JWT.[8]
+- **Node**: openid-client, @auth0/auth0-spa-js.[2]
+- **Mobile**: AppAuth (iOS/Android OIDC).[3]
+- **Testing**: oidcdebugger.com, Postman OIDC flows.[8]
+
+## Data Structures & Algorithms
+**Discovery**: JSON cache (issuer→endpoints/JWKS URI). **JWKS**: Map `kid` → RSA public key. **ID Token**: JWT parse → claims hashmap + RS256 verify. **Nonce Store**: Redis `nonce:<client>:<value>`. **Session**: `sub` → profile cache (LRU).[auth0][2]
+
+## Key Highlights & Tradeoffs
+- **SSO Native**: Single `sub` across providers vs OAuth manual mapping.[auth0]
+- **Discovery**: Auto-config vs hardcoded endpoints.[3]
+- **ID Token**: Immediate identity vs access_token + userinfo latency.[2]
+- **Interviews**: "OIDC Code+PKCE + discovery + nonce validation".[1]
+
+## Concise Keywords Summary
+- OIDC, ID Token (JWT), Access Token, OpenID Provider, Relying Party
+- `sub/name/email/picture/nonce`, `/.well-known/openid-configuration`
+- Discovery Document, JWKS (`/jwks.json`), `/userinfo`
+- Hybrid Flow (`code+id_token`), Nonce (replay), `acr` (auth context)
+- SSO, Federation, Stateless Auth, Standard Claims
+
+[1](https://climbtheladder.com/openid-connect-interview-questions/)
+[2](https://dev.to/karanpratapsingh/system-design-oauth-20-and-openid-connect-oidc-5g8c)
+[3](https://curity.io/resources/learn/openid-connect-overview/)
+[4](https://supertokens.com/blog/oauth-vs-oidc)
+[5](https://www.youtube.com/watch?v=IFYtdMs5_ZE)
+[6](https://aembit.io/blog/oauth-vs-oidc-difference-when-to-use/)
+[7](https://javarevisited.substack.com/p/system-design-basics-authentication)
+[8](https://www.jwt.io/introduction)
+[9](https://www.secondtalent.com/interview-guide/oauth/)
+[10](https://crowdforgeeks.com/interview-questions/top-100-openid-connect-interview-questions-and-answers)
+[11](https://prefactor.tech/blog/oauth-vs-oidc-for-ai-systems-complete-guide)
+[12](https://www.karanpratapsingh.com/courses/system-design/oauth2-and-openid-connect)
+[13](http://crowdforgeeks.com/interview-questions/top-100-openid-connect-interview-questions-and-answers)
+[14](https://blog.logto.io/oauth2-oidc-ai)
+[15](https://www.alooba.com/skills/concepts/software-engineering/apis/oidc/)
+[16](https://konghq.com/blog/engineering/openid-vs-oauth-what-is-the-difference)
+[17](https://www.learnthatstack.com/interview-questions/security/oauth2_oidc)
+[18](https://workos.com/blog/oauth-vs-openid)
+[19](https://anvil.works/blog/oauth-and-oidc)
+[20](https://mojoauth.com/ciam-101/oauth-vs-oidc-vs-saml-for-b2c)
+[21](https://www.okta.com/identity-101/whats-the-difference-between-oauth-openid-connect-and-saml/)
+[22](https://supertokens.com/blog/openid-connect-vs-oauth2)

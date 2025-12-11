@@ -1,0 +1,90 @@
+Cookie-based authentication stores session ID in HttpOnly/Secure/SameSite cookies after login, server validates against session store (Redis/Memcached), enabling stateless client → stateful server.[stackoverflow][jscrambler] Senior architects favor over JWT for CSRF protection (auto-browser exclusion from cross-site), though trades server storage/scalability for security.[1][2]
+
+## Interview Summary
+**Flow**: POST /login → Set-Cookie: sessionId=abc123; HttpOnly; Secure; SameSite=Strict → Subsequent reqs auto-include cookie → server DB/Redis lookup → 200/401.[stackoverflow] **Security flags**: HttpOnly (no JS access), Secure (HTTPS only), SameSite (CSRF defense), Path/Domain scoping.[jscrambler][browserstack] **Distributed**: Sticky sessions or Redis cluster; session fixation via regeneration post-login.[2]
+
+## Keywords & Patterns
+- **Cookie Flags**: `HttpOnly` (no document.cookie), `Secure` (HTTPS only), `SameSite=Strict/Lax/None` (CSRF), `Path=/api`, `Domain=.example.com`, `Max-Age=3600`.[jscrambler]
+- **Flow**: Login → `Set-Cookie: sid=<uuid>; HttpOnly; Secure; SameSite=Strict` → middleware `req.session = await redis.get(sid)`.[stackoverflow]
+- **Session Store**: In-memory (single node), Redis/Memcached (distributed), DB (slow).[2]
+- **Attacks Mitigated**: CSRF (SameSite), XSS (HttpOnly), MITM (Secure).[browserstack]
+- **Headers**: `Set-Cookie`, `Clear-Cookie: sid=; Expires=Thu, 01 Jan 1970`.[jscrambler]
+
+## Common Trade-offs + Questions
+**Cookies vs JWT**: Cookies auto-sent/CSRF-safe/server-revocable vs JWT stateless/no-server-storage; server storage scales poorly vs token bloat/validation cost. Sticky sessions fragile vs JWT microservices freedom; session expiry simple vs JWT blacklist complexity.[3][1][2]
+
+**Example questions**:
+- CSRF protection mechanism? (SameSite=Strict excludes cross-site).[jscrambler]
+- Scale sessions across regions? (Redis Global Replication).[2]
+- Session fixation attack? (Regenerate ID post-login).[stackoverflow]
+
+| Aspect | Cookies | JWT |
+|--------|---------|-----|
+| CSRF | Native (SameSite) | Tokens needed [jscrambler] |
+| Server Load | High (storage/lookup) | Low (stateless) [1] |
+| Revocation | Instant | Blacklist/short expiry [3] |
+| Mobile | Poor (no auto-send) | Excellent [2] |
+
+## Use Cases
+- **Traditional Web Apps**: Server-rendered (Rails/Django), CSRF priority.[1]
+- **Monoliths**: Single auth domain, session store viable.[stackoverflow]
+- **High Security**: Banking/gov (revocable, auditable sessions).[jscrambler]
+- **Legacy**: Existing session infra.[2]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix uses secure session cookies + CSRF tokens for web, JWT for APIs—cut auth overhead 40% via hybrid. Stack Overflow blogs SameSite=Lax default, reducing CSRF incidents 95% post-Chrome 80. Auth0 recommends HttpOnly cookies for SPAs over localStorage (XSS-proof).[4][5][6]
+
+## Cheat-Sheet Q&A
+**Q: CSRF defense?** A: `SameSite=Strict` (no cross-site), `Lax` (safe GETs).[jscrambler]  
+**Q: XSS defense?** A: `HttpOnly` (no JS access).[browserstack]  
+**Q: MITM defense?** A: `Secure` + HSTS.[jscrambler]  
+**Q: Logout?** A: `Set-Cookie: sid=; Max-Age=0` + server delete.[stackoverflow]  
+**Q: Fixation?** A: `req.session.regenerate()` post-login.[2]
+**Q: Distributed?** A: Redis `SETEX sid:uuid 3600 '{"user_id":123}'`.[1]
+
+## Tools/Frameworks
+- **Java**: Spring Session + Redis, `SecurityContextHolder`.[7]
+- **Node**: express-session + connect-redis, `req.session.regenerate()`.[1]
+- **Stores**: Redis (fast), Memcached, DynamoDB.[2]
+- **Testing**: Postman (Cookie jar), Browser DevTools Application tab.[7]
+
+## Data Structures & Algorithms
+**Session Store**: Redis Hash `session:<sid>` (user_id/exp/rbac), LRU eviction. **Consistent Hashing**: SID → Redis shard (virtual nodes). **Bloom Filter**: Fast "session exists?" (false positives). **Sliding Window**: Concurrent sessions (ZSET by timestamp). **UUID v4**: Collision-resistant SIDs.[stackoverflow][2]
+
+## Key Highlights & Tradeoffs
+- **Security**: CSRF/XSS/MITM native defenses > JWT.[jscrambler]
+- **Scalability**: Server storage bottleneck vs stateless.[1]
+- **DX**: Auto-browser handling vs manual token mgmt.[3]
+- **Mobile**: Weak (manual cookie emulation).[2]
+- **Interviews**: "HttpOnly cookies + SameSite=Strict + Redis cluster".[1]
+
+## Concise Keywords Summary
+- HttpOnly, Secure, SameSite=Strict/Lax/None, Session ID, Set-Cookie
+- Session Store (Redis/Memcached), CSRF Protection, XSS Mitigation
+- Sticky Sessions, Consistent Hashing, Session Fixation, HSTS
+- regenerate(), Path/Domain scoping, Max-Age/Expires, Clear-Cookie
+
+[1](https://dev.to/emmykolic/cookies-based-authentication-vs-session-based-authentication-1f6)
+[2](https://systemdesignschool.io/blog/auth-cookies)
+[3](https://ssojet.com/ciam-qna/jwt-vs-session-cookies-when-to-use-each)
+[4](https://netflixtechblog.com)
+[5](https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/)
+[6](https://workos.com/blog/api-authentication-methods)
+[7](https://apidog.com/articles/)
+[8](https://www.tryexponent.com/courses/system-design-interviews/authentication-authorization)
+[9](https://www.designgurus.io/blog/complex-system-design-tradeoffs)
+[10](https://www.linkedin.com/posts/alexxubyte_systemdesign-coding-interviewtips-activity-7352008220317519874-Hunt)
+[11](https://www.loginradius.com/blog/engineering/guest-post/jwt-vs-sessions)
+[12](https://blog.bytebytego.com/p/ep34-session-cookie-jwt-token-sso)
+[13](https://www.geeksforgeeks.org/system-design/tradeoffs-in-system-design/)
+[14](https://stackoverflow.com/questions/37582444/jwt-vs-cookies-for-token-based-authentication)
+[15](https://algodaily.com/lessons/cookie-vs-token-authentication)
+[16](https://stytch.com/blog/jwts-vs-sessions-which-is-right-for-you/)
+[17](https://blog.stackademic.com/cookies-vs-sessions-vs-jwt-whats-the-difference-75bfe7323b02)
+[18](https://www.reddit.com/r/node/comments/1aox0au/whats_the_ultimate_resource_for_jwt_vs_session/)
+[19](https://www.linkedin.com/posts/alexxubyte_systemdesign-coding-interviewtips-activity-7376642893806989312-LRwY)
+[20](https://dev.to/truongpx396/jwt-tokens-vs-session-cookies-in-authentication-and-authorization-1o93)
+[21](https://ianlondon.github.io/posts/dont-use-jwts-for-sessions/)
+[22](https://www.reddit.com/r/webdev/comments/1ibe6u1/jwt_vs_cookies/)
+[23](https://www.reddit.com/r/node/comments/w8ukp7/session_cookies_vs_jwt_tokens_for_web_app_mobile/)
+[24](https://blogs.halodoc.io/user-authentication-jwt-vs-session/)

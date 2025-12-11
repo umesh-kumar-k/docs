@@ -20,6 +20,34 @@
             ]
           },
           {
+            "group": "Architecture Styles",
+            "pages": [
+              "architecture-styles/asynchronous",
+              "architecture-styles/event-driven",
+              "architecture-styles/n-tier",
+              "architecture-styles/serverless",
+              "architecture-styles/web-queue-worker"
+            ]
+          },
+          {
+            "group": "API",
+            "pages": [
+              "api/overview",
+              "api/rest",
+              "api/grpc",
+              "api/real-time",
+              "api/http",
+              "api/json-api",
+              "api/authentication-authorization",
+              "api/cookie",
+              "api/jwt",
+              "api/token-based",
+              "api/oauth",
+              "api/oauth-flows",
+              "api/oidc"
+            ]
+          },
+          {
             "group": "Asynchronous Messaging",
             "pages": [
               "async-messaging/overview",
@@ -80,7 +108,8 @@
               "system-design/reverse-proxy",
               "system-design/scalability",
               "system-design/communication",
-              "system-design/protocols"
+              "system-design/protocols",
+              "system-design/rate-limiter"
             ]
           }
         ]

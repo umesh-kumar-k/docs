@@ -1,0 +1,91 @@
+N-tier architecture divides apps into **logical layers** (presentation/business/data) deployed on **physical tiers** (separate VMs/subnets), enabling separation of concerns, scalability per tier, and security boundaries via NSGs/WAF—traditional 3-tier (web/app/DB) evolves to multi-tier for complex workloads.[msft] Senior architects use for legacy migration (lift-shift), hybrid cloud/on-prem, trading microservices agility for simpler ops/deployments and proven reliability.[1]
+
+## Interview Summary
+**Layers**: Presentation (UI/API), Business (logic/services), Data (DB/cache); **Tiers**: Physically separated (VMSS + load balancers), strict (adjacent only) vs relaxed (skip tiers) communication.[msft] **Deployment**: Web tier → app tier(s) → data tier, async messaging optional, caching between tiers, WAF perimeter + Bastion admin access. **Evolution**: Monolith → 3-tier → microservices (granular scaling).[2][1]
+
+## Keywords & Patterns
+- **Tiers**: Presentation (Web VMSS), Business (App VMSS), Data (SQL AlwaysOn/Cassandra).[msft]
+- **Communication**: Strict (adjacent tiers), Relaxed (skip), Async (Service Bus).[msft]
+- **Security**: WAF → NSGs (tier isolation), Bastion (RDP/SSH), subnets/VNet.[msft]
+- **Scaling**: Horizontal VMSS, load balancers, autoscaling, read replicas.[msft]
+- **Hybrid**: On-prem + Azure VNet (VPN/ExpressRoute).[msft]
+- **Closed/Open**: Layer calls only immediate below vs any below.[msft]
+
+## Common Trade-offs + Questions
+N-tier: Familiar/portable/simple vs microservices granular scale; tier separation resilient/secure vs latency overhead; closed layers clean vs unnecessary hops; VM flexibility vs managed service simplicity.[msft][2]
+
+**Example questions**:
+- Migrate monolith? (3-tier lift-shift, tier isolation).[msft]
+- Scale e-commerce? (Web stateless, DB read replicas).[1]
+- Strict vs relaxed? (Strict secure, relaxed performant).[msft]
+
+| Aspect | N-Tier | Microservices |
+|--------|--------|---------------|
+| Coupling | Medium (tiers) | Loose (services) [2] |
+| Scale | Tier-level | Service-level [msft] |
+| Deploy | Coordinated | Independent [1] |
+| Ops | Simple | Complex [2] |
+
+## Use Cases
+- **Legacy Migration**: On-prem → Azure VMs (minimal rewrite).[msft]
+- **Enterprise Apps**: ERP/CRM (predictable tiers).[1]
+- **Hybrid Cloud**: On-prem DB + cloud web/app.[msft]
+- **Regulated**: Finance/gov (tier isolation/audit).[msft]
+
+## Big Tech Blogs & Efficiency Wins
+Microsoft Azure: N-tier reference cut enterprise migration time 60% vs full refactor.[msft] Netflix early monolith → tiered → microservices evolution (lessons learned). AWS Well-Architected: Tiered apps 80% faster MVP vs distributed systems.[3][2]
+
+## Cheat-Sheet Q&A
+**Q: Strict vs relaxed?** A: Strict sequential (secure), relaxed skip tiers (perf).[msft]  
+**Q: Tier scaling?** A: VMSS + load balancer + autoscaling.[msft]  
+**Q: Data tier HA?** A: SQL AlwaysOn, Cassandra replication.[msft]  
+**Q: Security boundaries?** A: Subnets + NSGs (tier→tier only).[msft]  
+**Q: Closed layer?** A: Only adjacent below (dependency control).[msft]  
+**Q: Hybrid connect?** A: VNet VPN/ExpressRoute.[msft]
+
+## Tools/Frameworks
+- **Compute**: Azure VMSS, App Service (managed), AKS (containerized).[msft]
+- **Networking**: Load Balancer, NSG, VNet, Bastion, WAF.[msft]
+- **Data**: SQL AlwaysOn, CosmosDB, Redis Cache.[msft]
+- **Messaging**: Service Bus (async tiers).[msft]
+- **Java**: Spring Boot (multi-tier), Hibernate (data).[4]
+
+## Data Structures & Algorithms
+**Load Balancing**: Round-robin, least connections (hash tables). **Session Affinity**: Sticky routing (client IP hash). **Caching**: LRU eviction (LinkedHashMap). **Sharding**: Range/Hash partitioning (DB). **Circuit Breaker**: State machine (open/half-open).[msft][1]
+
+## Key Highlights & Tradeoffs
+- **Migration**: Lift-shift friendly vs microservices rewrite.[msft]
+- **Security**: Tier isolation + WAF > flat networks.[msft]
+- **Scale**: Tier-level vs service-granular.[2]
+- **Ops**: Predictable vs distributed complexity.[msft]
+- **Interviews**: "3-tier VMSS + NSG isolation + async Service Bus".[msft]
+
+## Concise Keywords Summary
+- N-Tier, 3-Tier, Layers (Presentation/Business/Data), Physical Tiers
+- Strict/Relaxed Communication, Closed/Open Layers, VMSS, Load Balancer
+- WAF, NSG, Subnets, Bastion, Service Bus (async)
+- SQL AlwaysOn, Read Replicas, Hybrid (VPN/ExpressRoute)
+- Autoscaling, Session Affinity, Tier Isolation, Lift-Shift Migration
+
+[1](https://www.designgurus.io/answers/detail/key-system-design-patterns-for-tech-interview)
+[2](https://www.techtarget.com/searchapparchitecture/tip/Three-tier-vs-microservices-architecture-How-to-choose)
+[3](https://netflixtechblog.com)
+[4](https://www.jwt.io/introduction)
+[5](https://www.linkedin.com/posts/arslanahmad_systemdesign-coding-interviewtips-activity-7335947206455136257-fsuq)
+[6](https://www.tryexponent.com/blog/system-design-interview-guide)
+[7](https://www.geeksforgeeks.org/system-design/design-patterns-architecture/)
+[8](https://www.systemdesignhandbook.com/answers/what-are-the-tradeoffs-in-a-system-design-interview/)
+[9](https://dev.to/somadevtoo/15-system-design-tradeoffs-for-software-developer-interviews-613)
+[10](https://www.reddit.com/r/ExperiencedDevs/comments/173ioub/differentiating_monolithic_vs_3tier_architecture/)
+[11](https://github.com/mohllal/system-design-prep/blob/main/architecture/01-layered-architecture.md)
+[12](https://vfunction.com/blog/microservices-architecture-guide/)
+[13](https://rockybhatia.substack.com/p/10-trade-offs-every-system-design)
+[14](https://blog.bitsrc.io/lessons-learned-from-building-an-evolutionary-architecture-17b4e2189041)
+[15](https://bytebytego.com/guides/10-system-design-tradeoffs-you-cannot-ignore/)
+[16](https://microservices.io/patterns/microservices.html)
+[17](https://igotanoffer.com/blogs/tech/system-design-interviews)
+[18](https://icepanel.io/blog/2023-03-07-monolithic-vs-microservices-architectures)
+[19](https://blog.dreamfactory.com/common-types-of-software-architecture)
+[20](https://pretius.com/blog/modular-software-architecture)
+[21](https://thetechsolo.wordpress.com/2015/07/05/from-monolith-three-tiers-architectures-to-soa-vs-microservices/)
+[22](https://itechindia.co/blog/when-to-use-microservices-architecture/)

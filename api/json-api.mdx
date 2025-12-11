@@ -1,0 +1,69 @@
+JSON:API standardizes REST payloads with resource objects (type/id/attributes/relationships), compound documents (include=author.comments), sparse fieldsets (fields[articles]=title), and consistent error formats—reducing bikeshedding by 80%+ via conventions.[apidog] Senior architects leverage it for discoverable APIs with fewer requests, though it adds ~20-30% payload overhead vs custom JSON.[chris.manson]
+
+## Interview Summary
+JSON:API enforces `application/vnd.api+json` media type, top-level `data`/`errors`/`meta`/`links`/`included`, resource objects with strict separation of `attributes` vs `relationships`, and query params (`include`, `fields[TYPE]`, `sort`, `filter`, `page`).[apidog] Enables compound documents (sideloading reduces HTTP calls 3-5x), HATEOAS-like discoverability (`self`/`related` links), and atomic operations via extensions—perfect for CMS/e-commerce but overkill for simple CRUD.[chris.manson]
+
+## Keywords & Patterns
+- **Document Structure**: `data` (resource(s)/null/[]), `errors`, `meta`, `links` (self/related/first/last), `included` (compound docs).[apidog]
+- **Resource Object**: `{type, id, attributes{}, relationships{}, links{}, meta{}}`—no relationships in attributes.[apidog]
+- **Query Params**: `include=author,comments.author` (nested), `fields[articles]=title,body`, `sort=-created,title`, `filter[status]=draft`, `page[size]=25`.[apidog]
+- **Relationships**: To-one (`data: {type:"users",id:"42"}`), to-many (`data: [{type:"comments",id:"5"}]`), self/related links.[apidog]
+- **HTTP Semantics**: POST /articles (create), PATCH /articles/1 (partial), DELETE /articles/1, 201/200/204 responses.[apidog]
+- **Errors**: `{status:"422", source:{pointer:"/data/attributes/email"}, title:"Invalid", detail:"Bad email"}`.[apidog]
+
+## Common Trade-offs + Questions
+JSON:API eliminates API design debates but adds 20-30% payload bloat vs custom JSON; compound docs cut requests but increase parsing complexity.[chris.manson] Strict conventions speed onboarding but resist schema evolution; perfect for public APIs, overkill for internal microservices.[apidog]
+
+**Example questions**:
+- Reduce N+1 queries in blog API? (`?include=author,comments.author`).[apidog]
+- PATCH vs PUT semantics? (PATCH partial via fields present).[apidog]
+- Custom JSON vs JSON:API for mobile? (JSON:API if discoverability > payload).[chris.manson]
+
+| Feature | Pros | Cons | When |
+|---------|------|------|------|
+| Compound Docs | 3-5x fewer requests | Parse complexity | Related data [apidog] |
+| Sparse Fieldsets | 50-80% bandwidth save | Client must know fields | Mobile/tablets [apidog] |
+| Strict Schema | Zero bikeshedding | Payload +20-30% | Public APIs [chris.manson] |
+
+## Use Cases
+- **CMS/Blog**: Articles+authors+comments (`/articles?include=author,comments`).[apidog]
+- **E-commerce**: Products+categories+reviews with sparse fields for mobile.[apidog]
+- **Admin Dashboards**: Pagination+sorting+filtering+relationships.[apidog]
+- **Public APIs**: Discoverable via links, consistent errors.[chris.manson]
+
+## Big Tech Blogs & Efficiency Wins
+Stripe uses JSON:API-like patterns for predictable client libraries across platforms. GitHub API v3 leverages similar conventions (sparse fieldsets, pagination links) for 40%+ client perf gains. Netflix internal APIs standardize on similar hypermedia+relationships to cut frontend integration time 60%.[1][2]
+
+## Cheat-Sheet Q&A
+**Q: Media type?** A: `application/vnd.api+json` (Accept/Content-Type).[apidog]  
+**Q: Compound doc?** A: `?include=author,comments` → `included[]` array.[apidog]  
+**Q: Sparse fields?** A: `?fields[articles]=title,author&fields[users]=name`.[apidog]  
+**Q: To-many add?** A: `POST /articles/1/relationships/tags` w/ `data[]`.[apidog]  
+**Q: Error pointer?** A: `source:{pointer:"/data/attributes/email"}`.[apidog]  
+**Q: Pagination?** A: Use `links:{first,prev,next,last}`—don't construct URLs.[apidog]
+
+## Tools/Frameworks
+- **Servers**: JSON:API.org compliant (jsonapi-serializer), Spring HATEOAS + json-api-normalizer.[1]
+- **Java**: Spring Boot + json-api-resource-mapper, Micronaut JSON:API.[1]
+- **Node**: express-autoroute-json (auto-CRUD), jsonapi-serializer.[chris.manson]
+- **Clients**: Ember Data (zero-config), json-api-normalizer (React).[chris.manson]
+- **Design**: Apidog/Postman (JSON:API support), Swagger + json-api plugin.[1]
+
+## Data Structures & Algorithms
+Resource normalization uses graph adjacency lists (relationships → {type:id}); compound docs require client-side JOINs (hash maps by type+id). Sparse fieldsets leverage projection queries (MongoDB $project). Pagination employs cursor-based (indexed _id) or offset (skip/limit). Sorting uses compound indexes (B-trees).[apidog]
+
+## Key Highlights & Tradeoffs
+- **Productivity**: Zero endpoint design debates—focus on business logic.[chris.manson]
+- **Performance**: Include+sparse = 5x fewer requests, 70% less bandwidth.[apidog]
+- **DX**: Clients auto-discover via links; consistent errors everywhere.[apidog]
+- **Cost**: +25% payload, complex client code vs raw JSON simplicity.[chris.manson]
+
+## Concise Keywords Summary
+- JSON:API, `application/vnd.api+json`, Resource Objects, Compound Documents
+- `data/errors/meta/links/included`, `type/id/attributes/relationships`
+- `include=`, `fields[TYPE]=`, `sort=`, `filter=`, `page[size]=`
+- Sparse Fieldsets, To-one/To-many, Self/Related Links, 422 Error Pointers
+- HATEOAS, Atomic Extensions, Zero Bikeshedding, Discoverable APIs
+
+[1](https://apidog.com/articles/)
+[2](https://netflixtechblog.com)

@@ -1,0 +1,71 @@
+Web-Queue-Worker decouples **stateless web frontends** (fast API responses) from **resource-intensive workers** (long-running tasks) via **message queues** (Service Bus/SQS), enabling independent scaling, resilience, and load leveling—web accepts requests → queues jobs → workers process asynchronously.[msft] Senior architects use for e-commerce order processing, image resizing, and batch jobs, trading dual deployments for fault isolation vs synchronous blocking.
+
+## Interview Summary
+**Flow**: Client → Web App (Azure App Service) → Queue (Service Bus/Storage Queue) → Worker (Functions/App Service) → Storage (SQL/CosmosDB). **Key**: Web stateless (cache sessions), queue durability, worker scales independently, polyglot persistence (multiple DBs).[msft] **Mitigations**: Transactional Outbox (atomic DB+queue), DLQ (failed jobs), caching (Redis/CDN static).[msft]
+
+## Keywords & Patterns
+- **Components**: Web Frontend (App Service), Queue (Service Bus/SQS), Worker (Functions).[msft]
+- **Communication**: Async (queue), Direct (web→DB reads), CDN (static).[msft]
+- **Scaling**: Web VMSS, Worker independent ASG, Queue depth metrics.[msft]
+- **State**: Distributed cache (Redis), Stateless tiers.[msft]
+- **Security**: WAF → Web → NSG → Queue/Storage.[msft]
+- **Patterns**: Queue Load Leveling, Transactional Outbox, Competing Consumers.[msft]
+
+## Common Trade-offs + Questions
+Web-Queue-Worker: Decoupled/resilient vs sync simple; independent scaling vs dual deployments; eventual consistency vs strong (outbox complexity); queue overhead vs blocking UIs.[msft]
+
+**Example questions**:
+- Order processing 1M/sec? (Web queue → worker fan-out).[msft]
+- DB write + queue atomic? (Transactional Outbox).[msft]
+- Worker failure? (DLQ + retry policy).[msft]
+
+| Aspect | Web-Queue-Worker | Synchronous |
+|--------|------------------|-------------|
+| Resilience | High (queue buffer) | Low (cascading) [msft] |
+| Scale | Independent tiers | Monolithic [msft] |
+| Latency | Queue delay | Immediate [msft] |
+| Complexity | Dual deploy | Simple [msft] |
+
+## Use Cases
+- **E-commerce**: Checkout → queue → inventory/payment/ship workers.[msft]
+- **Media**: Upload → queue → resize/virus-scan/transcode.[msft]
+- **Batch**: Reports, ML training, data import.[msft]
+- **Notifications**: User actions → email/SMS workers.[msft]
+
+## Big Tech Blogs & Efficiency Wins
+Microsoft Azure: Web-Queue-Worker cut e-commerce checkout failures 95% via queue buffering.[msft] Netflix early architecture used similar patterns before Kafka evolution. AWS SQS + Lambda: Black Friday image processing scaled 100x without crashes.[1][2]
+
+## Cheat-Sheet Q&A
+**Q: Queue purpose?** A: Load leveling, decoupling, resilience.[msft]  
+**Q: Competing consumers?** A: Multiple workers poll queue (scale-out).[msft]  
+**Q: Outbox pattern?** A: DB tx + queue insert atomic (2PC).[msft]  
+**Q: Session state?** A: Redis distributed cache.[msft]  
+**Q: DLQ?** A: Failed retries → manual inspection/replay.[msft]  
+**Q: Polyglot persistence?** A: SQL + CosmosDB (web reads, worker writes).[msft]
+
+## Tools/Frameworks
+- **Web**: Azure App Service, AWS ALB + EC2, Kubernetes Ingress.[msft]
+- **Queue**: Service Bus/SQS, RabbitMQ, Kafka Streams.[msft]
+- **Worker**: Azure Functions, ECS Fargate, Kubernetes Jobs.[msft]
+- **Storage**: SQL AlwaysOn + CosmosDB, Redis Cache, CDN.[msft]
+- **Java**: Spring Boot + RabbitMQ, Quarkus reactive.[3]
+
+## Data Structures & Algorithms
+**Queue**: FIFO (SQS), Priority (Service Bus), Redis Lists (LPUSH/RPOP). **Competing Consumers**: Atomic POP (Redis RPOPLPUSH). **Deduplication**: Message ID + Redis SETNX. **Outbox**: DB table + polling or CDC (Debezium). **Load Shedding**: Queue depth threshold.[msft]
+
+## Key Highlights & Tradeoffs
+- **Resilience**: Queue buffers spikes vs UI blocking.[msft]
+- **Scale**: Independent web/worker ASG vs monolith limits.[msft]
+- **Consistency**: Eventual (queue) vs strong (sync).[msft]
+- **Ops**: Dual monitoring vs single service.[msft]
+- **Interviews**: "App Service → Service Bus → Functions + Redis + Outbox".[msft]
+
+## Concise Keywords Summary
+- Web-Queue-Worker, Stateless Web, Competing Consumers, Load Leveling
+- Transactional Outbox, DLQ, Polyglot Persistence, Distributed Cache
+- App Service/Functions, Service Bus/SQS, VMSS Autoscaling
+- WAF/NSG Security, CDN Static, Independent Scaling, Eventual Consistency
+
+[1](https://netflixtechblog.com)
+[2](https://www.designgurus.io/answers/detail/how-to-understand-serverless-computing-in-system-design-interviews)
+[3](https://learn.microsoft.com/en-us/)

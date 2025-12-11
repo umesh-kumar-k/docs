@@ -1,0 +1,88 @@
+RESTful API design emphasizes stateless, resource-oriented principles using HTTP methods, nouns in URIs, and JSON for scalable, loosely coupled services. Senior architects must articulate HATEOAS, versioning, pagination, and security to justify choices in high-scale systems.[1][2]
+
+## Interview Summary
+REST APIs achieve platform independence via standard HTTP, JSON/XML, and clear docs while enabling loose coupling through uniform interfaces. Key practices include plural nouns for collections (/customers), HTTP verbs (GET/POST/PUT/PATCH/DELETE), status codes (200/201/204/404), and hypermedia links for discoverability. Pagination (?limit=25&offset=0), filtering (?status=shipped), and versioning (URI/media type) prevent chatty I/O and breaking changes.[3][2]
+
+## Keywords & Patterns
+- **URIs**: Nouns (resources), plural collections (/orders), hierarchical (/customers/5/orders), no verbs (/createOrder).[2]
+- **HTTP Methods**: GET (read, idempotent), POST (create/process), PUT (replace, idempotent), PATCH (partial update, JSON Patch/Merge), DELETE (remove).[2]
+- **Responses**: JSON (application/json), HATEOAS links (rel/href/action), status codes (202 Accepted for async).[2]
+- **Query Params**: Pagination (limit/offset), filtering (minCost=100), sorting (sort=price), fields (fields=id,name).[2]
+- **Versioning**: URI (/v2/customers), query (?version=2), header (api-version=2), media (vnd.contoso.v1+json).[2]
+- **Other**: Stateless, cacheable (ETag), partial responses (Range header), multitenant (tenant ID in path/header).[4][2]
+
+## Common Trade-offs + Questions
+Statelessness boosts scalability but complicates sessions; HATEOAS adds discoverability at payload cost; URI versioning simplifies routing but bloats endpoints. Pagination reduces bandwidth vs offset inefficiency on deletes; PATCH saves data vs PUT's full payload.[3][2]
+
+**Example questions**:
+- Design /customers/5/orders with pagination/filtering? (/customers/5/orders?limit=10&status=shipped).[2]
+- PUT vs PATCH for user update? (PUT idempotent full replace; PATCH efficient partial).[2]
+- Versioning strategy for public API? (Media type for HATEOAS compatibility).[2]
+
+| Practice | Pros | Cons | When to Use |
+|----------|------|------|-------------|
+| Plural Nouns | Intuitive hierarchy | None major | Collections [2] |
+| HATEOAS | Discoverable | Payload overhead | Evolving APIs [2] |
+| URI Versioning | Cache-friendly | Endpoint proliferation | Internal APIs [2] |
+| Pagination | Bandwidth savings | Offset skew | Large lists [2] |
+
+## Use Cases
+- **CRUD Operations**: E-commerce (/orders for POST/GET collection).[2]
+- **Hierarchical Data**: User profiles with nested orders (/users/1/orders).[2]
+- **Async Processing**: Long-running jobs (202 + /status/123).[2]
+- **Large Datasets**: Paginated reports (?limit=100&sort=date).[2]
+- **Multitenant**: SaaS (/tenants/acme/users).[2]
+
+## Big Tech Blogs & Efficiency Wins
+Microsoft Azure docs stress noun-based URIs and PATCH for 50%+ bandwidth reduction in partial updates. Stack Overflow advocates JSON + caching for performance, avoiding DB mirroring to cut attack surface. AWS API Gateway promotes REST for developer familiarity, with pagination yielding 10x query speedups.[5][3][2]
+
+## Cheat-Sheet Q&A
+**Q: URI for customer orders?** A: /customers/5/orders (plural, hierarchical).[2]
+**Q: Idempotent methods?** A: GET, PUT, DELETE.[2]
+**Q: Handle large lists?** A: ?limit=25&offset=0&fields=id,name.[2]
+**Q: Breaking schema change?** A: New version (/v2) or media type.[2]
+**Q: Partial binary fetch?** A: Range: bytes=0-2499 (206 Partial).[2]
+**Q: Async status?** A: 202 Accepted + Location: /status/123.[2]
+
+## Tools/Frameworks
+- **Design/Docs**: OpenAPI/Swagger (spec generation), Postman (testing).[3]
+- **Java/Spring**: Spring Boot REST, Jackson (JSON), Spring HATEOAS.[2]
+- **Security**: OAuth2/JWT (Spring Security), API keys.[4]
+- **Gateway/Monitoring**: AWS API Gateway, Azure APIM, Kong.[5]
+- **Caching**: Redis/Etag, CDNs.[3]
+
+## Data Structures & Algorithms
+JSON parsing uses tree traversals (e.g., Jackson DOM-like); pagination employs offset-based slicing or cursor (LinkedHashMap for stable order). Filtering/sorting leverages indexes (B-trees), query params parsed via hash maps. HATEOAS link generation involves graph adjacency lists for relations.[2]
+
+## Key Highlights & Tradeoffs
+- **Scalability**: Stateless + caching > sessions; avoid chatty APIs (batch PUT).[2]
+- **Maintainability**: Versioning + HATEOAS > no-version (breaking changes).[2]
+- **Performance**: Fields/filtering > full payloads; async for long ops.[3]
+- **Security**: No DB exposure, validate fields/tenants.[4]
+
+## Concise Keywords Summary
+- RESTful, Stateless, HATEOAS, Uniform Interface, Resource URIs
+- Nouns/Plurals, HTTP Verbs (GET/POST/PUT/PATCH/DELETE), Status Codes (200/201/202/204/404/409)
+- Pagination (limit/offset), Filtering/Sorting/Fields, Versioning (URI/Query/Header/Media)
+- JSON Patch/Merge, Partial Responses (Range), Async (202/Status), Multitenant, Idempotent, Cacheable (ETag)
+
+[1](https://www.youtube.com/watch?v=DQ57zYedMdQ)
+[2](https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design)
+[3](https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/)
+[4](https://stackoverflow.blog/2021/10/06/best-practices-for-authentication-and-authorization-for-rest-apis/)
+[5](https://docs.aws.amazon.com/whitepapers/latest/best-practices-api-gateway-private-apis-integration/rest-api.html)
+[6](https://www.reddit.com/r/webdev/comments/1afxhbx/best_practices_for_designing_an_api_for_an/)
+[7](https://www.interviewbit.com/rest-api-interview-questions/)
+[8](https://www.designgurus.io/blog/what-is-restful-api)
+[9](https://www.reddit.com/r/ExperiencedDevs/comments/1kkuy4b/rest_api_design_interview_question/)
+[10](https://appsentinels.ai/blog/restful-api-design-best-practices/)
+[11](https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-implementation)
+[12](https://www.youtube.com/watch?v=7iHl71nt49o)
+[13](https://www.hellointerview.com/learn/system-design/core-concepts/api-design)
+[14](https://daily.dev/blog/restful-api-design-best-practices-guide-2024)
+[15](https://dev.to/leapcell/mastering-restful-api-design-a-practical-guide-408)
+[16](https://www.linkedin.com/posts/sina-riyahi_backend-csharp-efcore-activity-7371565019081293824-I7Jg)
+[17](https://www.youtube.com/watch?v=E2JQcuGHlVg)
+[18](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md)
+[19](https://blog.stoplight.io/api-design-patterns-for-rest-web-services)
+[20](https://newsletter.systemdesignclassroom.com/p/a-survival-kit-to-beat-apis-interview)

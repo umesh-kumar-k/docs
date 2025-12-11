@@ -1,0 +1,89 @@
+Event-driven systems decouple producers/consumers via brokers (Event Grid) or streams (Kafka), enabling real-time responsiveness through pub-sub (fan-out) or streaming (replayable logs) topologies—broker (simple/decentralized) vs mediator (orchestrated/workflows).[msft] Senior architects choose broker for loose coupling/scalability, mediator for sagas/error recovery, trading debug complexity for resilience via DLQs, idempotency, and consumer groups.[1][2]
+
+## Interview Summary
+**Broker Topology**: Producers → event bus → multiple consumers (decoupled, no orchestration); **Mediator Topology**: Central orchestrator routes/commands (workflows, sagas); **Processing**: Simple (Functions), Correlation (stateful), Complex (Stream Analytics), Event Sourcing (Kafka Streams).[msft] **Payloads**: Fat (self-contained) vs Thin (keys + lookup)—balance consistency vs bandwidth.[1]
+
+## Keywords & Patterns
+- **Topologies**: Broker (decentralized), Mediator (orchestrated).[msft]
+- **Models**: Pub-Sub (subscriptions, fire-forget), Streaming (logs, replay).[msft]
+- **Processing**: Simple (immediate), Correlation (multi-event), Complex (patterns), Stream (Flink).[1]
+- **Guarantees**: At-least-once (dedup), Exactly-once (idempotent), Ordering (partitions).[3]
+- **Error Handling**: DLQ, retries, error processor, compensating transactions.[msft]
+- **Payloads**: Fat events (all data), Thin (IDs + lookup).[msft]
+
+## Common Trade-offs + Questions
+Broker: loose coupling/scalable vs no workflow control; Mediator: orchestration/restartable vs bottleneck; Pub-sub: simple vs no replay; Streaming: durable vs storage cost; Fat payloads: no lookups vs bloat/duplication.[msft][2]
+
+**Example questions**:
+- Broker vs Mediator? (Simple fan-out vs sagas/workflows).[msft]
+- Event ordering? (Partition keys + consumer groups).[1]
+- Data loss prevention? (Persistent brokers + client ACKs).[msft]
+
+| Topology | Coupling | Orchestration | Scalability | Complexity |
+|----------|----------|---------------|-------------|------------|
+| Broker | Loose | None | Excellent | Low [msft] |
+| Mediator | Tight | Full | Limited | High [2] |
+
+## Use Cases
+- **Real-time**: IoT telemetry (Event Hubs), notifications (Event Grid).[msft]
+- **Analytics**: User events → dashboards (Kafka Streams).[4]
+- **Workflows**: Order → pay → ship saga (Mediator).[1]
+- **Microservices**: Decoupled notifications (Pub-sub).[msft]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix TechBlog: Event-driven Kafka cut batch ETL 90%, real-time personalization via Streams. Uber Engineering: Mediator topology orchestrated 1B+ ride events/day with 99.99% saga success. Microsoft Azure: Event Grid handled Black Friday peaks (10x traffic) via broker fan-out.[msft][5][4]
+
+## Cheat-Sheet Q&A
+**Q: Broker topology?** A: Producers → bus → consumers (no orchestration).[msft]  
+**Q: Event replay?** A: Streaming (Kafka logs) vs Pub-sub (ephemeral).[msft]  
+**Q: Consumer scaling?** A: Groups + partitions (auto-rebalance).[1]
+**Q: Exactly-once?** A: Idempotency keys + dedup store.[3]
+**Q: Fat vs thin events?** A: Self-contained vs lookup (consistency vs bandwidth).[msft]  
+**Q: Error handling?** A: DLQ + error processor + compensating tx.[msft]
+
+## Tools/Frameworks
+- **Brokers**: Kafka (streams), Event Hubs/Grid (Azure), PubSub (GCP).[msft]
+- **Processing**: Flink/Streams (complex), Functions (simple).[1]
+- **Java**: Spring Cloud Stream, Kafka Streams.[6]
+- **Orchestration**: Temporal (sagas), Conductor (workflows).[2]
+
+## Data Structures & Algorithms
+**Event Logs**: Append-only segments (Kafka). **Partitions**: Consistent hashing (key→partition). **Consumer Groups**: Offset commits (Zookeeper). **Dedup**: Redis `SETNX id processed`. **Saga State**: FSM + compensating actions. **CRDT**: Conflict resolution (eventual consistency).[msft][1]
+
+## Key Highlights & Tradeoffs
+- **Decoupling**: Add consumers without producer changes.[msft]
+- **Resilience**: Failures isolated (no cascade).[1]
+- **Real-time**: Sub-second reactions vs batch delays.[msft]
+- **Debug**: Event tracing essential vs sync call stacks.[2]
+- **Interviews**: "Broker for notifications, mediator for payments".[msft]
+
+## Concise Keywords Summary
+- Event-Driven, Broker/Mediator Topology, Pub-Sub/Streaming
+- Event Producers/Consumers/Bus, Fat/Thin Payloads, DLQ
+- At-least/Exactly-once, Consumer Groups, Partitioning
+- Event Sourcing, CQRS, Saga Orchestration, Compensating Tx
+- Complex Event Processing, Backpressure, Event Correlation
+
+[1](https://www.designgurus.io/answers/detail/how-to-understand-event-driven-architecture-for-interviews)
+[2](https://www.3pillarglobal.com/insights/blog/event-driven-architecture-topologies-broker-and-mediator/)
+[3](https://climbtheladder.com/event-driven-architecture-interview-questions/)
+[4](https://netflixtechblog.com)
+[5](https://www.systemdesignhandbook.com/guides/uber-system-design-interview/)
+[6](https://www.jwt.io/introduction)
+[7](https://newsletter.systemdesigncodex.com/p/3-interview-questions-on-event-driven)
+[8](https://www.secondtalent.com/interview-guide/event-driven-architecture/)
+[9](https://www.designgurus.io/answers/detail/how-to-design-an-event-driven-system-in-a-system-design-interview)
+[10](https://www.geeksforgeeks.org/system-design/event-driven-architecture-system-design/)
+[11](https://www.youtube.com/watch?v=doFyJl_BCzs)
+[12](https://www.hellointerview.com/blog/event-driven-architecture)
+[13](https://guardian-framework.github.io/framework/event-driven-architecture-broker-topology.html)
+[14](https://www.youtube.com/watch?v=-7KQqyhhhFc)
+[15](https://www.infoq.com/EventDrivenArchitecture/articles/)
+[16](https://www.youtube.com/watch?v=L-ezM43u39Q)
+[17](https://www.prodyna.com/insights/event-driven-architecture-and-kafka)
+[18](https://www.youtube.com/watch?v=TntqdA4l4Xk)
+[19](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/event-driven)
+[20](https://developer.ibm.com/articles/awb-event-driven-architectures-with-kafka-and-kafka-streams/)
+[21](https://www.projectpro.io/compare/apache-kafka-vs-azure-event-grid)
+[22](https://overcoded.dev/posts/arch-24/)
+[23](https://netmetic.weebly.com/blog/previous/32)

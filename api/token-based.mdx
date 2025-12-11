@@ -1,0 +1,91 @@
+Token-based authentication issues short-lived tokens (JWT/opaque) post-login verification, sent via `Authorization: Bearer <token>` for stateless server validation—no session storage needed.[okta] Senior architects pair access tokens (15m) + refresh tokens for microservices scale, trading revocation complexity for horizontal scalability vs cookie-based CSRF safety.[1][2]
+
+## Interview Summary
+**Flow**: User login → Auth server verifies → Issues access_token (JWT/opaque) + refresh_token → Client sends `Bearer <access>` → Services validate signature/expiry independently → Refresh on 401 → Logout revokes refresh.[okta] **Types**: JWT (self-contained claims), Opaque (server-validated), Hardware tokens (connected/contactless/disconnected). **Security**: Short expiry, HTTPS, rotation, jti blacklist.[3]
+
+## Keywords & Patterns
+- **Headers**: `Authorization: Bearer <token>`, `WWW-Authenticate: Bearer`.[okta]
+- **Tokens**: Access (short-lived), Refresh (long-lived, revocable), ID Token (OIDC user info).[4]
+- **JWT**: `header.payload.signature` (Base64Url), claims (`sub/iss/aud/exp/jti`).[5]
+- **Opaque**: Random string → server Redis/DB lookup.[6]
+- **Storage**: localStorage (SPA, XSS risk), HttpOnly cookie (secure), mobile secure storage.[7]
+- **Responses**: 401 Unauthorized, `X-RateLimit-Remaining`.[okta]
+
+## Common Trade-offs + Questions
+**Token vs Session**: Stateless/no-DB vs no-instant-revoke (blacklist needed); scales horizontally vs sticky sessions/Redis bottleneck; mobile perfect vs browser cookie CSRF-safe. **JWT vs Opaque**: Self-contained/fast vs secure (no payload leak); readable vs server-only.[2][6][7]
+
+**Example questions**:
+- Scale auth to 1M users? (Stateless JWT + distributed refresh validation).[3]
+- Token theft mitigation? (Short expiry + device binding + jti).[okta]
+- Refresh token rotation? (Issue new pair on use, revoke old).[4]
+
+| Type | Stateless | Revocation | Scale | Security |
+|------|-----------|------------|-------|----------|
+| JWT | Yes | Blacklist/jti | Excellent | Payload readable [6] |
+| Opaque | No | Instant | Redis-bound | Server-only [2] |
+| Session | No | Instant | Sticky/Redis | CSRF-safe [7] |
+
+## Use Cases
+- **Microservices**: Stateless inter-service (Netflix 1000+ services).[8]
+- **Mobile/SPA**: Bearer tokens (no CORS cookie issues).[okta]
+- **SSO/Federation**: Cross-domain (Okta/Auth0).[4]
+- **Public APIs**: Scoped access (Stripe/Twilio).[okta]
+- **IoT**: Hardware tokens + JWT.[okta]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix: Token auth eliminated session DB, cut auth latency 99% across microservices. Okta blogs token rotation reducing breach impact 80% via chained revocation.[okta] ByteByteGo: Hybrid JWT+opaque for APIs (stateless 95% traffic, revocable sensitive ops).[9][8]
+
+## Cheat-Sheet Q&A
+**Q: Bearer vs Basic?** A: Bearer stateless token vs username:pass each req.[4]
+**Q: Refresh flow?** A: 401 → POST /refresh w/ refresh_token → new access+refresh.[okta]  
+**Q: Token rotation?** A: Each refresh issues new refresh, old single-use.[4]
+**Q: JWT revocation?** A: jti Redis blacklist + short expiry (15m).[3]
+**Q: Mobile storage?** A: Secure enclave/Keychain, never localStorage.[7]
+**Q: Cross-domain?** A: Bearer perfect, cookies SameSite=None+Secure.[okta]
+
+## Tools/Frameworks
+- **Auth**: Okta/Auth0 (OIDC), Keycloak (open-source).[okta]
+- **Java**: Spring Security OAuth2, Nimbus JOSE.[5]
+- **Node**: Passport.js, jsonwebtoken.[10]
+- **Stores**: Redis (opaque/jti), DynamoDB (global).[2]
+- **Testing**: Postman (Bearer auth), jwt.io debugger.[5]
+
+## Data Structures & Algorithms
+**JWT**: HMAC/RS256 signature, Base64Url decode → claims hashmap. **Opaque**: Redis `GET token:<uuid>` → user session. **Blacklist**: Redis SortedSet `ZADD revoked:jti exp_time uuid`. **Rotation**: Chain hash `refresh:<old_hash>` → `new_hash`. **Rate Limit**: Token bucket per client_id.[2][3]
+
+## Key Highlights & Tradeoffs
+- **Scale**: Horizontal > session stores (no sticky routing).[2]
+- **Security**: Short expiry + rotation > long-lived; opaque > JWT payload.[6]
+- **DX**: Single auth server → all services validate independently.[okta]
+- **Mobile**: Native support vs cookie emulation.[7]
+- **Interviews**: "JWT access (15m) + opaque refresh + Redis jti rotation".[3]
+
+## Concise Keywords Summary
+- Bearer Token, Access/Refresh/ID Token, Stateless Auth
+- JWT/Opaque, `Authorization: Bearer <token>`, Short Expiry (15m)
+- Token Rotation, jti Blacklist, Device Binding, HTTPS Mandatory
+- Microservices, SSO, Mobile/SPA, Federation, API Gateway
+- Redis/DynamoDB (opaque), Consistent Hashing, Rate Limiting
+
+[1](https://www.tryexponent.com/courses/system-design-interviews/authentication-authorization)
+[2](https://dev.to/logto/comparing-token-based-authentication-and-session-based-authentication-3dlj)
+[3](https://www.hellointerview.com/community/questions/scalable-auth-system/cmc52raln0000336yk999ddhx)
+[4](https://javarevisited.substack.com/p/system-design-basics-authentication)
+[5](https://www.jwt.io/introduction)
+[6](https://www.reddit.com/r/node/comments/w8ukp7/session_cookies_vs_jwt_tokens_for_web_app_mobile/)
+[7](https://developer.okta.com/blog/2022/02/08/cookies-vs-tokens)
+[8](https://netflixtechblog.com)
+[9](https://bytebytego.com/guides/session-cookie-jwt-token-sso-and-oauth-2/)
+[10](https://dev.to/truongpx396/jwt-tokens-vs-session-cookies-in-authentication-and-authorization-1o93)
+[11](https://rockybhatia.substack.com/p/10-trade-offs-every-system-design)
+[12](https://www.educative.io/blog/ai-system-design-interview-questions)
+[13](https://www.linkedin.com/posts/nk-systemdesign-one_system-design-interviews-red-flag-list-activity-7294707919244132352-sZGo)
+[14](https://stackoverflow.com/questions/37582444/jwt-vs-cookies-for-token-based-authentication)
+[15](https://interviewing.io/guides/system-design-interview/part-two)
+[16](https://www.reddit.com/r/PHP/comments/ocn2bv/what_is_the_difference_between_sessioncookie_and/)
+[17](https://getsdeready.com/top-50-system-design-interview-questions-2025/)
+[18](https://www.designgurus.io/blog/system-design-interview-fundamentals)
+[19](https://jerrynsh.com/all-to-know-about-auth-and-cookies/)
+[20](https://www.reddit.com/r/webdev/comments/1ibe6u1/jwt_vs_cookies/)
+[21](https://stytch.com/blog/jwts-vs-sessions-which-is-right-for-you/)
+[22](https://learn.microsoft.com/en-us/answers/questions/1401728/difference-beetween-authentication-with-cookies-an)

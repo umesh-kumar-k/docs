@@ -1,0 +1,88 @@
+Serverless architectures eliminate server management via **FaaS** (Lambda functions: event-triggered, ephemeral, auto-scaling) + **BaaS** (managed services: Auth0, DynamoDB), paying only for execution (ms granularity) with automatic elasticity—ideal for bursty/spiky workloads but challenged by cold starts (100ms-2s init), vendor lock-in, and execution limits (15min).[martinfowler] Senior architects use for event-driven APIs/notifications, trading operational simplicity for latency variability and portability concerns.[1]
+
+## Interview Summary
+**FaaS**: Upload code → triggers (HTTP/S3/Kinesis) → stateless functions scale to zero → API Gateway routes. **BaaS**: Firebase/Auth0 replace custom auth/DB. **Key traits**: No servers/process mgmt, pay-per-use, choreography > orchestration, cold starts (init overhead), 100-500ms typical latency.[martinfowler] **Mitigations**: Provisioned concurrency, SnapStart (Java), warm containers, smaller bundles.[2]
+
+## Keywords & Patterns
+- **Core**: FaaS (Lambda), BaaS (DynamoDB/Auth0), API Gateway (routing/auth).[martinfowler]
+- **Triggers**: HTTP (API GW), Events (S3/Kinesis/SQS), Schedules (CloudWatch).[1]
+- **Cold Start**: Init phase (container+code download), 100ms-2s, mitigated by provisioned concurrency.[2]
+- **Execution**: 128MB-10GB memory, 15min timeout, stateless (externalize state).[martinfowler]
+- **Scaling**: Infinite horizontal, pay-per-ms, zero during idle.[1]
+- **Patterns**: Choreography (decentralized), event-driven, single-purpose functions.[martinfowler]
+
+## Common Trade-offs + Questions
+Serverless: Ops/cost savings vs cold start latency; infinite scale vs execution limits; vendor innovation vs lock-in/portability; dev productivity vs debugging complexity (distributed traces).[martinfowler][1]
+
+**Example questions**:
+- Cold start mitigation? (Provisioned concurrency, SnapStart, small bundles).[2]
+- Vendor lock-in? (Abstractions: Serverless Framework, multi-cloud).[martinfowler]
+- Long-running tasks? (Step Functions orchestration).[1]
+
+| Aspect | Serverless | Traditional |
+|--------|------------|-------------|
+| Ops Cost | Zero servers | Full mgmt [martinfowler] |
+| Scale | Instant infinite | Manual ASG [1] |
+| Latency | Cold starts | Consistent [2] |
+| Portability | Vendor-specific | Standard [martinfowler] |
+
+## Use Cases
+- **Bursty APIs**: Image resize, notifications (scale to zero).[martinfowler]
+- **Event Processing**: S3 uploads → thumbnail generation.[1]
+- **Data Pipelines**: ETL jobs, IoT telemetry.[2]
+- **Webhooks**: GitHub events → deployments.[martinfowler]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix: Lambda + Step Functions cut deployment pipelines 70% via event-driven workflows. AWS re:Invent: SnapStart reduced Java cold starts 90% to sub-100ms. Martin Fowler: Serverless saved 80% infra cost for spiky ad-click processing.[martinfowler][3][2]
+
+## Cheat-Sheet Q&A
+**Q: Cold start causes?** A: Container init + code download + deps.[2]
+**Q: FaaS limits?** A: 15min timeout, 10GB mem, stateless.[martinfowler]  
+**Q: Cost model?** A: Duration × memory (ms granularity).[1]
+**Q: State management?** A: External (DynamoDB/S3/Redis).[martinfowler]  
+**Q: Vendor lock?** A: Serverless Framework + SAM abstractions.[1]
+**Q: Orchestration?** A: Step Functions (state machines).[martinfowler]
+
+## Tools/Frameworks
+- **FaaS**: AWS Lambda (SnapStart), Azure Functions, Google Cloud Functions.[martinfowler]
+- **BaaS**: DynamoDB, Firebase, Auth0.[1]
+- **Orchestration**: AWS Step Functions, Azure Durable Functions.[martinfowler]
+- **Framework**: Serverless Framework (multi-cloud), AWS SAM, Claudia.js.[martinfowler]
+- **Monitoring**: X-Ray, CloudWatch, Datadog Serverless.[2]
+
+## Data Structures & Algorithms
+**Cold Start Opt**: Tree-shaking (webpack), layer caching (shared deps). **Concurrency**: Token bucket rate limiting. **State**: DynamoDB single-table design (GSI/LSI). **Fan-out**: SQS fan-out pattern. **Orchestration**: State machine FSM (Step Functions).[martinfowler][2]
+
+## Key Highlights & Tradeoffs
+- **Wins**: Zero ops, pay-per-use, infinite scale.[martinfowler]
+- **Pains**: Cold starts (mitigate), lock-in (abstract), limits (orchestrate).[1]
+- **Interviews**: "Lambda + DynamoDB + Step Functions + provisioned concurrency".[2]
+
+## Concise Keywords Summary
+- Serverless, FaaS (Lambda), BaaS (DynamoDB/Auth0), API Gateway
+- Cold Start (init latency), Provisioned Concurrency, SnapStart
+- Stateless Functions, Event Triggers (S3/SQS/Kinesis), 15min Timeout
+- Choreography, Pay-per-ms, Zero-Scale, Vendor Lock-in
+- Step Functions (orchestration), Serverless Framework, SAM
+
+[1](https://www.designgurus.io/answers/detail/how-to-understand-serverless-computing-in-system-design-interviews)
+[2](https://aws.amazon.com/blogs/compute/understanding-and-remediating-cold-starts-an-aws-lambda-perspective/)
+[3](https://netflixtechblog.com)
+[4](https://www.reddit.com/r/leetcode/comments/1gqy8uy/what_tradeoff_are_the_most_important_to_mention/)
+[5](https://rockybhatia.substack.com/p/10-trade-offs-every-system-design)
+[6](https://dev.to/somadevtoo/system-design-interviews-were-hard-until-i-learned-these-concepts-5c7d)
+[7](https://dev.to/somadevtoo/15-system-design-tradeoffs-for-software-developer-interviews-613)
+[8](https://www.griddynamics.com/blog/benefits-faas-aws-node-js)
+[9](https://algocademy.com/blog/how-to-use-trade-off-analysis-in-system-design-interviews/)
+[10](https://www.designgurus.io/answers/detail/how-to-understand-serverless-architecture-for-system-design)
+[11](https://www.infoq.com/articles/aws-lambda-cold-starts-myths/)
+[12](https://remasto.com/questions_bank/question/what-are-the-tradeoffs-of-using-serverless-architecture-4nCD8d8hJhdY3tcwQ8Mg)
+[13](https://www.ranthebuilder.cloud/post/is-aws-lambda-cold-start-still-an-issue-in-2024)
+[14](https://www.linkedin.com/posts/abdirahman-sj_softwareengineering-systemdesign-activity-7388928087603949569-EgA_)
+[15](https://www.cloudaeye.com/blogs/lambda-coldstarts.html)
+[16](https://milvus.io/ai-quick-reference/what-are-the-performance-tradeoffs-of-serverless-architecture)
+[17](https://www.splunk.com/en_us/blog/learn/serverless-architecture.html)
+[18](https://chenzhenpeng18.github.io/papers/TOSEM23-FaaSLight.pdf)
+[19](https://blog.bytebytego.com/p/serverless-has-servers)
+[20](https://www.jeffersonfrank.com/insights/aws-lambda-design-considerations/)
+[21](https://aws.amazon.com/blogs/compute/optimizing-cold-start-performance-of-aws-lambda-using-advanced-priming-strategies-with-snapstart/)

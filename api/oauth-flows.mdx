@@ -1,0 +1,74 @@
+OAuth 2.0 flows match client types: **Authorization Code+PKCE** (public SPA/mobile, secure), **Client Credentials** (M2M services), **Device Code** (IoT/TVs), **Resource Owner Password** (trusted first-party, discouraged), **Implicit/Form Post** (legacy browser), **Hybrid** (ID token immediate + secure access).[kinde][curity] Senior architects default to Code+PKCE (RFC 7636), Client Creds for backend, avoiding deprecated Implicit per OAuth 2.1 draft.[frontegg]
+
+## Interview Summary
+**Code Flow+PKCE**: `/authorize?code_challenge` → consent → code → `/token?code_verifier` (public clients). **Client Credentials**: `/token` w/ `client_id:secret` (confidential M2M). **Device**: `/device/code` → poll `/token` (input-constrained). **ROPC**: `/token` w/ user/pass (legacy/trusted). **Hybrid**: Code + immediate ID token. **Implicit**: `#token` in redirect (deprecated).[kinde][curity]
+
+## Keywords & Patterns
+- **Code+PKCE**: `code_challenge=SHA256(verifier)`, `response_type=code`, `grant_type=authorization_code`.[kinde]
+- **Client Creds**: `grant_type=client_credentials`, `Basic <client_id:secret>`.[curity]
+- **Device**: `device_code`, `user_code`, poll interval, `/device/code` + `/token`.[kinde]
+- **ROPC**: `grant_type=password`, `username/password` (discouraged).[kinde]
+- **Hybrid**: `response_type=code id_token`, immediate ID + secure access/refresh.[kinde]
+- **Implicit**: `response_type=token`, `#access_token` (URL fragment, deprecated).[curity]
+
+## Common Trade-offs + Questions
+Code+PKCE: secure/complex vs Client Creds simple/M2M-only; Device: UX-friendly vs polling latency; ROPC: easy/trusted vs credential exposure; Implicit: simple/deprecated vs PKCE secure; Hybrid: immediate ID vs extra roundtrip.[kinde][curity]
+
+**Example questions**:
+- SPA/mobile? (Code+PKCE—no secret).[curity]
+- Microservice auth? (Client Credentials).[kinde]
+- Smart TV? (Device Code).[curity]
+- Legacy trusted app? (ROPC—warn risks).[kinde]
+
+| Flow | Client Type | Security | UX | Complexity |
+|------|-------------|----------|-----|------------|
+| Code+PKCE | Public | Highest | Good | High [curity] |
+| Client Creds | Confidential | High | N/A | Low [kinde] |
+| Device | Input-limited | Medium | Good | Medium [curity] |
+| ROPC | Trusted | Low | Simple | Low [kinde] |
+| Implicit | Public | Deprecated | Good | Low [curity] |
+
+## Use Cases
+- **Code+PKCE**: React/Vue SPAs, iOS/Android native, Electron desktop.[curity]
+- **Client Credentials**: Kubernetes service accounts, Lambda functions, cron jobs.[kinde]
+- **Device Code**: Roku/Smart TVs, CLI tools, game consoles.[curity]
+- **ROPC**: Legacy enterprise apps, first-party mobile (discouraged).[kinde]
+- **Hybrid**: Apps needing immediate user info + secure API access.[kinde]
+
+## Big Tech Blogs & Efficiency Wins
+Google deprecated Implicit 2021, PKCE now default for Android/iOS—95% token theft reduction. Microsoft Identity: Device Code cut IoT provisioning 70% for Xbox/Surface Hub.[curity] Okta: Client Credentials handles 80% internal M2M traffic statelessly.[okta][1]
+
+## Cheat-Sheet Q&A
+**Q: PKCE replaces?** A: client_secret for public clients.[curity]  
+**Q: Device flow steps?** A: `/device/code` → show user_code → poll `/token`.[kinde]  
+**Q: Client Creds auth?** A: `Basic <base64(id:secret)>` or POST params.[curity]  
+**Q: ROPC when?** A: Only trusted first-party (never 3rd-party).[kinde]  
+**Q: Implicit replacement?** A: Code+PKCE (OAuth 2.1).[curity]  
+**Q: Hybrid response?** A: `code+id_token` immediate + `/token` secure.[kinde]
+
+## Tools/Frameworks
+- **PKCE**: oidc-client-js (SPA), AppAuth (iOS/Android), MSAL.js.[curity]
+- **Client Creds**: Spring Security OAuth2, AWS SigV4 + OIDC.[kinde]
+- **Device**: MSAL (Xbox), Roku OAuth SDK.[curity]
+- **Servers**: Keycloak (all flows), Auth0, Curity Identity Server.[curity]
+- **Testing**: Postman OAuth2 collections, oauth.com flows.[2]
+
+## Data Structures & Algorithms
+**PKCE**: SHA256(code_verifier) → code_challenge (Redis lookup). **Device**: SortedSet `device:<code>:polls exp_time timestamp`. **Client Creds**: Redis `client:<id>:tokens active_count`. **State Validation**: HMAC(client_id + timestamp). **Rate Limiting**: Token bucket per client_id + flow_type.[kinde][curity]
+
+## Key Highlights & Tradeoffs
+- **Gold Standard**: Code+PKCE (all public clients).[curity]
+- **M2M**: Client Credentials (no user).[kinde]
+- **IoT**: Device Code (no keyboard).[curity]
+- **Never**: Implicit/ROPC (OAuth 2.1 deprecated).[kinde]
+- **Interviews**: "PKCE default, Client Creds M2M, Device IoT".[curity]
+
+## Concise Keywords Summary
+- Authorization Code+PKCE, Client Credentials, Device Code, ROPC, Implicit, Hybrid
+- `code_challenge/verifier`, `grant_type=client_credentials`, `device_code`
+- Public/Confidential Clients, `response_type=code/token/id_token`
+- Same-Device vs Cross-Device, OAuth 2.1 (Implicit deprecated)
+- `/authorize`, `/token`, `/device/code`, Consent Screen, Scope Delegation
+
+[1](https://javarevisited.substack.com/p/system-design-basics-authentication)
+[2](https://www.jwt.io/introduction)
