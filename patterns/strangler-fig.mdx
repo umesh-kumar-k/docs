@@ -1,0 +1,142 @@
+Strangler Fig is a modernization pattern where a façade intercepts calls to a legacy system and gradually routes more functionality to new services until the legacy can be safely decommissioned.[1][2]
+
+## Use cases and key ideas
+
+- **Use cases**  
+  - Migrating monoliths (on‑prem or cloud) to microservices or new platforms without a risky big‑bang rewrite, especially for business‑critical systems that must stay live.[3][4][1]
+  - Replacing specific bounded contexts or modules (billing, auth, reporting) iteratively while keeping the rest of the legacy intact during transition.[5][6][1]
+
+- **Key pattern elements**  
+  - **Façade/proxy** in front of the legacy app; initially routes most traffic to the monolith.[1][3]
+  - For each migrated feature, the façade routes matching requests to new microservices while everything else continues to hit legacy.[5][1]
+  - Over time, new system “grows around” the old (like the fig tree), until 100% of traffic is handled by the new stack and the legacy is retired.[2][6][4]
+
+## Related design patterns
+
+- **Anti‑corruption Layer / Façade** – the proxy often also translates contracts (DTOs, protocols) between new and old systems, shielding the new domain model.[7][1][5]
+- **API Gateway / Backend‑for‑Frontend** – gateway is a natural place to implement the strangler routing logic per route, tenant, or version.[8][9][3]
+- **Branch‑by‑abstraction / Feature Toggle** – patterns used internally to switch traffic piecewise to new implementations and roll back if needed.[9][5]
+
+Mention: “Strangler Fig + API Gateway + Anti‑corruption Layer” as the canonical modernization stack in interviews.[4][3][1]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure pattern: put a façade (for example, Azure API Management, Application Gateway, custom gateway) in front of legacy and new apps; route requests to either based on URL, version, or rules.[10][1]
+  - Typical flow:  
+    - Expose a single public endpoint (APIM); backend initially = legacy app (App Service/VM/on‑prem via VPN).[10][1]
+    - As features are rebuilt on Azure (App Service, Functions, AKS), APIM routes those specific operations to new backends; others stay on legacy.[11][1][10]
+    - Optionally sync data via messaging (Service Bus/Event Grid) or database replication during coexistence.[11][10]
+
+- **AWS**  
+  - AWS prescriptive guidance: use API Gateway or an edge component as a proxy that decides per‑request whether to hit the monolith or new microservices.[12][3][8]
+  - Common pattern:  
+    - Front everything with **API Gateway + ALB**; legacy app runs on‑prem or EC2; new functionality runs as Lambdas/ECS services.[13][8]
+    - Gradually move specific endpoints (for example, `/orders`, `/booking`) to microservices; API Gateway routes them to new backends, others still go to the monolith.[3][8]
+    - Use data sync (for example, DynamoDB Streams, CDC pipelines) to keep legacy DB and new stores consistent during migration.[8][12]
+
+Azure and AWS both treat Strangler Fig as “proxy in front + incremental routing changes,” mainly differing in gateway products and data services.[13][1][3]
+
+## Big‑company style references
+
+- **Netflix** – widely cited example: gradually replaced a large legacy media‑processing system (“Reloaded”) with the new “Cosmos” platform, routing workloads piece‑by‑piece and running both stacks side by side until the new one fully took over.[14][4]
+- **AWS customer case (Affinidi)** – re:Invent talk shows using Strangler Fig with AWS Migration Hub Refactor Spaces to move from a distributed monolith to Lambda‑based microservices, reducing dev effort and cost.[15]
+- Various modernization vendors (Thoughtworks, vFunction, CircleCI) publish case studies where Strangler Fig enabled low‑risk, incremental refactoring of legacy enterprise apps.[16][9][5]
+
+These are good names/examples to cite when asked “who uses this approach and why.”[14][16][13]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One‑line definition?**  
+A: Strangler Fig is an incremental migration pattern where a façade routes traffic between a legacy system and new services, gradually shifting features to the new implementation until the legacy can be decommissioned.[2][1]
+
+**Q2: When should you use Strangler Fig?**  
+A: When replacing a complex, business‑critical legacy system where a big‑bang rewrite is too risky; especially for long‑lived back‑office, core business, or on‑prem workloads being moved to cloud/microservices.[7][1][5]
+
+**Q3: What are the main steps?**  
+A:  
+1) Introduce façade in front of legacy.  
+2) Identify and carve out a segment/bounded context.  
+3) Build the new service; route that segment through the new service.  
+4) Iterate for more segments.  
+5) Once all traffic is served by new system, retire the legacy.[6][1][3]
+
+**Q4: How would you implement it on Azure?**  
+A: Place Azure API Management or Application Gateway in front; initially route all operations to the monolith; for each migrated API/feature, add a route to new App Service/Functions/AKS; use Service Bus/Event Grid or database sync for data consistency during the transition.[1][10][11]
+
+**Q5: How would you implement it on AWS?**  
+A: Front with API Gateway + ALB; monolith stays behind ALB (on‑prem via Direct Connect or on EC2); new microservices run on Lambda/ECS/EKS; API Gateway routes individual paths or stages to new services, leaving remaining traffic on the monolith; use streams/CDC to sync data.[12][3][13][8]
+
+**Q6: What are the main trade‑offs?**  
+A: Pros: reduced risk, continuous delivery of value, ability to roll back per feature. Cons: you temporarily operate two systems, duplicate data paths, more complexity in routing and consistency management.[6][5][7]
+
+**Q7: How does Strangler Fig relate to microservices and domain‑driven design?**  
+A: It often refactors monolith modules into bounded‑context microservices one by one; the façade enforces the new contract surface and anti‑corruption boundaries around the legacy core.[17][4][5]
+
+**Q8: How do you manage data during migration?**  
+A: Use patterns like DB replication, CDC pipelines, dual‑writes (carefully), or event‑driven sync; sometimes legacy remains the system of record for a while, then ownership flips to the new service.[9][3][8]
+
+**Q9: How do you validate and roll back?**  
+A: Use canary/feature‑flag routing in the façade (percent‑based or tenant‑based rollouts); if problems occur, switch routing back to legacy for that feature while you fix the new service.[16][5][9]
+
+**Q10: Example answer you can give in an interview?**  
+A: “We put an API gateway in front of a monolithic order system, then carved out order‑creation APIs into a new microservice, routing only those endpoints to the new service. Over time we strangled more capabilities—pricing, inventory, invoicing—until the gateway no longer needed to route anything to the monolith, which we then decommissioned.”[3][6][1]
+
+## Data structures and algorithms
+
+- **Data structures**  
+  - Routing rules/config maps mapping request patterns (paths, headers, tenants) to either legacy or new services.[9][1][3]
+  - Feature‑flag/strategy configuration (percentage, cohorts, regions) to control gradual cutover and rollback.[5][9]
+  - Data sync metadata (for example, change offsets, replication state) when using CDC/streams to keep databases aligned.[8][12]
+
+- **Algorithms / techniques**  
+  - Rule‑based routing and matching in gateways/reverse proxies.[13][3]
+  - Canary/gradual rollout algorithms (weighted routing, cohort selection) for progressive migration.[5][9]
+  - CDC/event‑driven propagation (for example, streaming changes to new stores) with at‑least‑once semantics and idempotent updaters to maintain consistency during coexistence.[12][8]
+
+The pattern is mostly architectural; the “algorithms” are routing + rollout + data‑sync strategies rather than complex DSA.
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Azure API Management, Application Gateway, Front Door as façades and routers.[10][1]
+  - New functionality on App Service, Azure Functions, AKS; messaging via Service Bus/Event Grid; GitHub samples showing Strangler Fig on Azure.[11][10]
+
+- **AWS**  
+  - Amazon API Gateway and ALB as façade; AWS Migration Hub Refactor Spaces as orchestration layer for strangler‑style modernization.[15][3][13]
+  - New services on Lambda, ECS/EKS; data sync via DynamoDB Streams, DMS, or custom CDC pipelines.[8][12]
+
+- **General**  
+  - NGINX/Kong/Envoy, Istio/Service Mesh gateways, CircleCI and Thoughtworks reference implementations and guides.[16][9]
+
+## Concise bullet summary (keywords & terms)
+
+- Strangler Fig pattern = incremental legacy modernization via façade‑based routing.[2][1]
+- Use for monolith‑to‑microservices/cloud migrations with minimal downtime and risk.[1][3][5]
+- Core elements: façade/proxy, route‑per‑feature migration, side‑by‑side running, eventual legacy decommissioning.[6][3][1]
+- Related: Anti‑corruption Layer, API Gateway, Branch‑by‑abstraction, feature flags, canary releases.[4][9][5]
+- Azure: APIM/App Gateway/Front Door in front of legacy + new Azure services; optional Service Bus/Event Grid and data sync.[10][11][1]
+- AWS: API Gateway + ALB façade, Refactor Spaces, Lambda/ECS microservices, CDC/streams for data.[15][3][13][8]
+- Trade‑offs: lower risk and continuous delivery vs running two systems, routing and data‑sync complexity.[6][16][5]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig)
+[2](https://en.wikipedia.org/wiki/Strangler_fig_pattern)
+[3](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/strangler-fig.html)
+[4](https://microservices.io/post/refactoring/2023/06/21/strangler-fig-application-pattern-incremental-modernization-to-services.md.html)
+[5](https://vfunction.com/resources/guide-how-to-use-the-strangler-fig-pattern-for-application-modernization/)
+[6](https://vfunction.com/blog/fig-pattern-the-solution-to-your-mono-to-microservices-modernization/)
+[7](https://www.techtarget.com/searchapparchitecture/tip/A-detailed-intro-to-the-strangler-pattern)
+[8](https://dev.to/axeldlv/strangler-fig-migration-strategy-on-aws-17l0)
+[9](https://circleci.com/blog/strangler-pattern-implementation-for-safe-microservices-transition/)
+[10](https://learn.microsoft.com/en-us/azure/architecture/web-apps/guides/enterprise-app-patterns/modern-web-app/dotnet/guidance)
+[11](https://github.com/error505/Strangler-Fig-Azure)
+[12](https://dondeaprendoaws.com/blog/patron-strangler-fig-en-aws-migrar-a-microservicios/)
+[13](https://aws.amazon.com/blogs/architecture/seamlessly-migrate-on-premises-legacy-workloads-using-a-strangler-pattern/)
+[14](https://www.designgurus.io/answers/detail/what-is-the-strangler-pattern-for-migrating-a-monolithic-application-to-microservices-architecture)
+[15](https://www.youtube.com/watch?v=ml1Yb-ddGt0)
+[16](https://www.thoughtworks.com/en-in/insights/articles/embracing-strangler-fig-pattern-legacy-modernization-part-one)
+[17](https://www.geeksforgeeks.org/system-design/strangler-pattern-in-micro-services-system-design/)
+[18](https://learn.microsoft.com/en-us/)
+[19](https://www.adalo.com/posts/strangler-fig-legacy-to-microservices)
+[20](https://www.adalo.com/posts/how-to-build-mvp-strangler-fig)
+[21](https://vfunction.com/blog/unleashing-potential-a-deep-dive-into-a-strangler-fig-pattern-example/)

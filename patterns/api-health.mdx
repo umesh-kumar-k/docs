@@ -1,0 +1,131 @@
+API Health Endpoint Monitoring exposes one or more dedicated endpoints (for example `/health`) that external tools and load balancers call periodically to verify service and dependency health, driving routing, auto-heal, and alerting decisions.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Website/API availability checks, middle-tier/shared service health verification, and early detection/isolation of failing nodes before users are impacted.[3][1]
+  - Feeding orchestrators (Kubernetes, App Service, ALB, API gateways) with health signals so they can stop routing to bad instances and trigger restarts or scale actions.[4][5][1]
+
+- **Key patterns**  
+  - One or more HTTP endpoints (`/health`, `/health/live`, `/health/ready`) that run internal checks: DB connectivity, downstream API reachability, disk space, app-specific tests.[6][2][1][4]
+  - External monitors (load balancers, uptime checks, synthetic probes) periodically call these endpoints, evaluate status codes/payloads against rules, and act (mark node unhealthy, alert, or route traffic elsewhere).[7][2][1]
+  - Often separate **liveness** (is process alive?) from **readiness** (can it serve traffic now?) and sometimes **startup** checks.[5][4]
+
+## Related design patterns
+
+- **Health Check API / Liveness & Readiness Probes** – the microservices.io pattern and Kubernetes probes correspond directly: `/health/live` → liveness, `/health/ready` → readiness.[2][4]
+- **Circuit Breaker & Bulkhead** – health endpoints signal when a downstream is unhealthy; callers can use Circuit Breakers to stop calling and Bulkheads to isolate resources.[8][1]
+- **API Gateway / Load Balancing** – gateways and ALBs use health checks to route traffic only to healthy instances and improve autoscaling decisions.[1][7]
+
+Mentioning “Health endpoint + Circuit Breaker + Bulkhead + Monitoring” as a standard resilience/observability stack works well in interviews.
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure pattern: implement a health verification endpoint that performs functional checks and returns HTTP status plus optional detail; monitoring tools ping it regularly.[9][1]
+  - Common pieces:  
+    - App Service “Health check” feature uses a configured path (like `/health`) to decide when to remove/add instances from rotation.[1]
+    - Azure Application Gateway / Front Door / Traffic Manager health probes against `/health`.[1]
+    - Azure Functions / AKS: custom health endpoints integrated with Kubernetes liveness/readiness probes and Application Insights for metrics.[4][5][1]
+
+- **AWS**  
+  - ALB/NLB target group health checks: periodically send HTTP/HTTPS/TCP checks to a configured path/port; only healthy targets receive traffic.[10][7]
+  - Route 53 health checks: monitor endpoints directly and shift DNS away from unhealthy regions or endpoints.[10]
+  - ECS/EKS/Lambda: containers/functions expose health endpoints consumed by ALB, service meshes, or sidecars; CloudWatch Synthetics and external monitoring hit public `/health` endpoints.[7][5]
+
+Concept is identical on both clouds; what changes is which managed services issue the checks and how they react.
+
+## Big-company / real-world style references
+
+- Azure Architecture Center provides the canonical health endpoint monitoring description used across many Azure examples; CloudWithChris and other Azure-focused content show building `/health` that checks dependencies and feeds App Service/App Gateway.[11][12][1]
+- Microservices.io and MicroProfile Health (used in Java microservices platforms like Open Liberty) define standard health endpoints (`/health`, `/health/live`, `/health/ready`) integrated with Kubernetes probes and orchestrators.[2][4]
+- AWS load-balancing docs show ALB health checks driving target registration and resiliency; various case studies (e.g., Cerner, health-tech) emphasize real-time API health monitoring to maintain critical service SLAs.[13][7]
+
+These are good names to drop if asked “who uses this pattern.”
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One-line definition?**  
+A: Health Endpoint Monitoring exposes special endpoints that perform functional health checks (self and dependencies) so external tools and load balancers can assess API health and take action.[2][1]
+
+**Q2: What should a health endpoint check?**  
+A: Connectivity to DB/cache, status of outbound dependencies, resource basics (disk/memory if needed), and sometimes app-specific flows (e.g., test login or test order).[6][4][1]
+
+**Q3: Difference between liveness and readiness?**  
+A: Liveness indicates the process is running and not deadlocked; readiness indicates it is ready to accept traffic (dependencies initialized, caches warm). A service can be live but not ready.[5][4]
+
+**Q4: How is the pattern implemented in Azure?**  
+A: Add `/health` endpoints in your service; configure App Service/AKS/Front Door/App Gateway to probe these endpoints; use status codes for up/down and Application Insights for deeper metrics.[14][9][1]
+
+**Q5: How is it implemented in AWS?**  
+A: Expose `/health` in the app; configure ALB/NLB target group health checks and (optionally) Route 53 health checks; only healthy instances receive traffic; monitor via CloudWatch and Synthetics.[7][10]
+
+**Q6: What are common trade-offs?**  
+A: Too shallow checks miss partial failures; too deep checks make endpoints slow or fragile and can themselves cause load. Need to balance frequency and cost.[6][1]
+
+**Q7: How do you secure health endpoints?**  
+A: Usually expose simple “up/down” publicly (or behind LB) but hide detailed checks behind authentication/IP allowlists; ensure health endpoints don’t leak sensitive config or secrets.[4][1]
+
+**Q8: How do health checks integrate with autoscaling?**  
+A: Orchestrators remove failing instances from load balancers and may trigger restarts; health metrics feed SLOs and inform scale-out decisions when nodes saturate or start failing.[5][7][1]
+
+**Q9: How does this pattern relate to observability?**  
+A: Health endpoints give coarse “is it working” signals; logs, metrics, and traces provide deeper diagnostics. Health checks complement but do not replace full observability.[2][1]
+
+**Q10: Example answer in an interview?**  
+A: “Each microservice exposes `/health`, `/health/ready`, `/health/live`; ALB/Ingress probes them; App Insights/CloudWatch dashboards track statuses; orchestrators remove unhealthy pods; we also plug those endpoints into synthetic monitoring and status pages.”[4][7][1]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Simple status object (`UP/DOWN`, details) serialized as JSON; often a map of dependency name → status/latency.[4][2]
+  - Internally, health checks may query caches, DBs, and external APIs, aggregating results into a composite status.[6][1]
+
+- **Algorithms / techniques**  
+  - Aggregation logic: overall health typically `UP` only if all required checks pass; optional categorization into critical vs non-critical dependencies.[1][2][4]
+  - Thresholds and sampling: frequency of checks, acceptable response times, error thresholds for marking instance unhealthy.[7][1]
+
+No complex algorithms are required; key is consistent, fast, idempotent checks.
+
+## Tools / frameworks / software
+
+- **Frameworks**  
+  - Spring Boot Actuator (`/actuator/health`, readiness/liveness groups), MicroProfile Health (`/health`, `/health/live`, `/health/ready`), ASP.NET Core HealthChecks middleware.[2][4]
+  - Libraries for integrating health checks with Kubernetes and service meshes.
+
+- **Cloud & monitoring tools**  
+  - Azure: App Service Health Check, Application Gateway/Front Door probes, Application Insights, Azure Monitor.[9][1]
+  - AWS: ALB/NLB health checks, Route 53 health checks, CloudWatch/CloudWatch Synthetics, API Gateway integration.[10][7]
+  - Third‑party APM/monitoring: New Relic, Datadog, Prometheus/Grafana, API security/observability platforms.[13]
+
+## Concise bullet summary (keywords & terms)
+
+- Health Endpoint Monitoring / Health Check API.[1][2]
+- `/health`, `/health/live`, `/health/ready`, `/health/startup` endpoints.[5][4]
+- Liveness vs readiness vs startup checks; used by Kubernetes, load balancers, and orchestrators.[7][5][4]
+- Functional checks: DB connectivity, dependency status, resource limits, app-specific probes.[6][1]
+- Azure: App Service & Gateway health checks, Azure Monitor & App Insights.[9][1]
+- AWS: ALB/NLB/Route 53 health checks, CloudWatch Synthetics.[10][7]
+- Related patterns: Circuit Breaker, Bulkhead, Rate Limiting, Observability (metrics/logs/traces).[8][2][1]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/health-endpoint-monitoring)
+[2](https://microservices.io/patterns/observability/health-check-api.html)
+[3](https://www.ekascloud.com/live-projects/health-endpoint-monitoring-pattern)
+[4](https://openliberty.io/docs/latest/health-check-microservices.html)
+[5](https://www.sayonetech.com/blog/how-implement-effective-health-checks-microservices-architecture/)
+[6](https://www.geeksforgeeks.org/system-design/health-endpoint-monitoring-pattern/)
+[7](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html)
+[8](https://www.geeksforgeeks.org/system-design/circuit-breaker-with-bulkhead-isolation-in-microservices/)
+[9](https://github.com/microsoftdocs/architecture-center/blob/main/docs/patterns/health-endpoint-monitoring.yml)
+[10](https://www.reddit.com/r/aws/comments/1abkm1s/route_53_health_checks_for_alb/)
+[11](https://www.youtube.com/watch?v=8aY1ZvZproY)
+[12](https://www.cloudwithchris.com/episode/health-endpoint-monitoring-pattern/)
+[13](https://www.jscholaronline.org/articles/JCSSD/Case-Studies-and-Best-Practices-from-Leading-Companies-for-Monitoring-API.pdf)
+[14](https://www.youtube.com/watch?v=-ADVxkKZcbM)
+[15](https://learn.microsoft.com/ko-kr/azure/architecture/patterns/health-endpoint-monitoring)
+[16](https://www.conceptdraw.com/examples/generic-components-used-by-cloud-monitoring-systems)
+[17](http://sixthsense.rakuten.com/blog/API-Security-Case-Studies-How-Enterprises-Prevent-Breaches-with-Rakuten-SixthSense)
+[18](https://www.conceptdraw.com/examples/health-endpoint-monitoring-pattern)
+[19](http://gowie.eu/index.php/patterns/32-architecture/patterns/116-health-endpoint-monitoring)
+[20](https://www.linkedin.com/pulse/health-check-application-load-balancer-type-target-behbud-shikhaliyev)
+[21](https://asymm.com/case-studies/preverity/)

@@ -1,0 +1,127 @@
+Retry is a resilience pattern where a client automatically re‑invokes a failed operation a limited number of times with delays, assuming the failure is transient (e.g., network glitch, temporary throttling).[1][2]
+
+## Use cases and key patterns
+
+- **Use cases**  
+  - Transient faults to remote services: timeouts, temporary unavailability, throttling (HTTP 429), or brief network partitions.[2][3][1]
+  - Cloud PaaS/SaaS calls (databases, queues, REST APIs) where many errors are short‑lived and succeed on a later attempt.[4][1][2]
+
+- **Key patterns**  
+  - Define a **retry policy**: max attempts, which errors to retry, delay strategy (immediate, incremental, exponential), and overall timeout cap.[5][1][2]
+  - Use **backoff and jitter**: increase delays between attempts, adding randomness to avoid “retry storms” where many clients hammer a struggling service in sync.[6][7][2]
+  - Respect **idempotency**: safe retries for idempotent operations; for non‑idempotent operations, use idempotency keys or avoid retries to prevent double effects.[1][5]
+
+## Related design patterns
+
+- **Circuit Breaker**  
+  - Retry handles short‑lived, recoverable faults; Circuit Breaker stops calls to a persistently failing dependency. They are often combined: “retry a few times, then open the circuit.”[8][2][1]
+
+- **Timeout and Bulkhead**  
+  - Timeouts bound how long each attempt can hang; Bulkheads isolate resources so a stuck dependency does not consume all threads.[9][2]
+
+- **Rate Limiting / Backpressure**  
+  - When errors are throttling (429) or overload, retries must honor rate limits and backpressure; otherwise retries themselves become an attack.[3][7][10]
+
+Mentioning “Timeout + Retry with backoff + Circuit Breaker + Bulkhead” as a standard resilience stack works well in interviews.[10][2][9]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure Retry pattern: handle anticipated transient faults when calling services/storage by retrying with increasing delays up to a maximum number.[2][1]
+  - Common approaches:  
+    - .NET/Java clients for Azure Storage, Cosmos DB, Service Bus, SQL have built‑in retry policies (often exponential backoff) configurable via SDK options.[11][2]
+    - Custom retry logic in Azure Functions / Web Apps / AKS using libraries (Polly, Resilience4j) with policies per dependency.[12][13][5]
+    - Service Bus / queue consumers: message handlers with retry and dead‑letter queue after repeated failures.[14][15]
+
+- **AWS**  
+  - AWS Prescriptive Guidance describes a **Retry with backoff** pattern: retry specific status codes (e.g., 429, 504) with bounded attempts and backoff.[3]
+  - Many AWS SDKs have default retry behavior (exponential backoff, sometimes with jitter) configurable via retry strategies and custom backoff functions.[16][17]
+  - Used across API Gateway/Lambda/ECS clients to downstream services (DynamoDB, S3, internal HTTP APIs).[17][3]
+
+Implementation philosophy is similar: SDK defaults plus explicit policies at call sites for critical flows.
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One‑line definition?**  
+A: Retry pattern automatically re‑invokes a failed remote operation a limited number of times with a defined delay strategy, assuming the failure is temporary.[5][1]
+
+**Q2: When should you use Retry?**  
+A: When failures are likely transient—network blips, throttling, short outages—and the operation is idempotent or designed to tolerate repeats.[6][1][2]
+
+**Q3: When should you NOT use Retry?**  
+A: For persistent faults (service down for long time, logic bugs) or non‑idempotent operations where duplicates cause harm; in those cases prefer fail‑fast and Circuit Breaker.[8][1][2]
+
+**Q4: What are common retry strategies?**  
+A: Immediate retry (at most once), fixed delay, incremental backoff, exponential backoff, and backoff with jitter to spread retries.[7][1][5][2]
+
+**Q5: How would you implement Retry on Azure?**  
+A: Use SDK built‑in transient fault handling where available, or apply Polly/Resilience4j policies around calls with exponential backoff, jitter, max attempts, and logging; integrate with Circuit Breaker for persistent failures.[13][11][1][2]
+
+**Q6: How would you implement Retry on AWS?**  
+A: Configure AWS SDK retry strategies (max attempts, custom backoff) or custom retry loops around HTTP calls, retrying only transient status codes (429, 500/502/503/504) with bounded exponential backoff and jitter.[16][17][3]
+
+**Q7: How does Retry differ from Circuit Breaker?**  
+A: Retry is stateless per call and assumes transient faults; Circuit Breaker keeps state about the dependency’s health and stops calls after repeated failures to avoid cascades.[18][9][8]
+
+**Q8: What is a retry storm, and how to avoid it?**  
+A: A retry storm occurs when many clients retry aggressively at once, amplifying load on an unhealthy service; avoid by using exponential backoff, jitter, caps, and possibly centralized rate limiting.[7][10][2]
+
+**Q9: What configuration knobs matter?**  
+A: Max attempts, base delay, max delay, total timeout per operation, which errors to retry, and per‑dependency vs global policies.[5][2][3]
+
+**Q10: Example to describe in an interview?**  
+A: “Our orders service calling payment gateway retries 3 times on timeouts or 5xx with exponential backoff and jitter, capped at 5 seconds total; if failures persist, the Circuit Breaker opens and the order transitions to ‘Pending payment’ for later processing.”[9][1][2][3]
+
+## Data structures and algorithms
+
+- **Data structures**  
+  - Simple per‑call counters (attempt count) and timestamps to compute delays; optional policy objects describing limits and delay functions.[2][5]
+  - In queues/workers, metadata (retry count, next‑visible time) is stored with the message to schedule reprocessing.[14][3]
+
+- **Algorithms / techniques**  
+  - **Exponential backoff**: delay grows exponentially with each attempt (e.g., \(base \times 2^{attempt}\)), often capped.[3][2]
+  - **Incremental / fixed backoff**: constant or linearly increasing delays.[5][2]
+  - **Jitter**: randomize the delay around the backoff value to de‑synchronize clients.[6][7][2]
+
+No complex data structures are required; the sophistication lies in choosing backoff and conditions correctly.
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Transient fault handling in Storage/Cosmos/SQL/Service Bus SDKs; Polly for .NET; Resilience4j for JVM; Azure Functions and Service Bus samples show retry with DLQs.[11][13][14][2]
+
+- **AWS**  
+  - Built‑in SDK retries (Java, JS, .NET, etc.) with configurable strategies via retry policies; AWS Prescriptive Guidance examples for HTTP API retries.[17][16][3]
+
+- **General**  
+  - Resilience4j Retry, Spring Retry/Spring Cloud, Hystrix legacy patterns, language‑specific libraries (e.g., Tenacity, Guava retrying).[19][18]
+
+## Concise bullet summary (keywords & terms)
+
+- Retry pattern; transient fault handling; idempotent operations.[1][2][5]
+- Strategies: immediate retry, fixed delay, incremental backoff, exponential backoff, jitter.[7][2][6][3]
+- Azure: SDK transient fault policies, Polly/Resilience4j, queue consumer retries + DLQ.[13][11][14][2]
+- AWS: Retry with backoff guidance, SDK retry policies, custom backoff functions.[16][17][3]
+- Related patterns: Circuit Breaker, Timeout, Bulkhead, Rate Limiting; avoid retry storms; cap attempts and total latency.[10][8][9][7]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/retry)
+[2](https://learn.microsoft.com/en-us/azure/architecture/best-practices/transient-faults)
+[3](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/retry-backoff.html)
+[4](https://opensource.com/article/19/9/transient-faults-devops)
+[5](https://www.geeksforgeeks.org/system-design/retry-pattern-in-microservices/)
+[6](https://dev.to/vipulkumarsviit/implementing-the-retry-pattern-in-microservices-4l)
+[7](https://dev.to/willvelida/the-retry-pattern-and-retry-storm-anti-pattern-4k6k)
+[8](https://www.geeksforgeeks.org/system-design/circuit-breaker-vs-retry-pattern/)
+[9](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker)
+[10](https://www.geeksforgeeks.org/system-design/rate-limter-vs-circuit-breaker-in-microservices/)
+[11](https://azure.microsoft.com/en-us/blog/using-the-retry-pattern-to-make-your-cloud-application-more-resilient/)
+[12](https://dev.to/azure/learn-about-the-retry-pattern-in-5-minutes-fjo)
+[13](https://dev.to/paulotorrestech/building-resilient-and-fault-tolerant-applications-with-azure-resiliency-patterns-49an)
+[14](https://stackoverflow.com/questions/77020202/how-to-implement-the-retry-pattern-when-processing-a-message-from-a-queue-or-top)
+[15](https://stackoverflow.com/questions/72655698/how-can-i-use-retry-pattern-in-azure-functions)
+[16](https://stackoverflow.com/questions/71428996/set-custombackoff-for-aws-sdk-javascript-v3-retries)
+[17](https://stackoverflow.com/questions/40123856/api-retry-logic-in-amazon-web-services)
+[18](https://www.baeldung.com/spring-boot-circuit-breaker-vs-retry)
+[19](https://dev.to/abh1navv/retry-pattern-in-microservices-4m39)
+[20](https://www.youtube.com/watch?v=sli5D29nCw4)
+[21](https://www.youtube.com/watch?v=WuK8p0LBqYo)

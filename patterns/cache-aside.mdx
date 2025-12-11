@@ -1,0 +1,154 @@
+Cache-aside (a.k.a. look-aside / lazy-loading) is a pattern where the application reads from the cache first, falls back to the database on a miss, then populates the cache so subsequent reads are fast.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Read-heavy workloads where a minority of keys are “hot”: product catalogs, user profiles, configuration, dashboards.[3][1]
+  - Data that can tolerate eventual consistency and occasional stale values (as opposed to strongly consistent financial balances).[4][1]
+
+- **Key behavioral pattern**  
+  - Read path:  
+    1) Check cache by key.  
+    2) On cache miss: fetch from DB, store in cache (with TTL), return to caller.[5][1]
+  - Write path (typical): write to DB first, then invalidate or update the corresponding cache entry; next read repopulates on demand.[2][1]
+  - Keep cache relatively small and cost-effective by only caching what is actually accessed (“lazy population”).[1][4]
+
+## Related design patterns
+
+- **Write-through / write-behind**  
+  - Write-through: on update, write to cache and DB in the same operation; ensures cache is always hot but increases write latency.[2][4]
+  - Write-behind: write to cache immediately and asynchronously flush to DB, improving write latency but risking data loss if cache fails.[4]
+
+- **Read-through**  
+  - Cache itself (or a library) knows how to load from DB; app only calls cache. Cache-aside keeps that logic in the application instead.[6][4]
+
+- **Others worth naming**  
+  - Cache-aside + **TTL/eviction** to control staleness.  
+  - **Rate limiting** / backpressure and **circuit breaker** mitigate cache-down scenarios (avoid DB overload on cache outage).[3][4]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Typical stack: Application (App Service / AKS / Functions) + Azure Cache for Redis + backing store (Azure SQL, Cosmos DB, etc.).[7][1]
+  - Implementation pattern:  
+    - Try `GET` from Redis; if null, query DB, then `SET` in Redis with TTL; on updates, write DB then `DEL` or `SET` cache.[7][1]
+    - Guidance: cache session state, reference data, and expensive queries; avoid caching highly volatile data unless TTL is short.[8][7]
+
+- **AWS**  
+  - Typical stack: Application (ECS/EKS/Lambda) + Amazon ElastiCache for Redis/Memcached + backing store (RDS, DynamoDB).[9][5][4]
+  - Implementation pattern:  
+    - App checks Redis first; on miss, read from RDS/Dynamo, write into Redis, return.[5][9]
+    - AWS docs highlight advantages: only cache what’s used; straightforward implementation; plus disadvantages: first request after eviction is slower, potential DB spikes on popular-key expiry.[10][4]
+
+Conceptually identical across clouds; only the managed cache/DB names change.
+
+## Big-company style references
+
+- Azure Architecture Center explicitly recommends cache-aside for improving latency and reducing load on Azure SQL/Cosmos, with Redis as the canonical example.[8][1]
+- AWS Redis whitepaper (“Database Caching Strategies Using Redis”) describes cache-aside with ElastiCache + RDS and calls out cost/performance benefits.[9][4]
+- Many tech blogs (Node/Spring/Java) call cache-aside “the most common caching pattern” and show Redis examples with `@Cacheable` / manual look-aside.[11][6][2]
+
+These are good to cite if asked “who uses this in production?”
+
+## Trade-offs & interview talking points
+
+- **Pros**  
+  - Simple mental model and implementation; cache is optional—if it fails, system can fall back to DB (with higher latency).[1][3]
+  - Cache holds only actively used data, which keeps footprint and cost manageable.[10][4]
+  - Works well with heterogeneous backends (SQL, NoSQL, APIs), since the application owns loading logic.[2]
+
+- **Cons / pitfalls**  
+  - First access after eviction is slow (DB hit + cache set); hot key expiry can cause “cache stampede” (many concurrent misses hammering DB).[3][4][1]
+  - Cache consistency is application’s responsibility; risk of stale entries or double-writes if invalidation is mishandled.[11][3]
+  - Extra cache logic in application code compared to read-through solutions.[2][3]
+
+Typical interview questions:
+
+- “Explain cache-aside vs read-through vs write-through.”  
+- “How would you handle cache stampede / thundering herds?”  
+- “What happens when Redis is down?”
+
+## Cheat-sheet (Q&A style)
+
+**Q1: One-line definition?**  
+A: Cache-aside (look-aside) is a lazy-loading pattern where the application checks the cache first, on miss reads from the data store, populates the cache, and returns the data; on writes it updates the DB and invalidates/updates the cache.[5][1]
+
+**Q2: When would you use cache-aside?**  
+A: For read-heavy, latency-sensitive workloads with mostly stable data and acceptable eventual consistency (e.g., product details, user profiles, configuration, dashboards).[4][1][3]
+
+**Q3: How does it differ from read-through and write-through?**  
+A: With cache-aside, the application owns cache population logic; read-through hides DB access inside cache; write-through writes to cache and DB simultaneously rather than invalidate and refill later.[4][2]
+
+**Q4: How do you handle updates with cache-aside?**  
+A: Common pattern: write to DB, then either delete the cache key (recommended) or update it; next read repopulates if deleted. This avoids stale data but introduces brief windows where cache and DB differ.[11][1][4]
+
+**Q5: How do you avoid cache stampede?**  
+A: Use locking/“single-flight” so only one request repopulates a missing key; add jitter to TTLs; or use stale-while-revalidate approaches where expired values can be served briefly while refresh happens.[12][3][4]
+
+**Q6: How is it implemented on Azure?**  
+A: App (App Service/Functions/AKS) → Azure Cache for Redis → Azure SQL/Cosmos; on GET, `StringGet`/`GET` first then DB on miss; on UPDATE, write DB then `KeyDelete`/`DEL`.[7][1]
+
+**Q7: How is it implemented on AWS?**  
+A: App (ECS/EKS/Lambda) → ElastiCache (Redis/Memcached) → RDS/DynamoDB; application code or library applies look-aside logic; AWS docs show this explicitly for RDS+Redis.[9][5][4]
+
+**Q8: What are the main trade-offs?**  
+A: Extra code complexity for cache handling; eventual consistency between cache and DB; occasional cold misses; risk of DB overload on widespread cache failures.[1][3][4]
+
+**Q9: What should you cache—objects or query results?**  
+A: Typically query results or view models keyed by parameters; coarse enough to reduce DB work but fine-grained enough to keep eviction and invalidation manageable.[13][2]
+
+**Q10: How do you scale a distributed cache using cache-aside?**  
+A: Use sharding (often with consistent hashing) across Redis nodes, plus LRU/TTL eviction; app knows the hash/key → node mapping and still applies cache-aside semantics.[12][13][9]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Key-value store in-memory: Redis/Memcached hold keys (usually strings) mapped to serialized values (JSON/binary).[1][2]
+  - LRU or other eviction structures inside cache (often implemented via linked-list + hash map; in managed caches this is hidden but relevant for interviews).[10][4]
+  - Sharding metadata (e.g., consistent hashing ring) mapping keys to nodes in a distributed cache cluster.[13][12][9]
+
+- **Algorithms / techniques**  
+  - Cache-aside read flow algorithm: `if (cache has key) return; else read DB; set cache; return`.[5][1]
+  - Eviction: LRU, LFU, or TTL-based expiration; picking TTL based on freshness requirements vs memory.[10][4]
+  - Consistent hashing to distribute keys among cache nodes and minimize remapping on node failure/addition.[12][13]
+  - Stampede mitigation: lock or “single-flight” to ensure only one refiller per key; sometimes implemented with Redis SETNX, token buckets, or small backoff windows.[3][12][4]
+
+## Tools / frameworks / software
+
+- **Cloud caches**  
+  - Azure Cache for Redis, Amazon ElastiCache (Redis/Memcached), GCP Memorystore.[7][4][1]
+
+- **Application frameworks**  
+  - Spring Cache (`@Cacheable`, `@CacheEvict`) with Redis and cache-aside semantics.[11]
+  - ASP.NET Core distributed caching with Azure Redis, often showing a manual cache-aside pattern.[7]
+  - Node.js + Redis (ioredis or node-redis) examples implementing look-aside for expensive queries.[6]
+
+## Concise bullet summary (keywords & terms)
+
+- Cache-aside / look-aside / lazy-loading cache.[3][1]
+- Read path: check cache → on miss, fetch DB → populate cache → return.[5][1]
+- Write path: update DB → invalidate/update cache entry.[2][1]
+- Use for read-heavy, latency-sensitive, mostly-stable data; tolerate eventual consistency.[4][1]
+- Related patterns: read-through, write-through, write-behind, TTL, LRU/LFU eviction, consistent hashing, stampede mitigation.[13][12][2][4]
+- Azure: Azure Cache for Redis + Azure SQL/Cosmos using cache-aside; AWS: ElastiCache + RDS/DynamoDB using cache-aside.[9][1][5][4]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside)
+[2](https://michaeljohnpena.com/blog/azure-functions-redis-cache-patterns/)
+[3](https://blog.dreamfactory.com/cache-miss-handling-in-microservices)
+[4](https://docs.aws.amazon.com/whitepapers/latest/database-caching-strategies-using-redis/caching-patterns.html)
+[5](https://dellenny.com/cache-aside-lazy-loading-load-data-into-a-cache-on-demand-in-aws/)
+[6](https://blog.appsignal.com/2021/03/10/powerful-caching-with-redis-in-node.html)
+[7](https://www.c-sharpcorner.com/article/cache-aside-pattern-using-asp-net-core-and-azure-redis-cache/)
+[8](https://learn.microsoft.com/en-gb/azure/architecture/patterns/cache-aside)
+[9](https://newsletter.simpleaws.dev/p/elasticache-redis-cache-rds)
+[10](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html)
+[11](https://java.elitedev.in/java/complete-redis-distributed-caching-guide-cache-aside-and-write-through-patterns-with-spring-boot-ef6076de/)
+[12](https://www.linkedin.com/posts/nikita-ghode-06973715b_youre-in-a-backend-interview-they-ask-activity-7394629129603784704-VXjT)
+[13](https://leapcell.io/blog/optimizing-database-performance-with-redis-cache-key-design-and-invalidation-strategies)
+[14](https://azurefeeds.com/2025/09/12/cache-aside-pattern/)
+[15](https://www.ekascloud.com/live-projects/cache-aside-pattern)
+[16](https://www.youtube.com/watch?v=oo5YIkEmujk)
+[17](https://stackoverflow.com/questions/38471005/cache-aside-pattern-on-azure-and-redis-cache)
+[18](https://www.linkedin.com/posts/jaspreet-khera-844258172_microservices-design-patterns-part-3-activity-7376969089086468096-HtPv)
+[19](https://www.linkedin.com/learning/azure-cloud-design-patterns/cache-aside-pattern)
+[20](https://www.cloudwithchris.com/episode/cache-aside/)

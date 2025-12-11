@@ -1,0 +1,35 @@
+Microservices monitoring shifts from monolith silos to observability via metrics/logs/traces, enabling root-cause analysis across dynamic, elastic services.[1][2]
+
+## Key Patterns
+Use the three pillars (metrics for aggregates, logs for events, traces for request flows) with correlation IDs for end-to-end visibility; golden signals (latency, traffic, errors, saturation) guide alerts.  Container-native aggregation leverages orchestration metadata (Kubernetes pods/namespaces); service maps visualize dependencies for anomaly detection.[2][3][1]
+
+## Use Cases & Tools
+E-commerce tracks checkout latency across payment/inventory services during peaks; streaming monitors transcoding throughput to prevent buffering.  Tools: Prometheus/Grafana for metrics/alerts, Jaeger/Zipkin/OpenTelemetry for traces, ELK/Fluentd for logs, New Relic/Dynatrace for full-stack, Middleware/SigNoz for unified dashboards, Istio for service mesh telemetry.[3][2]
+
+Big tech refs: Netflix TechBlog on Spinnaker/Prometheus for 1000s deploys/day with chaos resilience; Uber on Jaeger tracing cutting MTTR 50% via service graphs (eng.uber.com).[4][5]
+
+## Trade-offs & Questions
+Distributed traces reveal bottlenecks but add 5-10% overhead vs metrics-only; centralized logging simplifies correlation yet risks single failure—use brokers like Kafka.  Auto-instrumentation eases adoption but obscures custom business metrics.[2]
+
+- Three pillars vs monitoring? (Observability asks "why" via traces; monitoring signals "when")[2]
+- P95 latency vs avg? (P95 captures user pain outliers)[3]
+- Service mesh cost? (CPU hit offset by zero-config resilience/telemetry)[3]
+
+## Cheat-Sheet Q&A
+**Q: Golden signals?** A: Latency/traffic/errors/saturation[1]
+**Q: Correlation ID flow?** A: Request header → all service logs/traces[2]
+**Q: Liveness vs readiness?** A: Liveness restarts unhealthy; readiness blocks traffic[2]
+**Q: Trace sampling?** A: Head/tail-based (100% errors, 1% happy path)[2]
+**Q: Alert fatigue fix?** A: Dynamic baselines, team-owned SLOs[3]
+
+## Data Structures & Algorithms
+Directed acyclic graphs (DAGs) model trace spans (topological sort for latency calc); time-series DBs use inverted indexes for log queries.  Sliding windows/EMA smooth metrics; Bloom filters approximate high-cardinality traces; consistent hashing shards metrics by service.[2]
+
+## Concise Keywords Summary
+- GoldenSignals, MetricsLogsTraces, CorrelationID, P95Latency, ThroughputErrorRate, DistributedTracing, ServiceMap, ContainerNative, OpenTelemetryJaeger, PrometheusGrafana, ELKFluentd, SLOsSLIs, LivenessReadiness, HeadTailSampling, IstioTelemetry[1][3][2]
+
+[1](https://dev.to/vijayskr/advanced-spring-boot-concepts-every-java-developer-should-know-4j9g)
+[2](https://www.linkedin.com/posts/eng-omar-ismail_advanced-spring-boot-concepts-every-java-activity-7278840680498532352-Ffxm)
+[3](https://www.koenig-solutions.com/spring-boot-projects)
+[4](https://netflixtechblog.com/tagged/microservices)
+[5](https://blog.dreamfactory.com/microservices-examples)

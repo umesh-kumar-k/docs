@@ -1,0 +1,157 @@
+Saga is a distributed transaction pattern where a long-running business operation is split into a sequence of local transactions in different services, each with a compensating transaction to restore consistency if a later step fails.[1][2]
+
+## Use cases and key patterns
+
+- **Use cases**  
+  - Cross-service business flows: e‑commerce checkout (reserve inventory → charge payment → create shipment), travel booking (flight → hotel → car rental), subscription activation, etc.[3][4][1]
+  - Database-per-service microservices where ACID across services is impossible, but business requires end-to-end consistency and clear rollback semantics.[2][5]
+
+- **Key Saga concepts**  
+  - Saga = sequence of **local transactions**; each completes within one service and publishes an event or sends a command to trigger the next step.[5][1][2]
+  - On failure of a local transaction, Saga triggers **compensating transactions** for previously completed steps (cancel booking, refund payment, restock inventory) to reach a consistent outcome.[1][2]
+  - **Pivot transaction** is the point of no return: before pivot, preceding steps must be compensable; after pivot, subsequent steps must complete or be retryable.[1]
+
+## Related design patterns
+
+- **Compensating Transaction** – the mechanism Sagas use to undo earlier steps; Saga is the orchestration, compensations are the building blocks.[6][2][1]
+- **Event Sourcing & CQRS** – Sagas often react to events from an event store and update materialized view read models; events capture both forward and compensating actions.[7][8][2]
+- **Process Manager / Orchestrator** – an orchestrator service or workflow engine coordinates steps, tracks state, and invokes compensations.[9][2]
+
+Mentioning “Saga + Compensating Transactions + Event Sourcing/CQRS” is a strong interview combination for distributed consistency.[8][2][1]
+
+## Orchestration vs choreography
+
+- **Orchestration**  
+  - A centralized Saga orchestrator (workflow, durable function, Step Functions) tells each service what local transaction or compensation to run and in what order.[10][2][1]
+  - Easier to reason about and debug; orchestration logic is explicit in one place, but the orchestrator can become a central dependency.[2][9]
+
+- **Choreography**  
+  - No central coordinator; each local transaction publishes domain events that others listen to and react with their own steps or compensations.[11][8][2]
+  - Promotes loose coupling, but flow can become harder to trace and maintain as more services join.[3][2]
+
+For interviews, be ready to state trade-offs and when you prefer orchestration (complex flows) vs choreography (simple, domain-driven event chains).[9][2]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure Saga pattern guidance: implement business transactions as sequences of local transactions coordinated via messages/events; use compensating transactions and pivot transaction design.[1]
+  - Common implementation options:  
+    - **Azure Durable Functions** orchestrations: main orchestrator function calls activity functions for each step and compensating step; state is kept in Azure Storage; GitHub samples show travel booking Sagas.[12][13][10]
+    - **Service Bus + Functions/AKS/NServiceBus**: orchestrated or choreographed Sagas using queues/topics for commands and events.[14][15][1]
+    - State tracking in Cosmos DB/SQL or Durable Functions history; compensations invoked on failure branches.[14][1]
+
+- **AWS**  
+  - AWS Step Functions are the canonical orchestrator: each state is a local transaction (Lambda, ECS, HTTP), with **Catch** and **Choice** states to branch into compensating actions (e.g., `CompensateHotel`).[16][17][18]
+  - Sagas in serverless: Step Functions state machine + Lambda functions for both forward and rollback paths; state machine encodes order, error handling, and rollback sequencing.[18][16]
+  - EventBridge/SQS/SNS support choreographed Sagas where services publish events instead of relying on a central state machine.[19][16]
+
+The conceptual model is identical; Azure leans heavily on Durable Functions/Service Bus; AWS on Step Functions/Lambda/EventBridge.[16][1]
+
+## Trade-offs and interview talking points
+
+- **Benefits**  
+  - Achieves business-level consistency without distributed 2PC; avoids long-held distributed locks and improves availability and scalability.[4][2][1]
+  - Clear recovery model: explicit compensations define what happens on partial failure, often matching real business rules.[20][1]
+
+- **Costs / complexities**  
+  - Requires designing compensating transactions for each step (not always fully reversible), ensuring idempotency, and handling compensating failures.[4][2][1]
+  - Eventual consistency: clients may see intermediate states during Saga execution or rollback; UX and domain must tolerate it.[2][1]
+  - Choreography can lead to “distributed spaghetti” if not carefully governed.[9][2]
+
+Expect questions like “How do you handle failure in the middle of a Saga?” and “When is a Saga overkill compared to a local transaction or simple outbox?”.[4][2]
+
+## Cheat-sheet (Q&A style)
+
+**Q1: One-line definition?**  
+A: Saga is a pattern for distributed transactions where a business operation is implemented as a sequence of local transactions in different services, each with a compensating transaction to undo prior steps on failure.[2][1]
+
+**Q2: When should you use Saga?**  
+A: When a business workflow spans multiple microservices/databases and cannot use a single ACID transaction, but you still need reliable, consistent outcomes and well-defined recovery.[3][1][2]
+
+**Q3: What’s the difference between Saga and a simple distributed transaction (2PC)?**  
+A: 2PC tries to maintain atomic ACID semantics across participants with locking; Saga accepts eventual consistency and uses compensations instead of locking, improving availability at the cost of complexity.[4][1][2]
+
+**Q4: Orchestration vs choreography?**  
+A: Orchestration uses a central coordinator (workflow engine) to drive each step; choreography has services react to each other’s events. Orchestration is easier to reason about; choreography is more loosely coupled but harder to trace.[9][2]
+
+**Q5: How does Saga relate to Compensating Transactions?**  
+A: Compensating Transactions are the individual undo actions for each local transaction; Saga defines when and in what order they run to restore consistency.[6][1][2]
+
+**Q6: How would you implement Saga on Azure?**  
+A: Use Durable Functions (or Logic Apps/NServiceBus) as an orchestrator that calls microservice APIs/Functions for each step and, on failure, calls compensating functions in reverse order; store state in Durable Functions storage/Cosmos and communicate via Service Bus/Event Grid.[13][10][14][1]
+
+**Q7: How would you implement Saga on AWS?**  
+A: Model the workflow as a Step Functions state machine with states for business steps and compensations, implemented as Lambdas/ECS tasks; use Catch/Choice transitions to invoke compensating states on failures; optionally use EventBridge for event-driven variants.[17][18][16]
+
+**Q8: How do you handle failure in compensating transactions?**  
+A: Use retries with backoff, idempotent compensating logic, escalation to manual remediation, and store Saga state so compensation can resume; sometimes apply alternative compensations (credits/manual flows).[6][1][2]
+
+**Q9: What are “semantic lock”, “commutative updates”, and “pivot transaction”?**  
+A:  
+- Semantic lock: application-level lock (flag) to signal an in-progress Saga update and prevent conflicting actions.[1]
+- Commutative updates: designing updates so order does not matter, reducing conflicts between concurrent Sagas.[1]
+- Pivot transaction: boundary after which earlier steps will not be compensated; later steps must succeed or be retried.[1]
+
+**Q10: Example to narrate in an interview?**  
+A: Travel booking Saga: book flight → book hotel → book car; if car booking fails, run compensations to cancel hotel and flight; implemented as a Durable Function (Azure) or Step Functions (AWS) state machine with compensated rollback paths.[10][18][16][1]
+
+## Data structures and algorithms
+
+- **Data structures**  
+  - **Saga instance state**: ID, current step, status (Running/Completed/Compensating/Failed), list of executed local transactions, and which compensations are pending; stored in a Saga store (DB, workflow engine state).[10][2][1]
+  - **Message/event channels**: queues/topics (Service Bus, SQS/SNS, Event Grid/EventBridge) carrying commands and events between participants.[8][16][1]
+
+- **Algorithms / techniques**  
+  - State machine for each Saga instance: transitions based on success/failure of local transactions; on failure, walks back through previously executed steps and invokes compensations (often in reverse order).[16][2][1]
+  - Concurrency control: semantic locks, commutative updates, and sometimes versioning/optimistic concurrency to avoid conflicting Sagas over shared entities.[1]
+  - Timeout and retry policies: retries for transient failures; escalation if Saga exceeds time or retry budgets.[21][1]
+
+No exotic algorithms are required, but structuring state machines and compensation ordering cleanly is essential.
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Azure Durable Functions (orchestrator + activity functions), Logic Apps, Service Bus, Event Grid; community implementations (NServiceBus Sagas, MassTransit) and sample repos for Saga on Azure.[13][14][10][1]
+
+- **AWS**  
+  - AWS Step Functions + Lambda/ECS, EventBridge/SQS/SNS; AWS Prescriptive Guidance and blog posts show travel booking and e‑commerce Sagas.[17][18][16]
+
+- **General**  
+  - Workflow and messaging platforms: Camunda, Temporal, Netflix Conductor, Axon, NServiceBus, Spring Cloud’s Saga support, Java-design-patterns Saga implementations.[22][12][20]
+
+## Concise bullet summary (keywords & terms)
+
+- Saga = sequence of **local transactions** + **compensating transactions** for distributed business operations.[2][1]
+- Use cases: e‑commerce orders, travel booking, payments, subscription workflows in microservices.[3][4]
+- Modes: **orchestration** (central coordinator) vs **choreography** (event-driven).[9][2]
+- Core notions: **pivot transaction**, **semantic lock**, **commutative updates**, **pessimistic/optimistic view**, eventual consistency.[1]
+- Azure: Durable Functions, Logic Apps, Service Bus/Event Grid-based Sagas.[14][10][1]
+- AWS: Step Functions + Lambda orchestrated Sagas, EventBridge/SQS/SNS choreographed flows.[18][17][16]
+- Related patterns: **Compensating Transaction**, **Event Sourcing**, **CQRS**, **Retry with backoff**, **Circuit Breaker**.[23][21][6][2]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/saga)
+[2](https://microservices.io/patterns/data/saga.html)
+[3](https://newsletter.systemdesign.one/p/saga-design-pattern)
+[4](https://www.scholarhat.com/tutorial/designpatterns/saga-design-pattern-microservices-guide)
+[5](https://github.com/akash-coded/spring-framework/discussions/171)
+[6](https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction)
+[7](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)
+[8](https://we-archers.com/blog/integrating-an-event-driven-architecture-with-a-micro-services-architecture-using-event-sourcing-and-cqrs/)
+[9](https://www.theserverside.com/tutorial/How-the-saga-design-pattern-in-microservices-works)
+[10](https://github.com/gautamdhameja/saga-durable-functions)
+[11](https://dev.to/willvelida/the-saga-pattern-3o7p)
+[12](https://www.simontimms.com/2019/02/14/2019-02-14-durablefunctions_sagas/)
+[13](https://blog.simontimms.com/2019/02/14/2019-02-14-durablefunctions_sagas/)
+[14](https://github.com/error505/Saga-Distributed-Transactions-Pattern-on-Azure)
+[15](https://www.elementsofcomputerscience.com/posts/implementing-saga-pattern-in-csharp-04/)
+[16](https://awsforengineers.com/blog/aws-step-functions-saga-pattern-implementation/)
+[17](https://www.linkedin.com/posts/lefkarag_how-to-implement-the-saga-pattern-with-aws-activity-7376562295822417920-pHXg)
+[18](https://theburningmonk.com/2017/07/applying-the-saga-pattern-with-aws-lambda-and-step-functions/)
+[19](https://dellenny.com/implementing-event-sourcing-in-aws-modeling-state-as-a-sequence-of-events/)
+[20](https://java-design-patterns.com/patterns/saga/)
+[21](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/retry-backoff.html)
+[22](https://microservices.io/patterns/)
+[23](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker)
+[24](https://roshancloudarchitect.me/mastering-distributed-transactions-implementing-the-saga-pattern-in-net-with-azure-cloud-services-68f78f5b02c4)
+[25](https://learn.microsoft.com/ko-kr/azure/architecture/patterns/saga)
+[26](https://www.reddit.com/r/programming/comments/1ivk7x9/what_is_saga_pattern_in_distributed_systems/)

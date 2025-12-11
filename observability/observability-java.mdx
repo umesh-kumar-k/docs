@@ -1,0 +1,68 @@
+Java observability via **OpenTelemetry (OTel)** + **Grafana Cloud** + **Digma IDE plugin** creates developer-centric pipeline: OTel Java agent auto-instruments Spring Boot → Grafana Alloy Collector (pipeline as code) → dual export (Grafana traces + Digma code analysis), shortening feedback loop from deployment to IDE insights.[grafana] Senior architects deploy OTel agent (`-javaagent:opentelemetry-javaagent.jar`) + Alloy for vendor-neutral MELT, trading minimal code changes for runtime code insights (hot paths, dead code, spans).
+
+## Interview Summary
+**Pipeline**: Java app → OTel agent (auto-tracing) → Alloy Collector (`config.river`) → Grafana Cloud (traces) + Digma (IDE insights); **Developer Flow**: Run/debug → Digma analyzes traces → IDE CodeLens (usage/dead code) + insights panel; **Alloy**: River config receives OTLP (4317/4318), batches, exports dual destinations.[grafana]
+
+## Keywords & Patterns
+- **Instrumentation**: OTel Java agent (`-javaagent`), auto Spring Boot/HTTP/DB.[grafana]
+- **Collector**: Grafana Alloy (`config.river`), OTLP receiver (grpc/http), batch processor.[grafana]
+- **IDE**: Digma plugin (IntelliJ), CodeLens, Observability/Insights panels.[grafana]
+- **Export**: OTLP endpoints, Grafana Cloud (traces), Digma (code analysis).[grafana]
+- **Config**: `otelcol.receiver.otlp`, `exporter.otlphttp`, basic auth (instance_id/token).[grafana]
+
+## Common Trade-offs + Questions
+OTel Agent: Zero-code vs performance overhead (5-10%); Alloy: Pipeline flexibility vs config complexity; Digma IDE: Developer insights vs team-wide dashboards; Dual export: Rich analysis vs single backend simplicity.[grafana]
+
+**Example questions**:
+- OTel Java agent? (`-javaagent:opentelemetry-javaagent.jar -Dotel.*`).[grafana]
+- Alloy config language? (River = Terraform HCL).[grafana]
+- Digma CodeLens? (Runtime usage, dead code, spans).[grafana]
+
+| Tool | Instrumentation | Backend | Developer UX |
+|------|-----------------|---------|--------------|
+| OTel Agent | Auto (Java) | Flexible | Manual |
+| Micrometer | Spring Boot | Metrics | Actuator |
+| Digma | IDE analysis | Grafana | CodeLens [grafana] |
+
+## Use Cases
+- **Spring Boot Microservices**: Auto HTTP/DB tracing + IDE feedback.[grafana]
+- **Local Dev**: Run/debug → instant Digma insights.[grafana]
+- **CI/CD**: Observability from first commit.[grafana]
+- **Onboarding**: New devs understand runtime behavior.[grafana]
+
+## Big Tech Blogs & Efficiency Wins
+Grafana Labs: OTel + Alloy cut pipeline config 80% vs manual Collectors.[grafana] Digma: Continuous feedback reduced bug escape rate 60% (pre-prod detection).[grafana] Netflix: Similar Java agent patterns cut MTTR 70% via runtime insights.[1]
+
+## Cheat-Sheet Q&A
+**Q: OTel Java agent?** A: `-javaagent:opentelemetry-javaagent.jar` (auto Spring Boot).[grafana]  
+**Q: Alloy receiver?** A: OTLP grpc:4317/http:4318 → batch → exporters.[grafana]  
+**Q: Digma panels?** A: Observability (traces), Insights (code analysis).[grafana]  
+**Q: River config?** A: `otelcol.receiver.otlp` + `processor.batch` + `exporter.otlp`.[grafana]  
+**Q: Grafana link?** A: Digma → Grafana Cloud traces (external Jaeger mode).[grafana]
+
+## Tools/Frameworks
+- **Agent**: OpenTelemetry Java agent (Spring Boot auto).[grafana]
+- **Collector**: Grafana Alloy (River config).[grafana]
+- **IDE**: Digma IntelliJ plugin (CodeLens/insights).[grafana]
+- **Backend**: Grafana Cloud (traces), OTLP endpoints.[grafana]
+- **Java**: Spring Boot 3 + Micrometer Observation (complementary).[baeldung]
+
+## Data Structures & Algorithms
+**Spans**: Parent-child trees (trace context propagation). **CodeLens**: Runtime span aggregation → usage scores. **Hot Paths**: Flame graph clustering. **Dead Code**: Span absence detection. **Alloy Pipeline**: DAG processing graph (receiver→processor→exporter).[grafana]
+
+## Key Highlights & Tradeoffs
+**Developer-First**: IDE insights vs dashboard-only  
+**Zero-Code**: OTel agent auto vs manual spans  
+**Pipeline**: Alloy River vs static YAML  
+**Dual Export**: Grafana + Digma vs single backend  
+
+**Interviews**: "OTel Java agent → Alloy Collector → Grafana Cloud + Digma IDE"
+
+## Concise Keywords Summary
+- OTel Java Agent (`-javaagent`), Grafana Alloy (River config)
+- Digma IDE Plugin, CodeLens, Observability/Insights Panels
+- OTLP (4317/4318), Batch Processor, Dual Export (Grafana/Digma)
+- Continuous Feedback, Runtime Analysis, Hot Paths/Dead Code
+- Spring Boot Auto, Flame Graphs, Span Trees, Developer Observability
+
+[1](https://netflixtechblog.com)

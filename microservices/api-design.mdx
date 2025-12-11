@@ -1,0 +1,117 @@
+Azure microservices API design focuses on domain‑aligned, stable, versioned contracts, usually REST over HTTP via an API gateway, with careful evolution and separation between external and internal APIs.[1][2]
+
+## Use cases and key patterns
+
+- **Use cases**  
+  - Exposing microservices to web/mobile/partner clients while keeping internal implementation flexible and independently deployable.[3][4]
+  - Enabling multiple clients (web, mobile, 3rd‑party) with different shape/latency needs over the same domain capabilities.[5][6]
+
+- **Key API design practices (Azure guidance)**  
+  - Prefer REST over HTTP for most microservice APIs; choose gRPC or other binary RPC only when there are strict performance or contract requirements between services.[7][1]
+  - Model APIs around domain **aggregates/resources**, not CRUD on tables; expose coarse‑grained operations that respect invariants instead of chatty property‑level updates.[2][1]
+  - Use consistent resource naming, HTTP verbs, status codes, and error formats across services, following Microsoft REST API guidelines.[8][1][2]
+
+## Related patterns
+
+- **API Gateway & BFF**  
+  - API Gateway: single entry point that routes, aggregates, enforces auth, throttling, and monitoring (Azure API Management; AWS API Gateway).[9][10][3]
+  - Backend‑for‑Frontend (BFF): client‑specific backends or gateway routes for web vs mobile vs 3rd‑party to avoid over/under‑fetching.[6][11][5]
+
+- **Microservice API patterns**  
+  - Internal vs external APIs: internal services may use gRPC/async messaging; external APIs are REST/HTTP, versioned, and consumer‑friendly.[1][7]
+  - Contract‑first design: define OpenAPI/Swagger or gRPC IDL up front for compatibility tests and client generation.[7][2][1]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure microservices guidance: design REST APIs around domain resources, expose them through **Azure API Management** as gateway, use **AKS/Container Apps/App Service/Functions** for services.[3][9][1]
+  - APIM provides versioning, revisions, routing, rate limiting, auth, transformation (for example, header/body mapping), and analytics; this supports API evolution without breaking clients.[12][2]
+  - Internal communication can be REST/gRPC or async (Service Bus/Event Grid), with service mesh as needed.[9][3]
+
+- **AWS**  
+  - Typical pattern: **API Gateway** fronting microservices on ECS/EKS/Lambda; it supports REST or HTTP APIs, auth, throttling, and mapping.[10][13]
+  - API Gateway plus ALB/NLB and service mesh (App Mesh) gives similar capabilities to Azure APIM + Gateway + mesh.[14][10]
+  - API design recommendations are analogous: resource‑oriented REST, clear versioning, and client‑specific facades (BFFs).[6][10]
+
+Conceptually the API design principles are the same; Azure and AWS differ mainly in gateway products and tooling.[10][1]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: How does Azure recommend designing microservice APIs?**  
+A: Use REST/HTTP as the default, model endpoints around domain aggregates as resources, expose them through API Management, define contracts with OpenAPI, and design for versioning and backward compatibility.[8][2][1]
+
+**Q2: When choose REST vs gRPC?**  
+A: REST/HTTP for public and general‑purpose APIs; gRPC or other binary RPC for high‑throughput, low‑latency internal service‑to‑service calls where both sides control the tech stack.[1][7]
+
+**Q3: How do you evolve APIs without breaking clients?**  
+A: Use explicit versioning (path or header), add fields in a backward‑compatible way, deprecate gradually, and use APIM/API Gateway to route old and new versions in parallel.[12][2][1]
+
+**Q4: How do you handle different client needs (web vs mobile)?**  
+A: Use API Gateway with BFF pattern: shared core services expose fine‑grained APIs; BFF/gateway routes aggregate and tailor payloads per client.[11][5][6]
+
+**Q5: How is this implemented on Azure vs AWS?**  
+A: Azure: APIM + App Gateway/Ingress front AKS/App Service/Functions; AWS: API Gateway + ALB front ECS/EKS/Lambda; both provide routing, auth, throttling, and analytics.[3][10][1]
+
+**Q6: Key trade‑offs in microservice API design?**  
+A: Coarse‑grained vs chatty APIs, REST vs RPC, synchronous vs async, and how much logic to put in gateway/BFF vs services; more layers give flexibility but add latency/complexity.[15][5][1]
+
+**Q7: What patterns support reliable APIs?**  
+A: Circuit Breaker, Retry, Rate Limiter, Health Check APIs, and Idempotency for write endpoints (often implemented via gateway policies or sidecars).[16][17][18]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Resource representations (JSON/Protobuf schemas) aligned with aggregates; OpenAPI/gRPC IDL docs.[2][8][1]
+  - API gateway routing tables and policies (path → backend, version → backend, client type → BFF).[15][12]
+
+- **Algorithms / techniques**  
+  - Routing & composition in API gateways (fan‑out to multiple services and aggregate responses).[15][3]
+  - Standard load‑balancing and rate‑limiting algorithms at gateway/mesh (round‑robin, token bucket).[19][15]
+
+Most of the complexity is in contract modeling and evolution rather than low‑level algorithms.[2][1]
+
+## Tools / frameworks / software examples
+
+- **Azure**  
+  - Azure API Management (gateway, versioning, policies), App Gateway/Front Door, AKS/Container Apps/App Service/Functions implementing the APIs; OpenAPI‑based design and APIM dev portal.[20][12][1]
+
+- **AWS**  
+  - Amazon API Gateway, ALB/NLB, Lambda/ECS/EKS; usage plans and throttling, custom authorizers, and mapping templates for transformation.[13][14][10]
+
+- **General**  
+  - REST frameworks (Spring Boot, ASP.NET Core, FastAPI), gRPC frameworks, microservices API patterns like API Gateway and BFF (Netflix, Amazon examples).[4][21][6]
+
+## Concise bullet summary (keywords & terms)
+
+- Domain‑driven, resource‑oriented REST APIs; aggregates → resources; coarse‑grained operations.[1][2]
+- API Gateway & BFF patterns; Azure API Management vs AWS API Gateway.[6][10][3]
+- REST vs gRPC for internal vs external APIs; contract‑first with OpenAPI/IDL; explicit versioning and backward compatibility.[8][7][2][1]
+- Cross‑cutting API concerns via gateway: auth, rate limiting, monitoring, transformation, routing, canary/blue‑green strategies.[12][15]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/api-design)
+[2](https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design)
+[3](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
+[4](https://blog.hypertrace.org/blog/evolution-of-api-microservice-ecosystem/)
+[5](https://www.linkedin.com/pulse/rethinking-api-design-how-backend-frontend-bff-pattern-kishor-naik-kolyc)
+[6](https://microservices.io/patterns/apigateway.html)
+[7](https://www.cgvakindia.com/blog/microservices-with-azure-for-designing-developing-modern-applications/)
+[8](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md)
+[9](https://www.sayonetech.com/blog/microservices-architecture-design-azure/)
+[10](https://aws.amazon.com/blogs/architecture/using-api-gateway-as-a-single-entry-point-for-web-applications-and-api-microservices/)
+[11](https://www.geeksforgeeks.org/system-design/backend-for-frontend-pattern/)
+[12](https://azure.github.io/apim-lab/apim-lab/10-additional-topics/additional-topics-10-1-architecture.html)
+[13](https://docs.aws.amazon.com/pdfs/whitepapers/latest/microservices-on-aws/microservices-on-aws.pdf)
+[14](https://aws.amazon.com/blogs/containers/integrate-amazon-api-gateway-with-amazon-eks/)
+[15](https://marutitech.com/api-gateway-in-microservices-architecture/)
+[16](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/patterns)
+[17](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker)
+[18](https://microservices.io/patterns/observability/health-check-api.html)
+[19](https://learn.microsoft.com/en-us/azure/api-management/rate-limit-policy)
+[20](https://learn.microsoft.com/en-us/azure/api-management/api-management-kubernetes)
+[21](https://www.sayonetech.com/blog/microservices-architecture-companies/)
+[22](https://www.tatvasoft.com/blog/azure-microservices/)
+[23](https://www.vibidsoft.com/blog/building-microservices-architecture-design-on-azure/)
+[24](https://jonathandotchin.github.io/resources/2018-05-11-Defining-Microservices-Boundaries/References/Designing,%20building,%20and%20operating%20microservices%20on%20Azure.pdf)
+[25](https://microservices.io/patterns/apigateway)
+[26](https://www.devlane.com/blog/the-evolution-of-microservices-architecture-trends-and-best-practices)
+[27](https://azurefeeds.com/2025/09/26/design-a-microservices-architecture/)

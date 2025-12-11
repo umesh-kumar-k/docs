@@ -1,0 +1,127 @@
+Azure microservices compute options describe where and how to host microservices—managed Kubernetes (AKS), serverless containers (Container Apps), Functions, App Service, or Service Fabric—based on control, scalability, and operational needs.[1][2]
+
+## Use cases and key options
+
+- **AKS (Azure Kubernetes Service)**  
+  - Best for large fleets of containerized microservices needing full Kubernetes API access, custom operators, advanced networking, and service mesh.[3][1]
+  - Dedicated cluster cost model, supports Linux and Windows containers, GPU workloads, and deep customization.[4][1]
+
+- **Azure Container Apps (ACA)**  
+  - Serverless container platform built on Kubernetes, ideal when you want containerized microservices with autoscaling (HTTP/events) but don’t want to manage Kubernetes APIs.[1][3]
+  - Consumption billing, simpler ops; no direct Kubernetes API access, Linux containers only (Windows limited/preview).[3][1]
+
+- **Azure Functions**  
+  - Event‑driven microservices/mini‑services for lightweight APIs, background jobs, and integration glue; excellent for bursty workloads.[2][1]
+
+- **Azure App Service / App Service Environment**  
+  - Good for web/API microservices where you prefer PaaS over full container orchestration; supports built‑in runtimes and custom containers.[5][6][3]
+
+- **Azure Service Fabric**  
+  - Platform for microservices including stateful services and “code‑package” workloads; suited to advanced scenarios and mixed containers/non‑containers.[7][4]
+
+## Related patterns and decision factors
+
+- **Service orchestrator vs serverless** – choose orchestrators (AKS, Service Fabric) when you need full control, sidecars/mesh, complex lifecycle; choose serverless (Container Apps, Functions) for consumption billing and simplified ops.[1][3]
+- **Workload characteristics** – long‑running vs event‑driven, HTTP vs message‑driven, Windows vs Linux, GPU needs, team’s Kubernetes skills.[8][9][1]
+- **Cost & scaling** – AKS is always‑on; ACA/Functions can scale to zero; all support autoscaling but with different control surfaces.[3][1]
+
+In interviews, explicitly tie compute choice to domain, scale, skills, and control level.[9][4][1]
+
+## Azure vs AWS equivalents
+
+- **AKS ↔ Amazon EKS**  
+  - Both are managed Kubernetes; full control of Kubernetes APIs, suitable for complex containerized microservices.[10][1]
+
+- **Azure Container Apps ↔ AWS ECS Fargate / App Runner**  
+  - Serverless containers: hide orchestrator; scale by HTTP/events; billed by consumption; limited direct control vs pure Kubernetes.[11][3]
+
+- **Azure Functions ↔ AWS Lambda**  
+  - Event‑driven serverless functions for APIs, jobs, and integration.[10][1]
+
+- **App Service ↔ AWS Elastic Beanstalk / App Runner**  
+  - PaaS for web APIs, handling scaling and patching with minimal container/Kubernetes concerns.[12][6]
+
+- **Service Fabric ↔ ECS/EKS with stateful services or specialized AWS stateful platforms**  
+  - Both address stateful and high‑throughput services, though Service Fabric is a distinct programming model.[7][4]
+
+The compute–choice reasoning (control vs simplicity vs cost vs skills) is essentially the same on both clouds.[9][10]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: What are the main Azure compute options for microservices?**  
+A: AKS (managed Kubernetes), Azure Container Apps (serverless containers), Azure Functions (serverless functions), App Service (PaaS web/API), and Service Fabric (microservices platform including stateful services).[7][1][3]
+
+**Q2: When would you choose AKS?**  
+A: When you need full Kubernetes control (CRDs, operators, custom networking/mesh), mixed workloads (HTTP, gRPC, batch), Windows containers, or GPU‑heavy microservices, and you have Kubernetes skills.[4][8][1]
+
+**Q3: When is Container Apps a better fit?**  
+A: When you want containerized microservices with serverless scaling and minimal infra management, do not need direct Kubernetes API access, and can run on Linux containers.[1][3]
+
+**Q4: Where do Functions fit?**  
+A: For event‑driven microservices—lightweight APIs, background processing, integration logic—where execution is short‑lived and irregular.[2][1]
+
+**Q5: How do these map to AWS options?**  
+A: AKS ↔ EKS; Container Apps ↔ ECS Fargate/App Runner; Functions ↔ Lambda; App Service ↔ Beanstalk/App Runner; Service Fabric ↔ stateful services on ECS/EKS or specialized AWS solutions.[11][10][3]
+
+**Q6: What are key trade‑offs?**  
+A: More control (AKS/Service Fabric) means more ops overhead; serverless (Container Apps/Functions) reduces ops but limits low‑level control and sometimes platform flexibility; App Service is in the middle as opinionated PaaS.[6][3][1]
+
+**Q7: How do you choose between App Service and containers for microservices?**  
+A: App Service for simple HTTP microservices with standard runtimes and minimal infra needs; containers on AKS/ACA when you need polyglot runtimes, custom images, sidecars, or mesh.[5][8][6]
+
+**Q8: How do cost and scaling differ?**  
+A: AKS = dedicated cluster capacity; you must right‑size and optimize nodes. Container Apps/Functions = serverless, pay‑per‑usage, can scale to zero; App Service sits between with plan‑based cost but built‑in autoscale.[9][3][1]
+
+**Q9: What about hybrid and Windows‑heavy workloads?**  
+A: AKS with Windows node pools, Service Fabric, and App Service (Windows plans) are primary options on Azure; AWS typically uses EKS/ECS Windows node groups or EC2/Beanstalk.[8][4][10]
+
+**Q10: Example answer for an interview?**  
+A: “For a large, polyglot microservices platform with service mesh and GPU workloads, I’d choose AKS; for simpler event‑driven microservices I’d use Container Apps or Functions; public APIs would sit behind APIM/API Gateway, regardless of compute.”[2][3][1]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Deployment descriptors (YAML/ARM/Bicep) describing services, pods, scale rules, triggers.[3][1]
+  - Scale rules/metrics (RPS, CPU, queue length) for autoscaling policies in AKS, Container Apps, and Functions.[1][3]
+
+- **Algorithms / techniques**  
+  - Cluster and pod autoscaling (HPA in AKS, KEDA‑style event‑driven scaling in Container Apps/Functions).[3][1]
+  - Scheduling and placement via Kubernetes or platform internals; nothing special to call out in interviews beyond “horizontal autoscaling based on metrics/events.”[9][1]
+
+## Tools / frameworks / software examples
+
+- **Azure**  
+  - AKS, Azure Container Apps, Azure Functions, App Service, Service Fabric; supporting tools like Azure DevOps/GitHub Actions, ACR, APIM, Application Insights.[4][7][1][3]
+
+- **AWS**  
+  - EKS, ECS/Fargate, Lambda, Elastic Beanstalk/App Runner; supporting services like ECR, API Gateway, CloudWatch, X‑Ray.[12][10][11]
+
+## Concise bullet summary (keywords & terms)
+
+- AKS = managed Kubernetes; full control; best for complex, large‑scale microservices.[4][1]
+- Container Apps = serverless containers; Kubernetes‑backed; HTTP/event‑driven autoscaling; Linux only.[1][3]
+- Azure Functions = event‑driven serverless microservices; ideal for short‑lived workloads.[2][1]
+- App Service = PaaS web/API hosting; good for straightforward microservices without orchestration complexity.[6][3]
+- Service Fabric = microservices platform including stateful workloads and mixed code/container support.[7][4]
+- Azure vs AWS: AKS↔EKS; ACA↔ECS Fargate/App Runner; Functions↔Lambda; App Service↔Beanstalk/App Runner.[10][11][3]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/compute-options)
+[2](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
+[3](https://learn.microsoft.com/en-us/azure/container-apps/compare-options)
+[4](https://cast.ai/blog/7-azure-services-for-your-containerized-application/)
+[5](https://stackoverflow.com/questions/61777811/is-azure-app-service-environment-a-good-fit-for-microservices-architecture)
+[6](https://www.pulumi.com/blog/azure-container-solutions/)
+[7](https://learn.microsoft.com/en-us/azure/service-fabric/service-fabric-overview-microservices)
+[8](https://iamachs.com/blog/azure/azure-container-services-comparison/)
+[9](https://www.qovery.com/blog/aws-vs-gcp-vs-azure)
+[10](https://kanerika.com/blogs/aws-vs-azure-vs-google-cloud/)
+[11](https://synergetics1.wordpress.com/2022/05/11/azure-container-apps-compared-with-aws-elastic-container-service/)
+[12](https://www.bmc.com/blogs/aws-vs-azure-vs-google-cloud-platforms/)
+[13](https://www.reddit.com/r/AZURE/comments/16jk79j/app_service_vs_aks/)
+[14](https://www.g2techsoft.com/blog/leveraging-microservice-architecture-in-azure/)
+[15](https://stackoverflow.com/questions/47232013/difference-between-azure-container-service-and-web-app-for-containers)
+[16](https://cloudnativenow.com/topics/cloudnativeplatforms/four-steps-to-running-microservices-in-azure/)
+[17](https://cloudnativenow.com/features/four-steps-to-running-microservices-in-azure/)
+[18](https://stackoverflow.com/questions/41834111/azure-service-fabric-vs-azure-container-services)
+[19](https://www.sayonetech.com/blog/microservices-architecture-design-azure/)
+[20](https://www.geeksforgeeks.org/blogs/top-cloud-platform-service-providers/)

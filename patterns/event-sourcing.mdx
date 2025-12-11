@@ -1,0 +1,159 @@
+Event Sourcing stores the *sequence of domain events* that changed state (OrderPlaced, ItemAdded, PaymentCaptured) as the system’s source of truth, and derives current state by replaying or projecting those events.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Finance, banking, and e‑commerce where a full audit trail, replayability, and temporal queries (“as of time T”) are required.[3][4]
+  - High‑volume, event‑driven microservices that need decoupled read models and robust recovery from corruption or bugs by rebuilding state from the log.[5][1]
+
+- **Key patterns inside Event Sourcing**  
+  - **Event log (event store)**: immutable, append-only stream per aggregate/entity, keyed by aggregate ID or stream name.[6][1][5]
+  - **Aggregate rehydration**: to handle a command, load events for that aggregate, replay them to reconstruct state, apply command logic to produce new events, and append those events.[1][5]
+  - **Projections / read models**: separate processes (“projectors”) consume events and build materialized views optimized for queries (often combined with CQRS).[5][6][1]
+
+## Related design patterns
+
+- **CQRS (Command Query Responsibility Segregation)**  
+  - Natural companion: write side appends events; read side builds one or more query-optimized views by subscribing to those events.[7][8][5]
+
+- **Saga / Compensating Transactions**  
+  - Cross-aggregate/domain workflows use Sagas with compensating transactions; events record both forward actions and compensations, keeping a consistent history.[9][10]
+
+- **Event-driven architecture**  
+  - Event Sourcing is *not* the same as event-driven, but pairs well: event store acts as a source of integration events for other services.[3][5]
+
+Mention “Event Sourcing + CQRS + Saga” as the trio for complex, high-volume transactional systems.
+
+## Azure vs AWS implementation
+
+- **Azure (Azure Architecture Center & samples)**  
+  - Azure pattern: commands → domain logic → events appended to event store; projections update read models.[11][1]
+  - Common building blocks:  
+    - Event store on **Cosmos DB** (append-only collections), Azure Table/Blob, or dedicated event DB; official sample uses Cosmos DB for shopping cart events.[12][11]
+    - Event distribution via **Event Hubs / Event Grid / Service Bus** to projectors/microservices.[13][1]
+    - Read models in Cosmos DB, Azure SQL, or search indexes; CQRS pattern page shows read replicas fed by events.[14][15][7]
+
+- **AWS (blogs & prescriptive guidance)**  
+  - Typical stack:  
+    - Commands via API Gateway + Lambda/ECS; validated commands become events.[16]
+    - Event store in **DynamoDB** (partition by aggregate ID) or S3 for long-term storage, often combined with streams.[16][6]
+    - Event fan‑out via **Kinesis / EventBridge / SNS**; projectors (Lambda) build read models in DynamoDB, Aurora, or ElastiCache.[6][16]
+  - AWS DynamoDB blog: shows building a CQRS event store where events are appended to a table and read models are kept in sync via streams.[6]
+
+Conceptually identical: Azure leans on Cosmos+Event Hubs/Event Grid; AWS on DynamoDB+Kinesis/EventBridge.
+
+## Big‑company / real-world style references
+
+- Finance and trading systems use Event Sourcing for precise auditability and temporal reconstruction of account or order state.[4][3]
+- E‑commerce platforms record order/cart/customer events to drive personalization, analytics, and conflict resolution between concurrent updates.[4][3]
+- Azure sample scenarios and blogs show event-sourced shopping carts and order systems; AWS examples show banking-like “DepositFunds/FundsDeposited” flows.[12][11][16]
+
+These examples play well when asked “who uses this pattern and why?”
+
+## Trade-offs & interview talking points
+
+- **Benefits**  
+  - Full history and audit trail; easy to answer “what happened?” and reconstruct state at any point in time.[1][3]
+  - Powerful debugging and recovery: if a projection is wrong, replay events to rebuild a correct read model.[5][1]
+  - Enables advanced analytics and event-driven integrations without touching the write path.[3][5]
+
+- **Costs / pitfalls**  
+  - Increased complexity: event schemas, versioning, projections, and operational tooling for the event store.[17][1]
+  - Eventual consistency: read models lag behind; you must design UX and domain flows around that.[1][5]
+  - Evolving events is hard: once written, events are immutable; you need versioning strategies and upcasters.[17][1]
+
+Expect questions about when Event Sourcing is overkill vs necessary, and how you handle event versioning and replay.
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One‑line definition?**  
+A: Event Sourcing stores every change to application state as an immutable event in an append-only log, with current state derived by replaying or projecting those events.[2][1]
+
+**Q2: When should you use Event Sourcing?**  
+A: When you need a complete audit log, temporal queries, or robust recovery; when your domain is inherently event-like (transactions, orders, ledgers); and when you’re ready to manage extra complexity.[8][3][1]
+
+**Q3: How does Event Sourcing relate to CQRS?**  
+A: Commands generate events into the event store (write side), and projections build read models from those events (read side); CQRS is the structural separation, Event Sourcing provides the event backbone.[7][5][6]
+
+**Q4: How is it different from simply logging events in addition to a normal DB?**  
+A: In Event Sourcing, the log *is* the primary source of truth, and state is reconstructed from it; logs are not just an audit trail but the persisted state.[17][1]
+
+**Q5: How would you implement Event Sourcing on Azure?**  
+A: Use Cosmos DB / storage as event store (stream per aggregate), publish events via Event Hubs/Event Grid/Service Bus, run projectors (Functions/AKS) to maintain read models in Cosmos/SQL/search, and expose reads via CQRS-style query APIs.[13][11][12][1]
+
+**Q6: How would you implement it on AWS?**  
+A: Use DynamoDB or S3 as event store (partitioned by aggregate), emit events to Kinesis/EventBridge/SNS, have Lambda consumers update projections in DynamoDB/Aurora/ElastiCache, and expose them via API Gateway/Lambda or AppSync.[18][16][6]
+
+**Q7: How do you handle event versioning?**  
+A: Use versioned event types with schema evolution (additive changes, default values), upcasters to transform old events on read, and avoid breaking changes; keep events immutable.[19][17][1]
+
+**Q8: What about rebuilding projections when logic changes?**  
+A: Clear projection stores, then replay events from the event store through updated projector code; design event store for efficient replay and snapshotting.[12][5][1]
+
+**Q9: What are the main risks?**  
+A: Over-engineering for simple CRUD apps; mishandled event evolution leading to unreadable history; operational complexity of maintaining event store, replays, and projections.[2][17][1]
+
+**Q10: Example to describe in an interview?**  
+A: Banking: store `FundsDeposited`, `FundsWithdrawn`, `InterestApplied` per account; compute balance and statements by replaying events; support “balance on date X” and regulatory audits easily.[16][3]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - **Event store**: append-only log, often modeled as:  
+    - Table with partition key (aggregate ID) + sort key (sequence or timestamp), or  
+    - Topic/stream (Kinesis/Event Hubs) with partition key per aggregate.[12][6][1]
+  - **Projections**: read models in relational tables, document stores, search indexes, or caches keyed by entity or view.[5][12]
+  - **Snapshots**: optional snapshot table per aggregate storing periodic state to speed up rehydration.[20][1]
+
+- **Algorithms / techniques**  
+  - Aggregate rehydration = reduce/fold over event list: start from empty state and apply events in sequence.[1][5]
+  - Projection updates = streaming map/reduce: for each event, update one or more read models (increment counters, update documents, etc.).[6][5]
+  - Snapshotting & replay: periodically store snapshots; to rebuild, load snapshot then replay events after snapshot version.[20][1]
+
+No advanced algorithms are required; the important part is idempotent, ordered, deterministic application of events.
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Cosmos DB event-sourcing samples (shopping cart), Event Hubs / Event Grid / Service Bus, Azure Functions/AKS for projectors, Azure Search/SQL/Cosmos for views.[11][13][12][1]
+
+- **AWS**  
+  - DynamoDB-based event stores, Kinesis/EventBridge/SNS for streaming, Lambda projectors, DynamoDB/Aurora/ElastiCache/OpenSearch for projections.[16][6]
+
+- **General**  
+  - EventStoreDB, Kafka-based implementations, Axon, Lagom, and other CQRS/Event Sourcing frameworks.[17][5]
+
+## Concise bullet summary (keywords & terms)
+
+- Event Sourcing = store **immutable events** as source of truth; derive state via **replay/projections**.[2][1]
+- Works best with **CQRS**, **event-driven microservices**, high auditability domains (finance, e‑commerce).[8][3][5]
+- Core concepts: **event store**, **aggregate rehydration**, **projections/read models**, **snapshots**, **event versioning**.[20][12][5][1]
+- Azure: Cosmos DB event store, Event Hubs/Event Grid/Service Bus, Functions/AKS projectors, CQRS read models.[13][11][12][1]
+- AWS: DynamoDB/S3 event store, Kinesis/EventBridge streams, Lambda projectors, DynamoDB/Aurora/ElastiCache/OpenSearch views.[18][16][6]
+- Trade-offs: more complexity, eventual consistency, schema evolution overhead, but gains in audit trail, recovery, analytics, and scalability.[3][17][1]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)
+[2](https://www.secondtalent.com/interview-guide/event-driven-architecture/)
+[3](https://risingwave.com/blog/event-sourcing-and-event-driven-architecture-a-comparative-analysis/)
+[4](https://moldstud.com/articles/p-exploring-real-world-use-cases-of-event-sourcing-in-software-architecture)
+[5](https://appmaster.io/blog/cqrs-event-sourcing-microservices)
+[6](https://aws.amazon.com/blogs/database/build-a-cqrs-event-store-with-amazon-dynamodb/)
+[7](https://microservices.io/patterns/data/cqrs.html)
+[8](https://www.linkedin.com/pulse/event-sourcing-meets-cqrs-future-high-volume-data-handling-goyal-sy0tc)
+[9](https://we-archers.com/blog/integrating-an-event-driven-architecture-with-a-micro-services-architecture-using-event-sourcing-and-cqrs/)
+[10](https://microservices.io/patterns/data/saga.html)
+[11](https://dellenny.com/mastering-event-sourcing-in-azure-storing-system-state-as-a-sequence-of-events/)
+[12](https://learn.microsoft.com/en-us/samples/azure-samples/cosmos-db-design-patterns/event-sourcing/)
+[13](https://multishoring.com/blog/building-scalable-event-driven-architectures-with-azure-event-grid-and-service-bus/)
+[14](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs)
+[15](https://dellenny.com/leveraging-cqrs-in-azure-separating-read-and-write-operations-for-performance-and-scalability/)
+[16](https://dellenny.com/implementing-event-sourcing-in-aws-modeling-state-as-a-sequence-of-events/)
+[17](https://www.designgurus.io/answers/detail/in-depth-study-of-event-sourcing-principles-for-design-interviews)
+[18](https://www.reddit.com/r/aws/comments/zyv5wq/event_sourcing_on_aws_in_2023_kinesis_vs_dynamodb/)
+[19](https://stackoverflow.com/questions/57017463/need-defense-against-wacky-challenge-to-event-sourcing-architecture-w-cosmosdb)
+[20](https://www.zartis.com/event-sourcing-with-cqrs/)
+[21](https://learn.microsoft.com/en-us)
+[22](https://www.davidguida.net/event-sourcing-on-azure-part-1-architecture-plan/)
+[23](https://dev.to/mizrael/event-sourcing-on-azure-15ll)
+[24](https://www.index.dev/interview-questions/event-driven-architecture-developers)
+[25](https://www.slideshare.net/slideshow/cqrs-and-event-sourcing-in-azure/141456163)

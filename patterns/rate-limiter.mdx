@@ -1,0 +1,122 @@
+Rate Limiting is a pattern that caps how many requests a client or workload can send over time (per second/minute/day) to protect APIs, databases, and downstream services from overload, abuse, or noisy neighbors.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Protecting public APIs from DDoS, brute-force, or misbehaving clients; enforcing plan tiers (free vs premium).[3][1]
+  - Safeguarding expensive downstreams (databases, third-party APIs) so bursts or fan-out traffic cannot exceed their safe capacity.[2][1]
+
+- **Key patterns**  
+  - Limits by key: per user, IP, API key, tenant, or route using policies like “100 requests per minute per key.”[4][5][6]
+  - Burst vs sustained rate: allow short bursts up to a “burst limit” but enforce a long-term average rate.[7][8][1]
+  - On violation: reject with HTTP 429 “Too Many Requests” (possibly with `Retry-After`) or degrade gracefully.[8][7]
+
+## Related design patterns
+
+- **Circuit Breaker** – protects against failing dependencies; Rate Limiter protects against excess *load* from clients. They are often combined.[9][10][2]
+- **Backpressure & Bulkhead** – Rate Limiter controls what enters; backpressure and bulkhead control concurrency and resource isolation inside.[11][1]
+- **API Gateway / Throttling** – Gateways implement centralized rate limiting policies at the edge.[1][4][8]
+
+Mention “Rate Limiter + Circuit Breaker + Bulkhead + Backpressure” as a standard resilience envelope in system design interviews.[9][11]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure pattern shows a distributed leasing approach for database throttling: allocate “partitions” of allowed RPS via distributed locks (e.g., blob leases) and enforce local rate limits per worker.[12][1]
+  - Common mechanisms:  
+    - **Azure API Management** `rate-limit` / `rate-limit-by-key` policies at product/API/operation levels, with per-key counters and renewal periods.[5][6][4]
+    - **App Gateway/Front Door** for basic throttling, plus application-level rate limiting in code using Redis or in-memory counters.[13][3]
+
+- **AWS**  
+  - **API Gateway** throttling: account-level, stage-level, and route-level limits (rate + burst), implemented using token bucket; returns 429 on excess.[7][8]
+  - **WAF & ALB** can also enforce IP-based rate limits at the edge; custom rate limiting in app code with Redis/DynamoDB for counters.[14][8]
+
+Conceptually: Azure emphasizes APIM policies and distributed leasing; AWS emphasizes API Gateway token-bucket throttling and per-route configuration.
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One-line definition?**  
+A: Rate Limiting caps the number of requests or operations a client or workload can perform over a time window, to protect systems from overload and enforce fair use.[2][1]
+
+**Q2: When would you use it?**  
+A: For public/b2b APIs, multi-tenant systems, and services calling expensive dependencies, to prevent abuse and keep within capacity.[3][1][2]
+
+**Q3: How is it implemented on Azure?**  
+A: Use APIM `rate-limit` / `rate-limit-by-key` policies (per subscription/key/IP) and/or implement counters in Redis with token bucket or fixed-window logic; Azure docs show distributed leasing to share DB capacity among workers.[15][4][12][1]
+
+**Q4: How is it implemented on AWS?**  
+A: Configure API Gateway throttling (rate + burst) at account/stage/route level; API Gateway uses token bucket internally and returns 429 on excess; optionally augment with WAF IP limits and Redis/DynamoDB-based counters in app code.[14][8][7]
+
+**Q5: What are main algorithms?**  
+A: Fixed window, sliding window, token bucket, and leaky bucket; cloud gateways typically use token bucket.[16][17][18]
+
+**Q6: How does Rate Limiter differ from Circuit Breaker?**  
+A: Rate Limiter protects a service from *too many calls*; Circuit Breaker protects callers from a *failing/sluggish dependency*.[9][2]
+
+**Q7: Where do you put Rate Limiters?**  
+A: At the API Gateway/edge for global and per-customer limits, and sometimes inside services (per-tenant or per-downstream dependency).[4][8][1]
+
+**Q8: What are trade-offs?**  
+A: Too strict limits hurt UX and partners; too loose limits don’t protect backend; distributed rate limiting is harder than single-node; you must align limits with business plans and capacity.[1][3][14]
+
+**Q9: What should the system return when rate-limited?**  
+A: HTTP 429 with optional `Retry-After` and error payload; sometimes fall back to cached/partial data for better UX.[8][7]
+
+**Q10: Example to describe in an interview?**  
+A: Public API: 1000 req/min per API key; APIM/API Gateway enforces per-key counter; premium users get higher quotas; on exceed, 429 is returned and logs/metrics feed dashboards and alerts.[6][4][14]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Counters per key (API key, IP, tenant) stored in memory or distributed cache (Redis, DynamoDB); optionally with timestamps or buckets.[17][19][16]
+  - Token bucket: stores current token count and last refill time; leaky bucket: queue with constant drain rate.[18][16][17]
+
+- **Algorithms**  
+  - **Fixed window**: increment a counter per window; reset each window; simple but allows edge bursts.[16]
+  - **Sliding window & rolling window**: track counts across overlapping windows (via bucketed counters or logs) for smoother limits.[18][16]
+  - **Token bucket**: tokens added at rate r; each request consumes tokens; allows bursts up to bucket size, with average rate r.[17][16]
+  - **Leaky bucket**: queue of requests; processed at constant rate; if queue full, drop or reject.[16]
+
+Mentioning token vs leaky bucket and their trade-offs is strong architect-level content.[17][16]
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Azure API Management (rate-limit, rate-limit-by-key, quotas), Application Gateway, Front Door; sample Java rate-limiting pattern using distributed locks.[15][13][5][4]
+
+- **AWS**  
+  - API Gateway throttling, AWS WAF rate-based rules, App Mesh/Envoy filters, custom Redis/DynamoDB rate limiter services.[7][14][8]
+
+- **General**  
+  - NGINX/Kong/Envoy rate-limiting plugins; Resilience4j RateLimiter; Istio EnvoyFilters; open-source Redis-based limiters.[18][16]
+
+## Concise bullet summary (keywords & terms)
+
+- Rate Limiting pattern, throttling, quotas, per-key/per-IP limits.[5][4][1]
+- Algorithms: token bucket, leaky bucket, fixed/sliding window; counters in Redis/DynamoDB; HTTP 429, Retry-After.[16][17][18]
+- Azure: APIM `rate-limit` / `rate-limit-by-key`, advanced throttling policies, distributed lease-based DB limiting.[13][4][15][1]
+- AWS: API Gateway throttling (rate + burst), WAF rules, CloudWatch metrics; token bucket semantics.[14][8][7]
+- Related patterns: Circuit Breaker, Backpressure, Bulkhead, API Gateway.[11][1][9]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/rate-limiting-pattern)
+[2](https://amitashukla.in/note/rate-limiter-vs-circuit-breeaker/)
+[3](https://www.ganshani.com/azure/api%20management/business%20impact/api-rate-limit/)
+[4](https://learn.microsoft.com/en-us/azure/api-management/rate-limit-policy)
+[5](https://docs.azure.cn/en-us/api-management/rate-limit-by-key-policy)
+[6](https://learn.microsoft.com/en-us/microsoft-cloud/dev/dev-proxy/concepts/implement-rate-limiting-azure-api-management)
+[7](https://www.youtube.com/watch?v=h45UVqAgg-M)
+[8](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-throttling.html)
+[9](https://www.geeksforgeeks.org/system-design/rate-limter-vs-circuit-breaker-in-microservices/)
+[10](https://stackoverflow.com/questions/64657624/how-to-use-rate-limitor-circuit-breakerarchitectural-question)
+[11](https://www.pluralonline.com/fault-tolerance-in-microservices/)
+[12](https://github.com/MicrosoftDocs/architecture-center/blob/main/docs/patterns/rate-limiting-pattern-content.md)
+[13](https://docs.azure.cn/en-us/api-management/api-management-sample-flexible-throttling)
+[14](https://www.octaria.com/blog/rate-limiting-in-aws-api-gateway-setup-guide)
+[15](https://github.com/Azure-Samples/java-rate-limiting-pattern-sample)
+[16](https://api7.ai/blog/token-bucket-vs-leaky-best-rate-limiting-algorithm)
+[17](https://www.eraser.io/decision-node/api-rate-limiting-strategies-token-bucket-vs-leaky-bucket)
+[18](https://blog.algomaster.io/p/rate-limiting-algorithms-explained-with-code)
+[19](https://leapcell.io/blog/optimizing-database-performance-with-redis-cache-key-design-and-invalidation-strategies)
+[20](https://stackoverflow.com/questions/74030281/azure-api-management-effective-rate-limiting-policy)
+[21](https://github.com/MicrosoftDocs/azure-docs/blob/main/articles/api-management/rate-limit-policy.md)
+[22](https://www.youtube.com/watch?v=sTox1gs196U)

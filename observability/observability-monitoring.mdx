@@ -1,0 +1,68 @@
+**Monitoring** reacts to known metrics/alerts (what happened?), **Observability** infers unknown system states via MELT analysis (why/how?), enabling proactive root cause via correlation/AIOps—monitoring for simple systems, observability for distributed complexity (microservices).[newrelic] Senior architects deploy observability (OTel+unified platforms) for MTTR < 1 5min, trading data volume/cost for predictive failure detection vs monitoring's reactive dashboards.
+
+## Interview Summary
+**Monitoring**: Metrics/thresholds/logs → alerts (reactive); **Observability**: MELT (Metrics/Events/Logs/Traces) → AI correlation → actionable insights (proactive); monitoring subset of observability data; modern distributed systems demand observability (unknown unknowns).[newrelic] **DevOps/SRE**: Monitoring for quick response, observability for root cause prevention.
+
+## Keywords & Patterns
+- **Monitoring**: Metrics (CPU/traffic), Alerts (thresholds), Dashboards (Grafana), RUM/DEM (user view).[newrelic]
+- **Observability**: MELT pillars, AIOps (ML correlation), Unknown unknowns, Trace context.[newrelic]
+- **Differences**: Reactive (past) vs Proactive (future), Known vs Unknown issues.[newrelic]
+- **Stack**: Monitoring (Prometheus), Observability (New Relic/Datadog).[newrelic]
+
+## Common Trade-offs + Questions
+Monitoring: Simple/cheap vs blind to unknowns; Observability: Deep insight vs data/cost explosion; Unified platforms (easy correlation) vs OSS flexibility (Prometheus stack).[newrelic]
+
+**Example questions**:
+- Monitoring vs Observability? (Reactive alerts vs proactive MELT/AI).[newrelic]
+- Distributed systems? (Observability essential—unknown failures).[newrelic]
+- Cost control? (Sampling, exemplars, tiered retention).[newrelic]
+
+| Aspect | Monitoring | Observability |
+|--------|------------|---------------|
+| Focus | What happened (reactive) | Why/how (proactive) [newrelic] |
+| Data | Metrics/logs | MELT + AI correlation |
+| Unknowns | Blind | Discovered |
+| Complexity | Simple systems | Distributed |
+
+## Use Cases
+- **Monitoring**: Standalone apps, threshold alerts, RUM.[newrelic]
+- **Observability**: Microservices, SRE MTTR, AIOps prediction.[newrelic]
+- **Hybrid**: Monitoring dashboards + observability traces.[newrelic]
+
+## Big Tech Blogs & Efficiency Wins
+New Relic: ANZ Bank full lifecycle observability → 80% MTTR reduction; William Hill: P1 incidents <60min.[newrelic] Netflix: Observability cut debugging 70% via traces.[1]
+
+## Cheat-Sheet Q&A
+**Q: Core difference?** A: Monitoring reacts (what), observability explains (why).[newrelic]  
+**Q: MELT pillars?** A: Metrics/Events/Logs/Traces.[newrelic]  
+**Q: Unknown unknowns?** A: Observability discovers via data exploration.[newrelic]  
+**Q: When monitoring enough?** A: Simple/standalone systems.[newrelic]  
+**Q: Distributed systems?** A: Observability mandatory.[newrelic]
+
+## Tools/Frameworks
+- **Monitoring**: Prometheus, Grafana, Zabbix.[2]
+- **Observability**: New Relic, Datadog, Dynatrace.[newrelic]
+- **Open Source**: OTel + Grafana/Loki/Tempo/Prometheus.[3]
+- **Java**: Micrometer (metrics), OTel (traces).[4]
+
+## Data Structures & Algorithms
+**Traces**: Span trees (DAG visualization). **Correlation**: TraceID propagation (W3C). **Anomaly**: Isolation Forest/ML (AIOps). **Sampling**: Reservoir/probabilistic. **Timeseries**: Downsampling (Prometheus).[newrelic]
+
+## Key Highlights & Tradeoffs
+**Monitoring**: Reactive/simple/cheap → known issues only  
+**Observability**: Proactive/deep → distributed complexity, costlier  
+**Sweet Spot**: Monitoring dashboards + observability traces/AI  
+
+**Interviews**: "Observability = MELT + AI for microservices; monitoring = metrics for simple apps"
+
+## Concise Keywords Summary
+- Observability vs Monitoring, MELT (Metrics/Events/Logs/Traces)
+- Reactive vs Proactive, Known vs Unknown Unknowns
+- AIOps, Root Cause Analysis, MTTR Reduction
+- RUM/DEM, Distributed Tracing, Correlation
+- New Relic/Datadog (unified), Prometheus/Grafana (OSS)
+
+[1](https://netflixtechblog.com)
+[2](https://dev.to/guilhermesiqueira/unlocking-open-source-observability-opentelemetry-prometheus-thanos-grafana-jaeger-and-opensearch-fa7)
+[3](https://grafana.com/docs/opentelemetry/)
+[4](https://newrelic.com)

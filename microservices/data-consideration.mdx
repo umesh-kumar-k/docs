@@ -1,0 +1,112 @@
+    Azure microservices data guidance centers on database‑per‑service, domain ownership, and eventual consistency via messaging and patterns like Saga, CQRS, and Event Sourcing.[1][2]
+
+## Use cases and key patterns
+
+- **Use cases**  
+  - Complex domains where each microservice must evolve independently without being blocked by a shared schema (e‑commerce, banking, logistics).[3][1]
+  - Systems that require autonomy and polyglot persistence—different services using different data stores optimized for their workload.[2][4]
+
+- **Key data patterns (Azure view)**  
+  - **Database per service / data sovereignty**: each microservice owns its database; other services never read/write it directly, only via APIs or events.[5][1][2]
+  - **Eventual consistency**: cross‑service operations don’t use distributed transactions (2PC); consistency is achieved over time using events, Sagas, and compensations.[6][1]
+  - **Polyglot persistence**: services can choose relational (Azure SQL, PostgreSQL) or NoSQL (Cosmos DB, table storage) based on their needs.[7][3]
+
+## Related design patterns
+
+- **Database per service** – core microservices data pattern; Azure and AWS both emphasize it for loose coupling and independent scaling.[4][2]
+- **Saga / Compensating Transactions** – coordinate business workflows that span multiple services by chaining local transactions plus compensations instead of ACID across services.[8][9][10]
+- **CQRS & Materialized Views** – separate write model (per‑service stores) from read models that aggregate data across services; read models are updated via events.[11][12]
+- **Outbox / CDC** – ensure reliable event publication by writing events into the same DB as business data, then shipping them via change data capture.[9][6]
+
+Naming these patterns together is strong for senior architect interviews.[13][6][9]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Per‑service data stores: Azure SQL, Cosmos DB, Storage, etc., one per microservice; Azure guidance calls this “data sovereignty.”[5][7]
+  - Cross‑service consistency: use Service Bus/Event Grid events, Sagas (Durable Functions, Service Bus orchestrations), CQRS read models in Cosmos/SQL/Elastic.[14][7][11]
+  - Azure docs stress avoiding shared databases; use APIs and events between services, plus patterns like Saga, Event Sourcing, and materialized views.[1][7][5]
+
+- **AWS**  
+  - Database‑per‑service pattern with DynamoDB/RDS/S3 etc., one per microservice; AWS Prescriptive Guidance describes the same motivations and trade‑offs.[15][4]
+  - Consistency mechanisms: Sagas implemented with Step Functions/Lambda/SQS, outbox/CDC using DynamoDB Streams, EventBridge, and CQRS/materialized views.[4][8][15]
+
+Conceptually, the data story is cloud‑agnostic; the differences are product names and tooling.[7][15][4]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: How should data be partitioned in microservices?**  
+A: Use database‑per‑service (data sovereignty): each microservice owns its own data store, accessed only via its API or published events, never directly by other services.[2][1][5]
+
+**Q2: How do you handle cross‑service transactions without 2PC?**  
+A: Use Saga pattern with compensating transactions: each service performs a local transaction and emits an event; others react; failures trigger compensations rather than global rollback.[10][6][8]
+
+**Q3: How can services support complex read queries spanning multiple domains?**  
+A: Apply CQRS and materialized views: keep per‑service write models, then build read models that join/aggregate data by subscribing to events from the owning services.[16][12][11]
+
+**Q4: When is database‑per‑service not enough?**  
+A: When you need strong consistency across services (rare and usually limited to a single bounded context); then either redesign boundaries, or confine ACID to one service and use Sagas/outbox for cross‑context flows.[6][1][4]
+
+**Q5: How is this realized on Azure vs AWS?**  
+A: Azure: data per service in Azure SQL/Cosmos/etc., Service Bus/Event Grid for events, Durable Functions/Saga/CQRS for consistency. AWS: data per service in DynamoDB/RDS/etc., SQS/EventBridge + Step Functions/Saga/outbox for consistency.[8][15][4][7]
+
+**Q6: What are key trade‑offs?**  
+A: Pros: loose coupling, independent scaling, polyglot persistence, better fault isolation. Cons: harder cross‑service queries, need to manage eventual consistency, more databases to operate.[16][2][4]
+
+**Q7: How do you ensure data quality and integrity?**  
+A: Enforce invariants inside aggregates within a single service, use idempotent event handlers, validate contracts at boundaries, and track end‑to‑end workflows via Sagas and correlated IDs.[17][13][6]
+
+**Q8: What’s your “go‑to” strategy for consistency?**  
+A: Eventual consistency via Sagas + outbox + CQRS; avoid distributed ACID and use domain‑driven boundaries to minimize cross‑service invariants.[11][9][6]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Per‑service schemas (relational or NoSQL) aligned with aggregates and bounded contexts.[2][5]
+  - Event logs/outboxes storing domain events alongside state; read models/materialized views storing denormalized projections.[12][9][11]
+
+- **Algorithms / techniques**  
+  - Saga coordination (orchestration/choreography) as state machines over events and local transactions.[10][8]
+  - Idempotent event handling and duplicate detection to avoid double‑applying updates.[13][6]
+  - Eventual consistency strategies: retry, backoff, and compensating actions when downstream updates fail.[9][6]
+
+Discussion should focus on these patterns and state machines rather than low‑level algorithms.[6][13]
+
+## Tools / frameworks / software examples
+
+- **Azure**  
+  - Azure SQL, Cosmos DB, Storage, Service Bus, Event Grid, Durable Functions, AKS/Container Apps; CQRS/event‑sourced samples in Azure Architecture Center.[14][7]
+
+- **AWS**  
+  - DynamoDB, RDS, S3, SQS, SNS, EventBridge, Step Functions, CDC/outbox pipelines; database‑per‑service guidance and Saga examples with Lambda.[15][4][8]
+
+## Concise bullet summary (keywords & terms)
+
+- Database‑per‑service, data sovereignty, polyglot persistence.[1][5][2]
+- Eventual consistency, Saga, Compensating Transactions, CQRS, Event Sourcing, Outbox/CDC.[12][9][10][6]
+- Azure: per‑service stores (Azure SQL/Cosmos), Service Bus/Event Grid events, Durable Functions/Saga/CQRS for consistency.[7][1]
+- AWS: per‑service stores (DynamoDB/RDS), SQS/SNS/EventBridge, Step Functions/Saga/outbox.[4][8][15]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/data-considerations)
+[2](https://microservices.io/patterns/data/database-per-service.html)
+[3](https://www.softwebsolutions.com/resources/microservices-development-in-azure.html)
+[4](https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-data-persistence/database-per-service.html)
+[5](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/data-sovereignty-per-microservice)
+[6](https://daily.dev/blog/10-methods-to-ensure-data-consistency-in-microservices)
+[7](https://blog.nashtechglobal.com/microservices-architecture-on-azure-kubernetes-service-aks/)
+[8](https://dev.to/ohanhaliuk/ensuring-data-consistency-in-microservices-with-the-saga-pattern-aws-dynamodb-postgresql-4dan)
+[9](https://www.infoq.com/articles/saga-orchestration-outbox/)
+[10](https://microservices.io/patterns/data/saga.html)
+[11](https://microservices.io/patterns/data/cqrs.html)
+[12](https://microservices.io/patterns/data/event-sourcing.html)
+[13](https://wild.codes/candidate-toolkit-question/how-do-you-ensure-consistency-across-microservices)
+[14](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)
+[15](https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-data-persistence/enabling-patterns.html)
+[16](https://www.geeksforgeeks.org/sql/microservices-database-design-patterns/)
+[17](https://learn.microsoft.com/en-us/azure/architecture/microservices/model/domain-analysis)
+[18](https://www.geeksforgeeks.org/system-design/database-per-service-pattern-for-microservices/)
+[19](https://www.reddit.com/r/microservices/comments/17p2zrk/does_microservices_architecture_requires_a/)
+[20](https://cloudnativenow.com/features/four-steps-to-running-microservices-in-azure/)
+[21](https://stackoverflow.com/questions/61313596/how-to-deploy-database-per-service-pattern)
+[22](http://web.archive.org/web/20190527115314/https:/docs.microsoft.com/en-us/azure/architecture/microservices/design/data-considerations)
+[23](https://learn.microsoft.com/en-us/azure/architecture/guide/technology-choices/microservices-assessment)

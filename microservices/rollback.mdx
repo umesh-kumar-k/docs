@@ -1,0 +1,91 @@
+Design rollback strategies for microservice deployments by combining safe deployment patterns (blue‑green/canary/rolling) with data‑consistency strategies (Sagas, compensations, backward‑compatible schemas) and strong observability.[1][2][3]
+
+## 1. Principles before patterns
+
+- Always design for **fast, predictable rollback** before you deploy: know what you are rolling back (code, config, data) and how to detect failure.[4][1]
+- Favor **backward‑compatible changes** so you can temporarily run old and new versions side by side without data corruption.[5][6]
+- Separate **deployment rollback** (routing traffic back to old version) from **business rollback** (compensating data changes).[7][1]
+
+## 2. Deployment‑level rollback strategies
+
+- **Blue‑green deployments**  
+  - Keep Blue (current) and Green (new) environments live; switch traffic to Green via gateway/DNS; if issues arise, instantly switch back to Blue.[8][3][6]
+  - Works well for microservices where infra cost of two environments is acceptable and you need near‑zero‑downtime rollback.[9][5]
+
+- **Canary releases**  
+  - Route a small percentage of traffic (or a cohort) to the new version; if metrics degrade, route that traffic back to the old version and stop the rollout.[10][3][8]
+  - Ideal for high‑traffic services and new, risky features where you want real‑user feedback before full rollout.[2][5]
+
+- **Rolling deployments with health‑based rollback**  
+  - Replace instances in batches; orchestrator monitors health; if failures exceed threshold, automatically roll back to previous version.[9][2]
+  - Default for stateless microservices; ensure readiness/liveness probes are robust.[11][2]
+
+- **Shadow/parallel deployments**  
+  - Mirror a copy of production traffic to the new version (responses ignored); if behavior looks wrong, just discard shadow version (no user impact).[12][2]
+
+These strategies are implemented in Azure via AKS/App Service/Container Apps + APIM/App Gateway, and in AWS via EKS/ECS/Lambda + API Gateway/ALB + CodeDeploy.[6][13][2]
+
+## 3. Data and business rollback (Sagas, compensations)
+
+- **Sagas with compensating transactions**  
+  - For multi‑service workflows, design a Saga; if a step fails, run compensating actions that logically undo prior steps (for example, cancel payment, restock inventory).[14][15][16]
+  - Compensations are business operations, not DB snapshots, so they respect concurrent updates.[15][7]
+
+- **Outbox/event‑sourcing based recovery**  
+  - Use outbox pattern: record events with state changes; if deployment is rolled back, you can replay events to rebuild state or emit compensating events if needed.[17][18][1]
+  - Event sourcing allows reconstructing aggregates to a consistent point in time, useful when code rollback plus data repair is required.[18][1]
+
+- **Schema‑compatibility strategy**  
+  - Use two‑phase schema changes: add new columns/fields in a backward‑compatible way, deploy code that can handle both formats, then later remove old fields after all consumers upgrade.[1][5]
+  - Avoid destructive schema changes tied to a single deployment; this makes rollback trivial at code level.[5][6]
+
+## 4. Observability and rollback triggers
+
+- Define **rollback triggers** using metrics and logs: error rate, latency, saturation, business KPIs (e.g., checkout success rate).[2][5]
+- CI/CD or deployment tool should automatically halt/cancel rollout and flip traffic back when thresholds are violated.[4][2]
+- Record **correlation IDs** and version labels in logs/events to know which requests hit which version and to debug or replay.[11][1]
+
+## 5. Practical design checklist
+
+- Before deployment:  
+  - Is the change backward compatible (API + schema)?[1][5]
+  - Which deployment strategy (blue‑green/canary/rolling) and what is the rollback path?[3][2]
+  - Are Sagas/compensations defined for cross‑service workflows?[16][14]
+
+- During deployment:  
+  - Use canary or blue‑green with tight metrics; monitor both **technical** and **business** signals.[10][3][5]
+
+- After rollback:  
+  - Run compensating flows if partial business operations succeeded.[15][16]
+  - Analyze metrics/logs to decide fixes before next rollout.[4][1]
+
+## Concise bullet summary (keywords & terms)
+
+- Deployment rollback: blue‑green, canary, rolling, shadow; instant traffic switch vs gradual ramp‑down.[8][3][2]
+- Data rollback: Saga pattern, compensating transactions, outbox, event sourcing, backward‑compatible schema changes.[7][14][16][17][18]
+- Observability‑driven: metrics‑based gates, error/latency thresholds, business KPIs, correlation IDs, automated rollback in CI/CD.[2][5][4]
+
+[1](https://daily.dev/blog/microservices-rollback-ensuring-data-consistency)
+[2](https://www.osohq.com/learn/microservices-deployment)
+[3](https://www.harness.io/blog/blue-green-canary-deployment-strategies)
+[4](https://www.myshyft.com/blog/deployment-rollback-planning/)
+[5](https://aws.amazon.com/builders-library/ensuring-rollback-safety-during-deployments/)
+[6](https://docs.aws.amazon.com/whitepapers/latest/blue-green-deployments/introduction.html)
+[7](https://temporal.io/blog/compensating-actions-part-of-a-complete-breakfast-with-sagas)
+[8](https://codefresh.io/learn/software-deployment/blue-green-deployment-vs-canary-5-key-differences-and-how-to-choose/)
+[9](https://www.geeksforgeeks.org/system-design/deployment-strategies-for-resilient-microservices/)
+[10](https://www.youtube.com/watch?v=7wetnRLn6ac)
+[11](https://www.xcubelabs.com/blog/product-engineering-blog/microservices-testing-and-deployment-strategies/)
+[12](https://www.youtube.com/watch?v=9DS1UyPzIqk)
+[13](https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/canary-deployments.html)
+[14](https://learn.microsoft.com/en-us/azure/architecture/patterns/saga)
+[15](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/saga.html)
+[16](https://microservices.io/patterns/data/saga.html)
+[17](https://www.infoq.com/articles/saga-orchestration-outbox/)
+[18](https://microservices.io/patterns/data/event-sourcing.html)
+[19](https://stackoverflow.com/questions/58178511/how-to-rollback-microservices)
+[20](https://dev.to/willvelida/the-saga-pattern-3o7p)
+[21](https://www.opslevel.com/resources/4-microservice-deployment-patterns-that-improve-availability)
+[22](https://blog.christianposta.com/deploy/blue-green-deployments-a-b-testing-and-canary-releases/)
+[23](https://dev.to/mquanit/deployment-approaches-in-microservices-37pb)
+[24](https://dev.to/dhirajpatra/rollback-in-microservices-pp0)

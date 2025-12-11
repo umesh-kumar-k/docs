@@ -1,0 +1,72 @@
+**PKI** creates trusted digital identities via **CA hierarchies** issuing **X.509 certificates** binding public keys to entities (users/devices/domains), enabling secure **asymmetric crypto** (TLS, signatures, encryption)—Root CA (offline) → Intermediate CA → End-entity certs with CRL/OCSP revocation.[keyfactor] Senior architects deploy enterprise PKI for mTLS zero-trust, code signing, IoT device auth, trading CA management complexity for scalable trust vs self-signed cert chaos.
+
+## Interview Summary
+**Hierarchy**: Root CA (self-signed, offline vault) → Subordinate CAs (online issuance) → End-entity certs (1yr expiry); **CSR Flow**: Entity generates keypair → CSR (public key + attrs) → CA signs → cert chain validation; **Revocation**: CRL (lists) + OCSP (real-time); **Standards**: X.509 v3, TLS 1.3.[keyfactor][fortinet]
+
+## Keywords & Patterns
+- **Components**: Root CA, Intermediate CA, End-entity cert, CRL, OCSP responder.[keyfactor]
+- **CSR**: Certificate Signing Request (public key + DN + SANs).[keyfactor]
+- **Chain**: `End-entity → Intermediate → Root` (trust anchor).[fortinet]
+- **Revocation**: CRL (periodic lists), OCSP (stapling/real-time).[keyfactor]
+- **Extensions**: SANs (DNS/IP/email), Key Usage (signing/encryption).[fortinet]
+- **Stores**: Java KeyStore (JKS), PKCS#12 (P12), Windows Certificate Store.[keyfactor]
+
+## Common Trade-offs + Questions
+PKI: Scalable trust vs CA ops overhead; CRL: Simple vs OCSP latency; Root offline: Secure vs issuance delays; SANs: Flexible vs cert size; Short expiry: Secure vs renewal burden.[keyfactor]
+
+**Example questions**:
+- Root CA compromise? (Publish CRL, generate new root).[keyfactor]
+- CRL vs OCSP? (Batch vs real-time, stapling mitigates).[fortinet]
+- mTLS workflow? (Client cert auth + server cert validation).[keyfactor]
+
+| Aspect | PKI | Self-Signed |
+|--------|-----|-------------|
+| Trust | CA hierarchy | Manual |
+| Scale | Millions certs | Manual mgmt [keyfactor] |
+| Revocation | CRL/OCSP | None |
+| Ops | CA infrastructure | Simple |
+
+## Use Cases
+- **TLS/HTTPS**: Domain validation (DV) certs (Let's Encrypt).[keyfactor]
+- **mTLS**: Zero-trust service mesh (Istio SPIFFE).[keyfactor]
+- **Code Signing**: JAR/APK authenticity (Java/Microsoft).[keyfactor]
+- **IoT**: Device auth/firmware OTA (AWS/GCP).[keyfactor]
+- **Email**: S/MIME (user certs).[fortinet]
+
+## Big Tech Blogs & Efficiency Wins
+**Google Certificate Transparency**: Public CT logs → 99.9% cert visibility, MITM prevention. **HashiCorp Vault PKI**: Dynamic certs cut expiry issues 95% (automated renewal). **AWS ACM**: Managed PKI → 100x faster TLS deployment vs manual.[keyfactor][1][2]
+
+## Cheat-Sheet Q&A
+**Q: PKI hierarchy?** A: Root (offline) → Intermediate → End-entity.[keyfactor]  
+**Q: CSR contents?** A: Public key + DN + SANs + signature (prove possession).[keyfactor]  
+**Q: CRL vs OCSP?** A: CRL=lists (cached), OCSP=real-time (stapled).[fortinet]  
+**Q: Root compromise?** A: New root + CRL publication (no revocation).[keyfactor]  
+**Q: SANs purpose?** A: Multiple DNS/IP/email in one cert.[keyfactor]
+
+## Tools/Frameworks
+- **CA**: HashiCorp Vault PKI, EJBCA (OSS), AWS ACM.[keyfactor]
+- **Java**: BouncyCastle (`X509Certificate`), `KeyStore` (JKS/P12).[3]
+- **Management**: Keyfactor, Venafi (enterprise), cert-manager (K8s).[keyfactor]
+- **Clients**: OpenSSL (`openssl x509`), Java `HttpsURLConnection`.[fortinet]
+
+## Data Structures & Algorithms
+**X.509**: ASN.1 DER (TLV encoding), cert chain validation (trust store). **Revocation**: CRL (RFC5280 lists), OCSP (RFC6960 responses). **Path Building**: AIA extensions (intermediate fetch). **Signature**: RSA/ECDSA verification chains.[keyfactor]
+
+## Key Highlights & Tradeoffs
+**Scalable Trust**: CA hierarchy vs manual cert mgmt  
+**Revocation**: CRL/OCSP vs no mechanism  
+**IoT/Zero-Trust**: mTLS standard vs passwords  
+**Ops Burden**: Renewal/CA mgmt vs self-signed simplicity  
+
+**Interviews**: "Vault PKI → mTLS + short-lived certs + cert-manager rotation"
+
+## Concise Keywords Summary
+- PKI, Root/Intermediate CA, X.509 Certs, CSR, CRL/OCSP
+- mTLS, Code Signing, IoT Device Auth, SANs/DN
+- ASN.1 DER, Certificate Transparency, Chain Validation
+- HashiCorp Vault PKI, EJBCA, cert-manager (K8s)
+- Trust Anchor, Revocation Lists, Key Usage Extensions
+
+[1](https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/)
+[2](https://www.osohq.com/learn/opa-vs-cedar-vs-zanzibar)
+[3](https://newrelic.com)

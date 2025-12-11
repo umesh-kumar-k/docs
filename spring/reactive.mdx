@@ -1,0 +1,177 @@
+Spring WebFlux is Spring's reactive web framework built on Project Reactor (Mono/Flux), enabling non-blocking, backpressure-aware web apps that scale better under high concurrency.[functions.fetch_url:2] For senior architect interviews, focus on when reactive beats servlet stacks, WebClient patterns, R2DBC integration, backpressure handling, and avoiding "reactive islands."[functions.fetch_url:2][1]
+
+***
+
+## Advanced concepts
+
+- **Reactive Streams & backpressure**  
+  - Non-blocking I/O model using event-loop threading (Netty); handles 1000s concurrent connections with few threads.[1]
+  - Backpressure: consumers signal demand to producers (e.g., DB results paced by client); prevents OOM from fast producers.
+
+- **Functional vs annotated endpoints**  
+  - Functional: `RouterFunction` + `HandlerFunction` for declarative routing (guide example).[1]
+  - Annotated: `@RestController` with `Mono/Flux` returns; familiar MVC but reactive.[functions.fetch_url:2]
+
+- **WebClient & reactive clients**  
+  - Non-blocking HTTP client replacing RestTemplate; fluent API with retry, circuit breaker, timeout resilience.[functions.fetch_url:2]  
+  - Server-Sent Events (SSE), WebSocket, RSocket for streaming.
+
+- **Reactive data access**  
+  - R2DBC for reactive relational DB; `ReactiveCrudRepository`, reactive transactions.[2]
+  - Reactive MongoDB, Redis, Cassandra via Spring Data reactive modules.
+
+- **Testing & WebTestClient**  
+  - `WebTestClient` for contract/integration tests; simulates HTTP without real server spin-up.[1]
+
+***
+
+## Important classes, interfaces, configuration
+
+### Core reactive types
+- **Mono<T></T>** – 0-1 item (single response).[1]
+- **Flux<T></T>** – 0-N items (streaming/multiple responses).  
+- **Reactive Streams** – `Publisher`, `Subscriber`, `Subscription` contract.
+
+### Web layer
+```
+spring-boot-starter-webflux          → Netty + RouterFunctions + WebClient
+WebHandler, WebFilter, WebExceptionHandler
+RouterFunction, HandlerFunction, ServerResponse, ServerRequest [web:231]
+@RestController return Mono/Flux
+WebClient.Builder → WebClient (resilience4j integration)
+```
+
+### Configuration
+```
+spring.webflux.prefer-server-reactive-types=true
+reactor.netty.pool.leasing-strategy=parent
+management.metrics.web.server.request.autotime.percentiles-histogram=true
+```
+
+***
+
+## Compact interview summary
+
+Spring WebFlux replaces servlet-based MVC with a fully reactive stack (Netty + Reactor) for high-concurrency, IO-bound APIs where traditional thread-per-request models saturate.[functions.fetch_url:2] It uses functional endpoints (`RouterFunctions`) or annotated controllers returning `Mono/Flux`, pairs with `WebClient` for clients, and requires reactive data access (R2DBC, reactive Spring Data) to avoid blocking islands. Architects must articulate when reactive pays off (10k+ concurrent users, streaming), design backpressure-safe pipelines, and handle resilience (timeouts, retries, circuit breakers).[functions.fetch_url:2][1]
+
+***
+
+## Keywords & patterns (bullet-heavy)
+
+**Core abstractions**  
+- Reactive Streams, backpressure, non-blocking I/O, event-loop threading.[1]
+- `Mono<T>` (0-1), `Flux<T>` (0-N), `Publisher/Subscriber`.[1]
+
+**Web layer**  
+- `RouterFunctions.route()`, `HandlerFunction`, `ServerResponse`, `ServerRequest`.[1]
+- `@RestController` + `Mono/Flux` returns; functional vs annotated style.[functions.fetch_url:2]  
+- `WebClient` (replaces RestTemplate), SSE, WebSocket, RSocket.[functions.fetch_url:2]  
+
+**Operators & patterns**  
+- `map`, `flatMap`, `zip`, `buffer`, `window`, `retryWhen`, `timeout`, `onErrorResume`.[functions.fetch_url:2]  
+- Backpressure strategies: `onBackpressureBuffer()`, `onBackpressureDrop()`, `limitRate()`.[1]
+- Resilience: timeout, retry, circuit breaker via Resilience4j + WebClient.[functions.fetch_url:2]  
+
+**Data integration**  
+- `spring-boot-starter-webflux + ...-data-r2dbc` → reactive repositories.[2]
+- Reactive transactions, `ReactiveTransactionManager`.[2]
+
+**Testing**  
+- `WebTestClient` (in-memory HTTP simulation), `StepVerifier` (Reactor test utilities).[1]
+
+***
+
+## Trade-offs & example questions
+
+**Reactive vs Servlet (MVC)**  
+- **Reactive wins**: High concurrency (10k+ users), streaming SSE/WebSocket, IO-bound (DB/API calls >> CPU).[1]
+- **Servlet wins**: Simple CRUD, CPU-bound logic, team reactive unfamiliarity, easier debugging.[functions.fetch_url:2]  
+- **Critical**: Full-stack reactive (WebFlux + R2DBC + reactive clients) or blocking islands kill benefits.
+
+**Backpressure & complexity**  
+- Reactive pipelines harder to reason about, debug, trace; stack traces less intuitive.[functions.fetch_url:2]  
+- Operator chains can become unreadable; need discipline for composition.
+
+**Example questions**  
+- "When does WebFlux outperform MVC, and what metrics would convince you to migrate?"[1]
+- "Design a reactive order service with R2DBC that handles backpressure from slow PostgreSQL."[2]
+- "WebClient resilience pattern for 3rd-party API with 99% uptime but 5s P99 latency."[functions.fetch_url:2]  
+- "How do you test reactive endpoints without spinning up a real server?"[1]
+
+***
+
+## Use cases
+
+- **High-concurrency APIs**  
+  - Public APIs with 10k+ concurrent users; non-blocking DB calls via R2DBC scale better than thread-per-request.[2][1]
+
+- **Streaming / real-time**  
+  - Server-Sent Events for live updates (stock tickers, notifications), WebSocket chat, reactive Kafka streams.[functions.fetch_url:2]  
+
+- **Microservices edge**  
+  - API gateway aggregating 10+ downstream services; reactive composition prevents thread exhaustion.[functions.fetch_url:2]  
+
+- **Mobile backend**  
+  - Thousands of mobile clients with sporadic connectivity; backpressure handles client disconnects gracefully.[1]
+
+***
+
+## Big company references
+
+- Spring guides and Baeldung emphasize reactive for **high-load streaming APIs**; teams report 10x connection handling with same hardware vs servlet stacks when IO-bound.[functions.fetch_url:2][1]
+- Netflix/Uber patterns show WebFlux + R2DBC for **edge services** with massive concurrency, citing reduced thread pools and better resource utilization.[2]
+
+***
+
+## Cheat-sheet (Q&A)
+
+**Q: WebFlux vs MVC in 1 sentence?**  
+A: WebFlux for high-concurrency IO-bound streaming apps (Netty + Reactor); MVC for traditional CRUD CPU-bound workloads (Tomcat + servlet).[1]
+
+**Q: Core types?**  
+A: `Mono` (0-1 item), `Flux` (0-N stream).[1]
+
+**Q: Replace RestTemplate with?**  
+A: `WebClient` – fluent, reactive, resilience4j-ready.[functions.fetch_url:2]  
+
+**Q: Backpressure handled how?**  
+A: Consumer signals demand via Reactive Streams; `limitRate()`, buffering, dropping.[1]
+
+**Q: Test reactive endpoints?**  
+A: `WebTestClient` + `StepVerifier` (in-mem HTTP + stream verification).[1]
+
+**Q: Full reactive stack requires?**  
+A: WebFlux + R2DBC/reactive data + WebClient (no blocking JDBC calls).[2]
+
+**Q: Debugging reactive flows?**  
+A: Reactor Debug agent, `log()`, BlockHound (detect blocking), structured logging.[functions.fetch_url:2]
+
+***
+
+## Tools/frameworks
+
+```
+spring-boot-starter-webflux           → Netty + RouterFunctions
+reactor-test                         → StepVerifier
+spring-boot-starter-data-r2dbc       → Reactive relational DB
+resilience4j-spring-boot3            → Reactive circuit breaker/retry
+micrometer-tracing-bridge-brave      → Distributed tracing
+web-test-client                      → In-memory HTTP testing
+BlockHound                           → Block detection
+```
+
+***
+
+## Concise keywords summary
+
+- Spring WebFlux, reactive web, non-blocking, backpressure, event-loop, Netty.[1]
+- `Mono<T>`, `Flux<T>`, Reactive Streams, `Publisher/Subscriber`.[1]
+- `RouterFunctions`, `HandlerFunction`, `ServerResponse`, `ServerRequest`, `@RestController` + Mono/Flux.[functions.fetch_url:2][1]
+- `WebClient` (vs RestTemplate), SSE, WebSocket, RSocket.[functions.fetch_url:2]  
+- Reactor operators: `map`, `flatMap`, `zip`, `retryWhen`, `timeout`, `limitRate`.[functions.fetch_url:2]  
+- R2DBC, reactive repositories, `ReactiveCrudRepository`, reactive transactions.[2]
+- `WebTestClient`, `StepVerifier`, BlockHound.[1]
+- Trade-offs: high concurrency vs complexity, full-stack reactive vs blocking islands.[functions.fetch_url:2][1]
+
+[1](https://spring.io/guides/gs/spring-boot/)
+[2](https://www.baeldung.com/spring-boot)

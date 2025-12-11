@@ -20,6 +20,95 @@
             ]
           },
           {
+            "group": "Design Patterns",
+            "pages": [
+              "patterns/anti-corruption",
+              "patterns/api-health",
+              "patterns/back-presssure",
+              "patterns/bff",
+              "patterns/bulkhead",
+              "patterns/cache-aside",
+              "patterns/circuit-breaker",
+              "patterns/compensating-transaction",
+              "patterns/cqrs",
+              "patterns/event-sourcing",
+              "patterns/materialized-view",
+              "patterns/pub-sub",
+              "patterns/rate-limiter",
+              "patterns/retry",
+              "patterns/saga",
+              "patterns/side-car",
+              "patterns/strangler-fig",
+              "patterns/valet-key"
+            ]
+          },
+          {
+            "group": "Microservices",
+            "pages": [
+              "microservices/architecture",
+              "microservices/microservice-monolith",
+              "microservices/monitoring",
+              "microservices/optimization",
+              "microservices/overview",
+              "microservices/api-gateway",
+              "microservices/api-design",
+              "microservices/compute",
+              "microservices/communication",
+              "microservices/container",
+              "microservices/deployment",
+              "microservices/rollback",
+              "microservices/data-consideration",
+              "microservices/container-orchestration",
+              "microservices/ddd",
+              "microservices/ci-cd",
+              "microservices/rules",
+              "microservices/architecture",
+              "microservices/security",
+              "microservices/service-catalog",
+              "microservices/testing"
+            ]
+          },
+          {
+            "group": "Spring",
+            "pages": [
+              "spring/boot",
+              "spring/cloud",
+              "spring/core",
+              "spring/data",
+              "spring/hibernate-caching",
+              "spring/hibernate",
+              "spring/jpa",
+              "spring/microservices",
+              "spring/overview",
+              "spring/r2dbc",
+              "spring/reactive",
+              "spring/redis",
+              "spring/rest",
+              "spring/transaction"
+            ]
+          },
+          {
+            "group": "Security",
+            "pages": [
+              "security/authorization",
+              "security/bCrypt",
+              "security/hashing",
+              "security/pki",
+              "security/sCrypt"
+            ]
+          },
+          {
+            "group": "Observability",
+            "pages": [
+              "observability/overview",
+              "observability/observability-java",
+              "observability/observability-monitoring",
+              "observability/observability-spring-boot",
+              "observability/observability-distributed-systems",
+              "observability/tools"
+            ]
+          },
+          {
             "group": "Architecture Styles",
             "pages": [
               "architecture-styles/asynchronous",

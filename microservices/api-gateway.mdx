@@ -1,0 +1,125 @@
+An API Gateway is a reverse proxy that sits between clients and microservices, acting as a single entry point for routing, aggregation, security, and cross‑cutting concerns.[1][2]
+
+## Use cases and key patterns
+
+- **Use cases**  
+  - Expose many microservices as a unified API to web/mobile/partner clients, hiding internal topology and protocols.[3][1]
+  - Centralize auth, TLS, rate limiting, logging, and request shaping instead of duplicating these in every service.[4][1]
+
+- **Key patterns**  
+  - **Request routing & fan‑out**: map paths/verbs to backends; some calls proxy to a single service, others fan‑out and aggregate responses.[2][1]
+  - **Gateway offloading**: SSL termination, mTLS, auth, IP allow/block lists, rate limiting, logging/metrics, caching, and WAF at the gateway layer.[5][1][4]
+  - **Client‑specific APIs (BFF variation)**: different routes/payloads per client type (web, mobile, 3rd‑party) while reusing the same internal services.[6][2][5]
+
+## Related design patterns
+
+- **Backends for Frontends (BFF)** – per‑client gateways or routes that tailor APIs to each client’s needs; considered a variation of API Gateway.[6][2][5]
+- **Service mesh** – handles east‑west (service‑to‑service) traffic; API Gateway is primarily north‑south (client‑to‑service).[7][3][4]
+- **Strangler Fig / Anti‑corruption Layer** – gateway is a natural place to route some paths to legacy systems and others to new microservices during migration.[8][9]
+
+Stating “API Gateway + BFF + service mesh + Strangler Fig” shows good architectural breadth in interviews.[10][3][2]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure guidance: place an API gateway as a reverse proxy between clients and microservices; offload cross‑cutting concerns there, avoid putting domain logic into the gateway.[1][3]
+  - Common options:  
+    - **Azure API Management (APIM)** for external/public APIs and centralized management: policies for auth, rate limiting, caching, transformations, and versioning.[11][1]
+    - **Azure Application Gateway / Front Door** in front for TLS offload, WAF, and global routing, with APIM behind or alongside.[3][8]
+    - Backends: AKS, Container Apps, App Service, Functions, or legacy systems; routes defined per path/version/client.[12][13]
+
+- **AWS**  
+  - AWS Prescriptive Guidance describes the same pattern: Amazon **API Gateway** (or ALB) as a single endpoint mapping to many internal microservices (Lambda, ECS, EKS, EC2).[14][15]
+  - API Gateway provides auth, throttling, request/response transformation, usage plans, and logging to CloudWatch.[15][14]
+  - Architectures may use one shared gateway, or multiple gateways per domain/client; patterns mirror Azure APIM.[16][14]
+
+Concepts are identical; cloud choice mostly affects product names and configuration styles.[14][1]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: What is the API Gateway pattern in microservices?**  
+A: A gateway is a single entry point that receives client requests, applies cross‑cutting policies (auth, TLS, throttling, logging), routes and sometimes aggregates calls to back‑end microservices, and returns a unified response.[2][1][14]
+
+**Q2: Why use an API Gateway instead of clients calling services directly?**  
+A: To hide internal service topology, centralize security and policies, reduce chattiness, and provide client‑specific APIs without coupling frontends to service details.[5][3][2]
+
+**Q3: How is API Gateway implemented on Azure?**  
+A: Use Azure API Management (often with App Gateway/Front Door) as the gateway; define routes and policies that forward to AKS/App Service/Functions; offload TLS, auth, rate limiting, logging, and caching.[13][12][11][1]
+
+**Q4: How is it implemented on AWS?**  
+A: Use Amazon API Gateway (plus ALB/NLB where needed) as the entry point; define routes and integrations to Lambda/ECS/EKS; configure auth, throttling, transformation, and monitoring via CloudWatch.[17][15][14]
+
+**Q5: What is the difference between API Gateway and BFF?**  
+A: API Gateway is a generic entry point; BFF is a variation where separate gateways or logical routes exist per client type (web, mobile, 3rd‑party) to tailor APIs and payloads.[6][2][5]
+
+**Q6: What should *not* go into the gateway?**  
+A: Domain/business logic and heavy orchestration; Azure guidance warns that putting domain rules in the gateway couples services and turns the gateway into a monolith.[10][1][3]
+
+**Q7: How does API Gateway interact with service mesh?**  
+A: Gateway handles client‑facing traffic; mesh (e.g., Istio/App Mesh) handles service‑to‑service traffic using sidecars; together they cover north‑south and east‑west concerns.[4][7][3]
+
+**Q8: What are trade‑offs of using an API Gateway?**  
+A: Pros: security, central governance, simplified clients. Cons: extra hop and potential bottleneck/single point of failure, plus risk of overloading gateway with domain logic.[18][1][2]
+
+**Q9: Can you have multiple API Gateways?**  
+A: Yes—per domain or per client (BFF) as described in microservices.io and AWS guidance; this can improve autonomy and scaling but adds governance complexity.[16][14][2]
+
+**Q10: Example interview narrative?**  
+A: “Clients hit APIM in Azure, which terminates TLS, validates JWTs, enforces rate limits, and routes to AKS/App Service microservices; some endpoints aggregate data from multiple services; we use different APIM products/BFFs for public web vs partner APIs.”[13][11][1]
+
+## Data structures and algorithms
+
+- **Data structures**  
+  - Routing configuration: path/method → backend service; sometimes including host, version, and client type metadata.[1][14]
+  - Policy definitions: auth schemes, rate‑limit rules, caching policies, and transformations stored as configuration (YAML/JSON/policies).[11][1]
+
+- **Algorithms / techniques**  
+  - Request routing and load‑balancing (round‑robin, least‑connections) from gateway to service instances.[5][4]
+  - Rate limiting (token bucket/leaky bucket) and WAF rules at gateway edge.[19][4][1]
+  - Response aggregation/“fan‑in”: gateway calls multiple backends in parallel and merges responses for composite endpoints.[2][4]
+
+The complexity is mostly configuration and composition logic rather than advanced DS/Algo.[18][1]
+
+## Tools / frameworks / software examples
+
+- **Azure**  
+  - Azure API Management (APIM), Azure Application Gateway, Azure Front Door; microservices on AKS, Container Apps, App Service, Functions behind the gateway.[3][13][11][1]
+
+- **AWS**  
+  - Amazon API Gateway (REST/HTTP/WebSocket), ALB/NLB; backends on Lambda, ECS, EKS, EC2; CloudFront/WAF for edge.[15][17][14]
+
+- **General**  
+  - NGINX, Kong, Envoy, Gloo, Apigee, and similar gateways implementing the same pattern.[4][18]
+
+## Concise bullet summary (keywords & terms)
+
+- API Gateway pattern = single entry point; reverse proxy; request routing + aggregation + cross‑cutting concerns.[1][2]
+- Offloaded functions: TLS/mTLS, auth, IP filtering, rate limiting, logging/metrics, caching, WAF, static content.[5][4][1]
+- Azure: Azure API Management, App Gateway, Front Door in front of AKS/App Service/Functions.[11][3][1]
+- AWS: Amazon API Gateway + ALB/NLB fronting Lambda/ECS/EKS; CloudWatch for observability.[17][14][15]
+- Variants: Backends for Frontends (per‑client gateways), multiple gateways vs single gateway; gateway vs service mesh roles.[7][14][2]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/gateway)
+[2](https://microservices.io/patterns/apigateway)
+[3](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
+[4](https://marutitech.com/api-gateway-in-microservices-architecture/)
+[5](https://www.geeksforgeeks.org/system-design/api-gateway-vs-backend-for-frontend-bff/)
+[6](https://microservices.io/patterns/apigateway.html)
+[7](https://blog.sparkfabrik.com/en/service-mesh)
+[8](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/direct-client-to-microservice-communication-versus-the-api-gateway-pattern)
+[9](https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig)
+[10](https://en.paradigmadigital.com/dev/microservices-architecture-patterns-saga-api-gateway-service-discovery/)
+[11](https://azure.github.io/apim-lab/apim-lab/10-additional-topics/additional-topics-10-1-architecture.html)
+[12](https://www.linkedin.com/pulse/api-gateway-azure-microservices-architecture-md-jaffry-4xknf)
+[13](https://www.youtube.com/watch?v=K5KrZ-X10CE)
+[14](https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-integrating-microservices/api-gateway-pattern.html)
+[15](https://dellenny.com/api-gateway-pattern-in-aws-managing-apis-and-routing-requests-to-microservices/)
+[16](https://stackoverflow.com/questions/71806229/aws-architecture-api-gateway-in-microsesrvices)
+[17](https://aws.amazon.com/blogs/architecture/using-api-gateway-as-a-single-entry-point-for-web-applications-and-api-microservices/)
+[18](https://www.solo.io/topics/api-gateway/api-gateway-pattern)
+[19](https://learn.microsoft.com/en-us/azure/api-management/rate-limit-policy)
+[20](https://www.youtube.com/watch?v=YLMsAMvY4KA)
+[21](https://stackoverflow.com/questions/29996484/api-gateway-proxy-pattern-for-microservices-deployed-using-azure-service-fabric)
+[22](https://www.reddit.com/r/ExperiencedDevs/comments/1kfn2fj/proper_api_gateway_architecture_in_a/)
+[23](https://stackoverflow.com/questions/52023726/should-frontend-or-backend-call-microservices)
+[24](https://www.reddit.com/r/Frontend/comments/scnndi/question_one_frontend_two_backends/)

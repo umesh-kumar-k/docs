@@ -35,7 +35,7 @@ WebSocket connection overhead (stateful) vs polling simplicity; SSE lightweight 
 - **IoT**: MQTT over WebSocket (sensor data).[3]
 
 ## Big Tech Blogs & Efficiency Wins
-Netflix TechBlog details Kafka+Flink for real-time recommendations, processing billions events/day with <1s latency via event-time processing. Uber Engineering Blog redesigned Kafka ingestion for peak ride matching, cutting latency 50%. Qlik highlights real-time fraud reduction via streaming alerts.[qlik][9][5][4]
+Netflix TechBlog details Kafka+Flink for real-time recommendations, processing billions events/day with < 1s latency via event-time processing. Uber Engineering Blog redesigned Kafka ingestion for peak ride matching, cutting latency 50%. Qlik highlights real-time fraud reduction via streaming alerts.[qlik][9][5][4]
 
 ## Cheat-Sheet Q&A
 **Q: Bidirectional real-time?** A: WebSocket (full-duplex TCP).[medium]  
@@ -56,7 +56,7 @@ Netflix TechBlog details Kafka+Flink for real-time recommendations, processing b
 Kafka uses log-structured appends (segment files), partitioned ring buffers (compaction); Flink rocksDB state stores (LSM-trees). WebSocket frames employ sliding windows (TCP flow control); stream joins use hash joins/windows (time-based heaps). Dedup leverages Bloom filters; backpressure via token buckets/priority queues.[3][2]
 
 ## Key Highlights & Tradeoffs
-- **Latency**: Streaming <1s vs batch hours; choose AP over CP for availability.[2]
+- **Latency**: Streaming < 1s vs batch hours; choose AP over CP for availability.[2]
 - **Cost**: Persistent connections (WebSocket) > polling bandwidth.[medium]
 - **Reliability**: Checkpoints vs WAL; at-least-once simpler than exactly-once.[4]
 - **Scale**: Sharding + replication; monitor backpressure metrics.[5]

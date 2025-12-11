@@ -1,0 +1,115 @@
+Azure microservices inter‑service communication is about choosing between synchronous APIs (REST/gRPC) and asynchronous messaging (queues/events) per use case, then layering reliability patterns and often a service mesh on top.[1][2]
+
+## Use cases and key patterns
+
+- **Synchronous communication (request/response)**  
+  - Use when a service must immediately know the outcome of another service’s work (for example, orchestrating an order workflow where failure in any step fails the whole request).[3][1]
+  - Implemented as REST or gRPC calls between internal services, typically behind an API gateway or via internal load balancers/service discovery.[4][1]
+
+- **Asynchronous communication (message‑driven)**  
+  - Use when you want loose coupling, failure isolation, and resilience to spikes—producers send messages and continue; consumers process later.[2][5][1]
+  - Implemented with queues or pub/sub (Azure Service Bus, Event Grid, Kafka) for events such as “order created”, “payment completed”, etc.[6][7][2]
+
+Azure guidance stresses synchronous APIs for short, user‑facing orchestration and async messaging for workflows, integration, and high‑scale decoupling.[8][1]
+
+## Related design patterns
+
+- **Request/response & API Gateway** – direct calls over HTTP/gRPC, often mediated by API Management or an internal gateway, good for query APIs and short tasks.[9][1][4]
+- **Pub/Sub & Event‑driven architecture** – publishers emit events to a topic; multiple subscribers react independently (inventory, billing, notifications).[7][10][2]
+- **Saga pattern** – long‑running workflows across services: combine async messages and sometimes sync callbacks plus compensating actions.[10][11][1]
+- **Service mesh** – Istio/Linkerd/Consul on AKS; handles retries, circuit breakers, load balancing, and telemetry for service‑to‑service calls.[12][1]
+
+Mentioning “sync vs async + Saga + Pub/Sub + service mesh” is a strong interview combination.[11][1][4]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Synchronous: internal REST/gRPC between services on AKS/Container Apps/App Service; Azure API Management or internal gateways route traffic; a service mesh (Istio, Linkerd, Open Service Mesh) can handle resilience and observability.[1][2][12]
+  - Asynchronous: Azure Service Bus queues/topics, Event Grid for event routing, Event Hubs/Kafka for streams; scheduler/orchestrator services send async messages and other services process them when available.[6][8][1]
+  - Azure’s example “Drone delivery” system: Scheduler calls downstream services synchronously, but also sends async messages to a Supervisor to trigger compensating actions on failures.[1]
+
+- **AWS**  
+  - Synchronous: REST/gRPC between ECS/EKS/Lambda services; fronted by Amazon API Gateway or ALB; service meshes (App Mesh, Istio) add retries, circuit‑breaking, and traffic policy.[13][14]
+  - Asynchronous: SQS queues, SNS topics, EventBridge event bus, and Kinesis streams; AWS microservices whitepaper describes the same patterns and trade‑offs as Azure.[15][16][13]
+
+Principles are identical on both clouds; only messaging/gateway/service names change.[2][13]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: What are the main inter‑service communication styles?**  
+A: Synchronous request/response (REST/gRPC) where a caller waits for a reply, and asynchronous messaging (queues/events) where the sender does not wait and receivers process later.[5][4][1]
+
+**Q2: When should synchronous calls be used?**  
+A: For user‑facing operations that need immediate success/failure, simple queries, and short workflows where downstream availability is required.[3][1]
+
+**Q3: When should asynchronous messaging be used?**  
+A: For decoupling, resilience to failures/spikes, long‑running workflows, and fan‑out scenarios (one event triggers multiple actions).[7][5][1]
+
+**Q4: How is inter‑service communication implemented on Azure?**  
+A: Sync via REST/gRPC over HTTP among services on AKS/Container Apps/App Service; async via Service Bus/Event Grid/Event Hubs; optional service mesh for retries, circuit breaker, and telemetry.[12][2][6][1]
+
+**Q5: What is the AWS equivalent?**  
+A: Sync via REST/gRPC between ECS/EKS/Lambda behind API Gateway/ALB; async via SQS/SNS/EventBridge/Kinesis; similar resilience patterns via SDKs and service mesh/App Mesh.[14][15][13]
+
+**Q6: How do Sagas relate to communication?**  
+A: Sagas orchestrate or choreograph a series of local transactions across services using a mix of sync calls and async messages, plus compensating actions on failure.[10][11][1]
+
+**Q7: What problems do service meshes solve?**  
+A: They move retries, circuit breakers, timeouts, mTLS, and metrics off the application code into a sidecar layer, improving reliability and observability for inter‑service calls.[17][12][1]
+
+**Q8: Trade‑offs between sync and async?**  
+A: Sync is simpler but couples availability/latency across services and can create cascading failures; async improves decoupling and resilience but adds complexity, eventual consistency, and harder debugging.[16][15][1]
+
+**Q9: What would you highlight in an interview example?**  
+A: “Critical read APIs use synchronous REST/gRPC; cross‑domain workflows use Service Bus/Event Grid events and Sagas; a mesh handles retries and circuit breakers; on AWS the same design uses API Gateway + SQS/SNS/EventBridge.”[13][6][1]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - HTTP/gRPC contracts (JSON/Protobuf schemas) for synchronous APIs.[4][1]
+  - Messages/events for async flows: envelopes with payload, type, correlation ID, and metadata; topics/queues and subscriptions.[6][7][1]
+
+- **Algorithms / techniques**  
+  - Retry with backoff and jitter; timeout policies; circuit breaker logic (often implemented by service mesh or HTTP clients).[15][16][1]
+  - Pub/Sub message routing; load‑balancing across consumers; idempotent handlers to tolerate duplicates.[5][7][10]
+
+The emphasis should be on protocols, patterns, and reliability techniques rather than complex data structures.[4][1]
+
+## Tools / frameworks / software examples
+
+- **Azure**  
+  - REST/gRPC APIs hosted on AKS/Container Apps/App Service; Service Bus, Event Grid, Event Hubs/Kafka; Azure API Management; service mesh (Istio/OSM/Linkerd) for L7 policies.[2][12][1][6]
+
+- **AWS**  
+  - ECS/EKS/Lambda services; SQS, SNS, EventBridge, Kinesis; API Gateway/ALB; App Mesh/other meshes.[14][15][13]
+
+## Concise bullet summary (keywords & terms)
+
+- Synchronous vs asynchronous inter‑service communication; REST/gRPC vs queues/events.[5][1][4]
+- Patterns: request/response, Pub/Sub, Saga, service mesh, circuit breaker, retry, timeouts.[11][7][12][1]
+- Azure: AKS/Container Apps/App Service + Service Bus/Event Grid/Event Hubs + API Management + mesh.[1][2][6]
+- AWS: ECS/EKS/Lambda + SQS/SNS/EventBridge/Kinesis + API Gateway/ALB + App Mesh.[15][13][14]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/interservice-communication)
+[2](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
+[3](https://www.geeksforgeeks.org/system-design/inter-service-communication-in-microservices/)
+[4](https://www.geeksforgeeks.org/system-design/microservices-communication-patterns/)
+[5](https://estradaci.com/synchronous-vs-asynchronous-microservices-communication-patterns/)
+[6](https://www.kambu.pl/blog/microservices-communication-using-azure-service-bus/)
+[7](https://www.xcubelabs.com/blog/microservices-architecture-implementing-communication-patterns-and-protocols/)
+[8](https://www.sayonetech.com/blog/microservices-architecture-design-azure/)
+[9](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/gateway)
+[10](https://amplication.com/blog/using-pub-sub-messaging-for-microservice-communication)
+[11](https://orkes.io/blog/4-microservice-patterns-crucial-in-microservices-architecture/)
+[12](https://azurebeast.com/posts/service-mesh-on-azure/)
+[13](https://docs.aws.amazon.com/whitepapers/latest/microservices-on-aws/communication-mechanisms.html)
+[14](https://aws.amazon.com/containers/)
+[15](https://dev.to/aws-builders/asynchronous-messaging-patterns-for-microservices-200)
+[16](https://www.theserverside.com/answer/Synchronous-vs-asynchronous-microservices-communication-patterns)
+[17](https://www.redhat.com/en/topics/containers/what-is-container-orchestration)
+[18](https://stackoverflow.com/questions/61296677/interservice-communication-in-microservices)
+[19](https://www.c-sharpcorner.com/article/microservice-architectu-synchronous-and-asynchronous-communication/)
+[20](https://www.einfochips.com/blog/interservice-communication-for-microservices/)
+[21](https://desmati.com/blog/service-communication-patterns-dotnet-core-azure)
+[22](https://learn.microsoft.com/fr-fr/azure/architecture/microservices/design/interservice-communication)
+[23](https://www.linkedin.com/pulse/10-microservice-communication-patterns-every-engineer-leela-kumili-cqhdc)

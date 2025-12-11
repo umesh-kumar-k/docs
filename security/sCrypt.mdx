@@ -1,0 +1,65 @@
+**scrypt** is a **memory-hard key derivation function (KDF)** designed to resist ASIC/GPU brute-force attacks by requiring massive memory (N parameter) during hashing, using **PBKDF2-style iterations** with **custom Salsa20/8 mixing**—parameters `N=2^14, r=8, p=1` (moderate) to `N=2^20` (high-security) trade compute time/memory for ASIC resistance vs fast SHA256.[medium] Senior architects use scrypt (N=2^17) for high-value wallets/server-side passwords, preferring Argon2id (modern standard) for memory-hard + time-hard balance.
+
+## Interview Summary
+**Flow**: `scrypt(password, salt, N, r, p, dkLen)` → massive memory array → Salsa20/8 mixing (r rounds) → PBKDF2-style iterations (p passes) → derived key; **Memory-hard**: N=2^20 requires ~1GB RAM (ASIC-prohibitive); **Parameters**: N (memory), r (block size), p (iterations), dkLen (output).[medium] **Java**: BouncyCastle `SCrypt.generate()`.
+
+## Keywords & Patterns
+- **Parameters**: `N=2^14-2^20` (memory), `r=8` (mixing), `p=1-8` (iterations), `dkLen=32` bytes.[medium]
+- **Core**: Salsa20/8 (stream cipher mixing), ROMix (memory-hard loop).[medium]
+- **Format**: Derived key (binary), not self-contained like bCrypt.[medium]
+
+## Common Trade-offs + Questions
+scrypt: ASIC-resistant/memory-hard vs high RAM usage (DoS risk); N tuning: Secure vs UX (login time); vs bCrypt: Memory-hard vs compute-hard; vs Argon2: Proven vs modern (side-channel resistant).[medium]
+
+**Example questions**:
+- scrypt parameters? (`N=memory, r=mixing, p=iterations`).[medium]
+- Memory-hard benefit? (ASICs can't parallelize GB-scale RAM).[medium]
+- DoS risk? (High N → attacker forces GB allocation).[medium]
+
+| Algorithm | Time-Hard | Memory-Hard | ASIC Resistant | UX |
+|-----------|-----------|-------------|----------------|-----|
+| SHA256 | ❌ | ❌ | ❌ | Fast |
+| bCrypt | ✅ | ❌ | ✅ | 100ms |
+| scrypt | ✅ | ✅ | ✅ | 500ms+ [medium] |
+| Argon2id | ✅ | ✅ | ✅ | Balanced |
+
+## Use Cases
+- **High-Value Wallets**: Crypto exchanges (N=2^18).[medium]
+- **Server Passwords**: Long-lived secrets (not login).[medium]
+- **Key Derivation**: PBKDF2 replacement (file encryption).[medium]
+
+## Big Tech Blogs & Efficiency Wins
+**Litecoin**: First scrypt coin (ASIC war 2014 → memory arms race).[medium] **Tarsnap**: Colin Percival's backup service (scrypt inventor) → GPU resistance.[medium] **OWASP**: Recommends scrypt N=2^17 for servers (not browsers).[medium]
+
+## Cheat-Sheet Q&A
+**Q: scrypt params?** A: `N=2^17, r=8, p=1, dkLen=32` (secure server).[medium]  
+**Q: Memory-hard?** A: ROMix loop requires N*128 bytes RAM.[medium]  
+**Q: Salsa20/8?** A: Custom stream mixing (not full cipher).[medium]  
+**Q: DoS mitigation?** A: Resource limits, CAPTCHA, rate limiting.[medium]  
+**Q: vs Argon2?** A: Proven vs modern (side-channel safe).[medium]
+
+## Tools/Frameworks
+- **Java**: BouncyCastle `org.bouncycastle.crypto.generators.SCrypt`.[1]
+- **Node**: `scrypt` (`scrypt.kdf(password, salt, params)`).[medium]
+- **Python**: `scrypt` (`scrypt.hash(password, salt, N, r, p)`).[medium]
+- **Go**: `golang.org/x/crypto/scrypt` (native).[medium]
+
+## Data Structures & Algorithms
+**scrypt**: PBKDF2 (outer) + SMix/ROMix (memory-hard inner loop) + Salsa20/8 (mixing); **Memory**: N*128 + 2^N blocks; **Parameters**: N=2^k, r (parallelism), p (iterations).[medium]
+
+## Key Highlights & Tradeoffs
+**ASIC Killer**: Massive RAM vs GPU farms  
+**Server-Only**: High N impractical for browsers  
+**Proven**: 15yrs vs Argon2 (newer)  
+**DoS Risk**: Resource exhaustion attacks  
+
+**Interviews**: "scrypt N=2^17 servers, Argon2id clients, bCrypt login"
+
+## Concise Keywords Summary
+- scrypt KDF, Memory-Hard (N=2^17), Salsa20/8 Mixing, PBKDF2 Outer
+- ASIC/GPU Resistant, ROMix Loop, Resource Parameters (N/r/p)
+- BouncyCastle SCrypt, High-Value Wallets, Server Passwords
+- DoS Mitigation, UX Tradeoff (500ms+), Argon2 Successor
+- Litecoin Pioneer, Tarsnap (Inventor), OWASP Recommendation
+
+[1](https://newrelic.com)

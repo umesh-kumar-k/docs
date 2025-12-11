@@ -1,0 +1,133 @@
+Sidecar is a decomposition pattern where a helper process or container runs alongside a primary service instance to provide cross‑cutting capabilities (proxying, observability, configuration, security) without changing the main service code.[1][2]
+
+## Use cases and key patterns
+
+- **Use cases**  
+  - Cross‑cutting concerns: logging, metrics, tracing, auth, rate limiting, configuration, service discovery, protocol translation (e.g., HTTP ↔ gRPC).[2][3][1]
+  - Service mesh data plane: per‑pod proxy sidecars (Envoy/Linkerd) handling mTLS, traffic routing, retries, and telemetry for microservices.[4][3][5]
+
+- **Key ideas**  
+  - Each app instance has its own sidecar, sharing lifecycle and host (pod/VM/app service instance); communication is over localhost or shared IPC, keeping latency low.[1][2]
+  - Sidecar encapsulates secondary concerns; you can evolve or replace it independently, even attach modern capabilities to legacy apps that cannot be modified.[6][2][1]
+
+## Related design patterns
+
+- **Service mesh** – systematic use of sidecars as data plane proxies (Istio, Linkerd, AWS App Mesh); control plane configures all sidecars centrally.[3][5][7][4]
+- **Adapter / Ambassador / Gateway** – sidecar can act as a local adapter, translating protocols or exposing a standardized interface to the mesh/gateway.[3][1]
+- **Decorator / Proxy** – sidecar decorates calls with cross‑cutting logic (metrics, retries, auth) and proxies outbound traffic.[8][2][3]
+
+Mention “Sidecar + Service Mesh + API Gateway + Resilience patterns (retry, circuit breaker) implemented in the sidecar” in interviews.[9][4][3]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure pattern describes deploying supporting components into a separate process/container attached to the main application, sharing fate.[1]
+  - Implementations:  
+    - **AKS / Kubernetes**: typical Istio/Linkerd/Dapr sidecar pattern; Envoy or Dapr sidecars per pod for service discovery, traffic management, and observability.[5][4][8]
+    - **Azure App Service for Linux**: official sidecar support to run containers like Datadog agent, local Redis, proxies, or background workers next to the main app container.[10][11][12][6]
+    - **ACI and other container platforms**: samples show ACI instances with network sidecars (proxies, init containers) in the same group.[13]
+
+- **AWS**  
+  - **AWS App Mesh** on EKS/ECS uses Envoy sidecar containers injected into pods/tasks; sidecars intercept all service‑to‑service traffic, apply routing rules, retries, TLS, and emit telemetry.[14][7]
+  - Sidecar injection via mutating webhooks or App Mesh sidecar injector; mesh control plane pushes config to all sidecars.[7][14]
+  - Pattern also appears in generic EKS deployments (custom logging agents, security agents) running as sidecars.[14][7][8]
+
+Conceptually identical: Azure leans on AKS + service mesh and App Service sidecars; AWS on App Mesh + Envoy sidecars in EKS/ECS.[5][7][1]
+
+## Trade-offs and interview talking points
+
+- **Benefits**  
+  - Strong separation of concerns; teams can iterate on infra/observability/security without touching business code.[2][3][1]
+  - Heterogeneous tech: main app in one stack, sidecar in another (e.g., Java app + Rust proxy).[15][1]
+
+- **Costs**  
+  - Overhead: extra containers per pod increase memory/CPU usage; large meshes may have significant aggregate cost.[16][5]
+  - Operational complexity: managing images, versions, sidecarless alternatives (eBPF) are emerging to mitigate this.[16][8][5]
+
+Expect questions like “Why sidecar vs library?” and “When would you choose a sidecarless service mesh?”.[5][16]
+
+## Cheat-sheet (Q&A style)
+
+**Q1: One-line definition?**  
+A: Sidecar pattern deploys a helper process or container alongside each service instance to handle cross‑cutting concerns like networking, security, and observability, sharing lifecycle but remaining independent from the service code.[2][1]
+
+**Q2: When should you use a sidecar?**  
+A: When you need consistent cross‑cutting behavior across many services (mesh, logging, metrics, rate limiting, mTLS) or must extend legacy apps without changing them.[3][1][2]
+
+**Q3: How does this fit with service mesh?**  
+A: Service meshes implement their data plane as sidecar proxies attached to each workload; control plane configures these sidecars for routing, mTLS, retries, and telemetry.[4][7][3][5]
+
+**Q4: How would you implement Sidecar on Azure?**  
+A: On AKS, use Istio/Linkerd/Dapr with automatic sidecar injection; or on App Service for Linux, configure sidecar containers for logging, monitoring, or caching; wire traffic or agents through these sidecars.[12][10][6][1]
+
+**Q5: How would you implement it on AWS?**  
+A: On EKS/ECS with AWS App Mesh, enable sidecar injection so each pod/task gets an Envoy proxy; all inbound/outbound traffic passes through the sidecar, which applies mesh policies.[7][14][5]
+
+**Q6: Why not just use a shared library instead of a sidecar?**  
+A: Libraries tie you to a language and require code changes in every service; sidecars are language‑agnostic, configurable centrally, and can be rolled out independently.[1][2][3]
+
+**Q7: What are main trade-offs?**  
+A: Extra resource consumption, more containers to manage, and networking complexity vs improved modularity, observability, and security.[16][2][5]
+
+**Q8: How does sidecar relate to security/observability?**  
+A: Sidecars can enforce mTLS, JWT validation, rate limits, and collect logs/metrics/traces for all traffic, standardizing controls across services.[8][4][3]
+
+**Q9: When is sidecar overkill?**  
+A: For small systems with few services, where a shared library or gateway‑only solution suffices and mesh overhead is unjustified.[2][16]
+
+**Q10: Example you can describe in an interview?**  
+A: A microservice on AKS has an Envoy sidecar handling mTLS, retries, and distributed tracing; the app only makes HTTP calls to localhost, while the sidecar talks to other services with policies controlled centrally via Istio/App Mesh.[4][7][5]
+
+## Data structures and algorithms
+
+- **Data structures**  
+  - Sidecar config: routing tables, service identity/certificates, rate‑limit and retry policies, metrics export configuration (often in CRDs/yaml).[4][3][5]
+  - Shared volumes or sockets between app and sidecar for logs, metrics, or IPC.[13][1]
+
+- **Algorithms / techniques**  
+  - Proxy algorithms inside sidecars (Envoy, NGINX): routing, load‑balancing (round‑robin, least‑connections), circuit breaking, retries, rate limiting, mTLS handshakes.[3][5][4]
+  - Control plane reconciliation loops to push/refresh config across all sidecars.[5][3]
+
+The pattern itself is structural; algorithms come from what the sidecar does (proxy, cache, security, etc.).
+
+## Tools / frameworks / software
+
+- **Azure ecosystem**  
+  - AKS with Istio/Linkerd/Dapr sidecars; Azure App Service sidecars for Linux; Azure Container Instances with sidecars; tooling around App Service sidecars (Datadog, local Redis, small LLM sidecars).[11][10][12][6][13]
+
+- **AWS ecosystem**  
+  - AWS App Mesh Envoy sidecars on EKS/ECS; EKS workshops showing sidecar injection; other sidecar agents for logging/security (Fluent Bit, Datadog agents).[14][7][3]
+
+- **General**  
+  - Istio, Linkerd, Consul Connect, Dapr, Envoy, NGINX sidecars, language‑agnostic “sidecar agent” patterns.[8][4][5]
+
+## Concise bullet summary (keywords & terms)
+
+- Sidecar pattern = helper process/container alongside primary app; shared lifecycle, separate concern.[1][2]
+- Use for cross‑cutting concerns: logging, metrics, tracing, security, config, service discovery, protocol translation.[8][2][3]
+- Core in **service mesh** data plane: Envoy sidecars, Istio/Linkerd/App Mesh; control plane manages proxies.[7][4][5]
+- Azure: AKS + Istio/Linkerd/Dapr sidecars; App Service sidecar containers (Datadog, Redis, custom agents).[10][11][12][6]
+- AWS: EKS/ECS + App Mesh sidecar injection; Envoy proxies per pod/task.[14][7]
+- Trade-offs: language‑agnostic and decoupled vs extra resource/operational overhead; sidecarless/eBPF alternatives emerging.[16][5][8]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/sidecar)
+[2](https://www.geeksforgeeks.org/system-design/sidecar-design-pattern-for-microservices/)
+[3](https://blog.sparkfabrik.com/en/service-mesh)
+[4](https://imesh.ai/blog/istio-ambient-mesh-vs-sidecar/)
+[5](https://istio.io/latest/docs/overview/dataplane-modes/)
+[6](https://gregorsuttie.com/2024/08/27/unleashing-the-power-of-azure-app-service-sidecars-enhancing-your-cloud-applications/)
+[7](https://aws.amazon.com/blogs/containers/using-sidecar-injection-on-amazon-eks-with-aws-app-mesh/)
+[8](https://keploy.io/blog/community/what-is-service-mesh)
+[9](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker)
+[10](https://learn.microsoft.com/en-us/azure/app-service/tutorial-sidecar)
+[11](https://azure.github.io/AppService/2024/11/08/Global-Availability-Sidecars.html)
+[12](https://www.youtube.com/watch?v=zXVzPAyurvo)
+[13](https://github.com/Azure-Samples/aci-in-vnet-with-sidecars)
+[14](https://con204.github.io/intermediate/330_app_mesh/install_app_mesh_controller/about_sidecar/)
+[15](https://dellenny.com/riding-in-tandem-unlocking-the-sidecar-pattern-in-azure-microservices/)
+[16](https://jimmysong.io/en/blog/service-mesh-sidecar-vs-sidecarless-debate/)
+[17](https://azure.github.io/AppService/sidecars/)
+[18](https://www.designgurus.io/blog/19-essential-microservices-patterns-for-system-design-interviews)
+[19](https://dev.to/somadevtoo/19-microservices-patterns-for-system-design-interviews-3o39)
+[20](https://istio.io/latest/docs/reference/config/networking/sidecar/)
+[21](https://www.youtube.com/watch?v=IrNBzJUBs5c)

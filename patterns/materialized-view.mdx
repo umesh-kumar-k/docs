@@ -1,0 +1,147 @@
+Materialized View is a pattern where you precompute and persist the results of expensive queries (joins, aggregations, projections) into a read-optimized store so APIs can answer queries quickly without hitting complex underlying data each time.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Read-heavy dashboards, feeds, reports, and APIs that repeatedly run the same expensive cross-entity or cross-service queries (e‑commerce analytics, user timeline, product search summaries).[3][4][1]
+  - Microservices/CQRS systems where write models are normalized or spread across services, but the UI needs denormalized, query-specific views.[2][5][1]
+
+- **Key patterns**  
+  - Define one or more queries that are expensive or awkward over the source model; precompute their results into a materialized view that stores only what the query needs (including aggregates and computed fields).[6][1][2]
+  - Update views on a schedule, on source change (event-driven), or via incremental refresh; treat them as disposable caches that can be fully rebuilt from source data. Applications never write them directly.[7][4][1]
+
+## Related design patterns
+
+- **CQRS & Event Sourcing**  
+  - Materialized views are the typical read models in CQRS: projections of events or normalized data into query-optimized stores.[8][9][2]
+  - In event-sourced systems, projectors read event streams and maintain materialized views for different query patterns.[10][8]
+
+- **Cache-aside / Read-optimized replicas**  
+  - Materialized views are a form of specialized cache at the data model level rather than just key-value; pattern complements cache-aside by reducing query complexity.[11][1]
+
+- **Consume & Project / Data Warehouse patterns**  
+  - ETL/ELT pipelines that ingest raw events/tables and project them into star schemas or aggregated tables for BI; cloud design content often calls this “consume and project.”[12][6]
+
+Mention “Event Sourcing + CQRS + Materialized View” as a trio for read scalability in interviews.[8][2]
+
+## Azure vs AWS implementation
+
+- **Azure (Azure Architecture Center & Cosmos/Data Explorer)**  
+  - Azure pattern: build prepopulated views over data in one or more stores when raw data is not formatted for required queries; views can be in the same DB (denormalized tables) or separate stores.[1][7]
+  - Practical options:  
+    - Cosmos DB: Azure Cosmos DB design patterns repo shows using Functions/Change Feed to maintain denormalized collections (per-customer/per-product views).[13][14]
+    - Azure Data Explorer, Synapse, Fabric: native materialized views over Kusto tables for real-time analytics with automatic incremental refresh.[15][3]
+    - Event-driven: Event Hubs/Event Grid/Service Bus feed Functions/AKS workers that update materialized views in Cosmos, SQL, or Azure Data Explorer.[16][17][18]
+
+- **AWS (Redshift, DynamoDB, etc.)**  
+  - Redshift: native materialized views that precompute aggregations/joins over large fact tables and can auto-refresh (including from Kinesis streams via staging tables).[19][20][21]
+  - DynamoDB + projections: event streams (DynamoDB Streams, Kinesis) feed Lambda functions to maintain denormalized tables or global secondary indexes as materialized views for query patterns.[22][23][2]
+  - Data lake/warehouse: Glue/Spark jobs or streaming pipelines compute materialized views in Redshift, Athena, or other analytics stores.[4][21]
+
+Concept is identical: Azure tends to highlight Cosmos/Data Explorer; AWS uses Redshift/DynamoDB + streams.
+
+## Trade-offs & interview talking points
+
+- **Benefits**  
+  - Huge performance gains: avoid repeatedly running complex joins/aggregations on large normalized or semi-structured datasets.[4][11][1]
+  - Tailored read models for APIs and dashboards; simpler query code and predictable latency.[2][6][1]
+
+- **Costs / pitfalls**  
+  - Additional storage and maintenance overhead; need refresh logic and monitoring.[11][1]
+  - Eventual consistency: views may lag behind source data; need to decide when that is acceptable and how to signal staleness.[1][2]
+  - Over-materialization: too many views or overly specific ones can explode complexity and cost.[16][4]
+
+Expect questions like “When is a materialized view better than a normal view?” and “How do you keep materialized views in sync?”
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One‑line definition?**  
+A: Materialized View is a precomputed, persisted result of a query—often denormalized or aggregated—maintained separately from the source data to dramatically speed up reads.[6][1]
+
+**Q2: When would you use it?**  
+A: When queries over normalized/complex data are slow or expensive and repeated frequently (reports, dashboards, feeds), or when reading across multiple microservices needs a denormalized, read-optimized view.[7][2][1]
+
+**Q3: How does it relate to CQRS and Event Sourcing?**  
+A: In CQRS, materialized views are the read models; in event-sourced systems, projectors build materialized views from event streams for each query pattern.[10][8][2]
+
+**Q4: How are materialized views updated?**  
+A: Either periodically (batch refresh), incrementally on change (triggered by change feed/events/streams), or via native engine support (automatic refresh in Redshift/Kusto/Cosmos patterns).[21][3][1]
+
+**Q5: How would you implement this on Azure?**  
+A: Capture changes via Cosmos DB Change Feed or Event Hubs; Azure Functions/AKS project data into denormalized read collections or Kusto materialized views; APIs query those views directly.[14][24][3][13]
+
+**Q6: How would you implement this on AWS?**  
+A: Use DynamoDB Streams/Kinesis/EventBridge with Lambda to maintain denormalized views (tables/indexes) or use Redshift materialized views over fact tables with auto-refresh; APIs hit these views instead of raw tables.[23][19][21][22]
+
+**Q7: What are main trade-offs?**  
+A: Extra storage, refresh cost, and consistency lag vs much better read performance and simplified queries; design must decide freshness requirements (seconds vs minutes).[4][11][1]
+
+**Q8: How is this different from a normal DB view?**  
+A: A normal view is just a stored query and computes results at read time; a materialized view stores results physically and may use incremental refresh, trading storage for speed.[6][11][4]
+
+**Q9: What happens when the schema changes?**  
+A: You may need to drop and rebuild materialized views or migrate them; event-driven projections must be updated and sometimes replayed from the source change log.[24][1]
+
+**Q10: Example you can describe in an interview?**  
+A: E‑commerce: raw orders, order_items, products tables; define a materialized view “daily_sales_by_category” that pre-aggregates revenue/units by date and category; dashboards query this view in milliseconds.[4][6]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Materialized view as a physical table/index keyed by query dimensions (e.g., user_id, date, category) with precomputed aggregates.[1][6]
+  - Event or change log (e.g., event store, CDC stream, change feed) driving incremental updates to views.[25][22][24]
+
+- **Algorithms / techniques**  
+  - Incremental aggregation: on each change event, update only affected rows in the materialized view (e.g., adjust counts/sums) instead of recomputing from scratch.[3][21][2]
+  - Rebuild logic: full recompute if views become inconsistent; treat view as disposable cache rebuilt from source or event history.[7][1]
+  - Scheduling & refresh strategies: cron-style jobs, streaming updates, or engine-level auto refresh; often guided by freshness SLAs.[21][3][1]
+
+No complex algorithms beyond careful incremental update logic; important to mention incremental vs full refresh and idempotent projection logic.
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Azure Cosmos DB design pattern: Materialized View via Functions + Change Feed; Azure Data Explorer and Synapse/Fabric materialized views; Azure Functions/Logic Apps/AKS as projectors.[13][14][3][16]
+
+- **AWS**  
+  - Redshift materialized views with auto-refresh, often fed by Kinesis or ETL; DynamoDB Streams + Lambda to maintain denormalized tables; Glue/Spark for batch materializations.[19][22][21]
+
+- **General**  
+  - Postgres, Oracle, and other RDBMS native materialized views; streaming/HTAP systems (e.g., Materialize, RisingWave, Flink SQL) that maintain continuous materialized views.[6][4]
+
+## Concise bullet summary (keywords & terms)
+
+- Materialized View = precomputed, persisted query result; specialized cache over raw data.[7][1]
+- Use for read-heavy, expensive queries, cross-entity joins, and CQRS read models.[2][1][4]
+- Related to CQRS, Event Sourcing, cache-aside, Consume & Project patterns.[12][8][2]
+- Azure: Cosmos DB + Change Feed, Data Explorer/Synapse materialized views, Functions/AKS projectors.[14][3][13][1]
+- AWS: Redshift materialized views, DynamoDB Streams + Lambda denormalized tables, Kinesis/Glue pipelines.[22][19][21]
+- Trade-offs: storage + complexity + eventual consistency vs faster reads and simpler query code.[11][1][4]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/materialized-view)
+[2](https://dev.to/bobur/querying-microservices-in-real-time-with-materialized-views-211c)
+[3](https://docs.azure.cn/en-us/data-explorer/kusto/management/materialized-views/materialized-view-use-cases?view=microsoft-fabric)
+[4](https://materialize.com/blog/why-use-a-materialized-view/)
+[5](https://www.reddit.com/r/microservices/comments/o9mj0b/querying_microservices_with_the_cqrs_and/)
+[6](https://risingwave.com/blog/top-3-materialized-view-examples-for-databases/)
+[7](https://learn.microsoft.com/en-gb/azure/architecture/patterns/materialized-view)
+[8](https://www.youtube.com/watch?v=0s3yjmJ0ksA)
+[9](https://microservices.io/patterns/data/cqrs.html)
+[10](https://appmaster.io/blog/cqrs-event-sourcing-microservices)
+[11](https://towardsdatascience.com/materialized-views-the-cost-effective-way-to-extract-insights-b4a066f85fb/)
+[12](https://www.youtube.com/watch?v=ydIHUxyczi4)
+[13](https://aadojo.alterbooth.com/entry/2024/04/15/100000)
+[14](https://www.youtube.com/watch?v=lfxtYtXuAGk)
+[15](https://docs.azure.cn/en-us/data-explorer/kusto/management/materialized-views/materialized-view-overview?view=microsoft-fabric)
+[16](https://dellenny.com/boosting-performance-with-the-materialized-view-pattern-in-azure/)
+[17](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)
+[18](https://multishoring.com/blog/building-scalable-event-driven-architectures-with-azure-event-grid-and-service-bus/)
+[19](https://stackoverflow.com/questions/78306102/create-materialized-view-in-redshift-using-kinesis-stream)
+[20](https://www.obstkel.com/redshift-materialized-views)
+[21](https://docs.aws.amazon.com/redshift/latest/dg/materialized-view-overview.html)
+[22](https://aws.amazon.com/blogs/database/build-a-cqrs-event-store-with-amazon-dynamodb/)
+[23](https://www.reddit.com/r/aws/comments/zyv5wq/event_sourcing_on_aws_in_2023_kinesis_vs_dynamodb/)
+[24](https://learn.microsoft.com/en-us/samples/azure-samples/cosmos-db-design-patterns/event-sourcing/)
+[25](https://stackoverflow.com/questions/57328269/join-data-in-cqrs-patterns-from-different-microservices)
+[26](https://www.hellointerview.com/learn/system-design/in-a-hurry/patterns)
+[27](https://www.youtube.com/watch?v=B8_CUfqCkxU)

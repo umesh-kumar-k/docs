@@ -1,0 +1,100 @@
+Distributed systems observability requires **context propagation** (TraceID/SpanID via HTTP headers/gRPC metadata) + **MELT instrumentation** across service boundaries using **OTel Java agent** (auto) or **manual spans** (`tracer.spanBuilder`), visualized via **Jaeger/Zipkin** (traces) + **Prometheus/Grafana** (metrics/logs) for service maps/root cause.[aelkz][baeldung][geeks] Senior architects deploy **service mesh** (Istio/Linkerd) or **OTel Collector** for uniform telemetry, trading overhead for end-to-end visibility in 100+ microservices.
+
+## Interview Summary
+**Stack**: OTel agent (`-javaagent`) → Collector (OTLP) → Jaeger (traces) + Prometheus (metrics) + Loki (logs) + Grafana (dashboards); **Propagation**: W3C TraceContext (`traceparent/tracesate`); **Patterns**: `@WithSpan`, `Context.current()`; **GitHub Demo**: Spring Boot + Camel + Vert.x + OpenShift (Prometheus/Grafana/Jaeger).[aelkz][baeldung]
+
+## Keywords & Patterns
+- **Instrumentation**: OTel Java agent (auto), `io.opentelemetry.api.Tracer`, `@WithSpan`.[baeldung]
+- **Propagation**: `traceparent:00-<traceId>-<spanId>-01`, `tracestate`, Baggage.[geeks]
+- **Spans**: Parent-child trees, `span.setAttribute("user.id", 123)`.[aelkz]
+- **Service Mesh**: Istio Envoy (auto sidecar tracing).[baeldung]
+- **Collector**: OTel gateway (batch/sample/export OTLP).[geeks]
+
+## Common Trade-offs + Questions
+OTel Agent: Zero-code/consistent vs perf overhead (5-10%); Manual spans: Granular vs maintenance; Jaeger: Rich UI vs Zipkin lightweight; Service mesh: Auto-tracing vs resource overhead; Full MELT: Complete vs cost explosion.[baeldung][geeks]
+
+**Example questions**:
+- Trace propagation? (HTTP headers: `traceparent/tracestate`).[baeldung]
+- OTel vs Zipkin? (Vendor-neutral vs legacy).[geeks]
+- High traffic sampling? (Head/tail-based).[aelkz]
+
+| Approach | Overhead | Consistency | Maintenance |
+|----------|----------|-------------|-------------|
+| OTel Agent | 5-10% | Auto | Zero [baeldung] |
+| Manual Spans | Low | Custom | High [geeks] |
+| Service Mesh | 10-20% | Auto | Infra [baeldung] |
+
+## Use Cases
+- **Microservices**: Jaeger service maps (100+ services).[aelkz]
+- **Troubleshooting**: Trace slow DB calls across services.[baeldung]
+- **SRE**: SLO tracking (Prometheus + traces).[geeks]
+- **On-call**: Correlated logs/metrics/traces (Grafana).[aelkz]
+
+## Big Tech Blogs & Efficiency Wins
+Netflix: OTel + Jaeger cut MTTR 70% across 1000+ microservices. Uber: Istio + Zipkin eliminated 80% tracing config drift. GitHub Demo: OpenShift + Prometheus/Jaeger standardized observability across frameworks (Spring/Camel/Vert.x).[aelkz][1][2]
+
+## Cheat-Sheet Q&A
+**Q: Context propagation?** A: `traceparent:00-<traceId>-<spanId>-01` (W3C).[baeldung]  
+**Q: OTel Java agent?** A: `-javaagent:opentelemetry-javaagent.jar` (auto Spring).[aelkz]  
+**Q: Span attributes?** A: `span.setAttribute("db.query", sql)`.[baeldung]  
+**Q: Sampling strategies?** A: Always/Parent/TraceID ratio.[geeks]  
+**Q: Service mesh tracing?** A: Istio Envoy sidecar (auto headers).[baeldung]
+
+## Tools/Frameworks
+- **Instrumentation**: OTel Java agent, Micrometer Tracing (Spring).[baeldung]
+- **Traces**: Jaeger (CNCF), Zipkin, Tempo (Grafana).[aelkz]
+- **Metrics**: Prometheus + Grafana.[aelkz]
+- **Logs**: Loki/ELK.[geeks]
+- **Mesh**: Istio/Linkerd (auto).[baeldung]
+- **Demo**: OpenShift + Prometheus Operator + Jaeger all-in-one.[aelkz]
+
+## Data Structures & Algorithms
+**Trace Trees**: Span DAG (parent-child), flame graphs. **Sampling**: Probabilistic (ratio), tail-based (post-collect). **Correlation**: TraceID joins (logs/metrics). **Service Maps**: Graph algorithms (dependencies). **Anomaly**: Isolation Forest (latency).[baeldung][geeks]
+
+## Key Highlights & Tradeoffs
+**OTel Agent**: Zero-code across services vs perf tax  
+**Jaeger**: Rich querying vs Zipkin simplicity  
+**Service Mesh**: Auto-propagation vs sidecar overhead  
+**GitHub Demo**: Real polyglot (Spring/Camel/Vert.x)  
+
+**Interviews**: "OTel agent → Jaeger traces + Prometheus metrics + Grafana dashboards"
+
+## Concise Keywords Summary
+- Distributed Tracing, Context Propagation (traceparent/tracestate)
+- OTel Java Agent (`-javaagent`), `@WithSpan`, Micrometer Tracing
+- Jaeger (CNCF), Zipkin, Tempo, Prometheus, Grafana/Loki
+- Service Mesh (Istio), Span Trees, Sampling (Head/Tail)
+- MELT Correlation, Flame Graphs, Service Maps, OpenShift Demo
+
+[1](https://netflixtechblog.com)
+[2](https://www.systemdesignhandbook.com/guides/uber-system-design-interview/)
+[3](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/observability-prgrja-example)
+[4](https://www.linkedin.com/posts/manish-kumar-00562b28_unifying-logs-metrics-traces-the-power-activity-7317442439655395329-t3tt)
+[5](https://razorops.com/blog/top-50-monitoring-and-observality-interview-questions-and-answers/)
+[6](https://www.designgurus.io/answers/detail/how-do-you-implement-observability-in-microservices)
+[7](https://www.youtube.com/watch?v=vRdAVJGYHRc)
+[8](https://lumigo.io/what-is-distributed-tracing/zipkin-with-spring-boot-distributed-tracing-for-spring-apps/)
+[9](https://www.acte.in/grafana-interview-questions-and-answers)
+[10](https://microservices.io/patterns/observability/distributed-tracing.html)
+[11](https://dev.to/guilhermesiqueira/unlocking-open-source-observability-opentelemetry-prometheus-thanos-grafana-jaeger-and-opensearch-fa7)
+[12](https://www.youtube.com/watch?v=jx_-0qfn-hc)
+[13](https://dev.to/ankitdevcode/observability-part-2-metrics-dashboards-with-prometheus-and-grafana-fib)
+[14](https://www.youtube.com/watch?v=k7UbEMXapNk)
+[15](https://blog.devops.dev/interview-questions-monitoring-observability-tools-606c4a7d3175)
+[16](https://www.geeksforgeeks.org/advance-java/spring-cloud-tracing-services-with-zipkin/)
+[17](https://logit.io/blog/post/observability-interview-questions/)
+[18](https://www.youtube.com/watch?v=dgp1cDBRzSY)
+[19](https://docs.spring.io/spring-boot/reference/actuator/tracing.html)
+[20](https://zipkin.io)
+[21](https://www.reddit.com/r/SpringBoot/comments/171mq0f/distributed_tracing_in_spring_boot/)
+[22](https://www.youtube.com/watch?v=_enrAXR8Hck)
+[23](https://www.jaegertracing.io)
+[24](https://grafana.com/blog/2022/04/26/set-up-and-observe-a-spring-boot-application-with-grafana-cloud-prometheus-and-opentelemetry/)
+[25](https://www.infracloud.io/blogs/tracing-grafana-tempo-jaeger/)
+[26](https://last9.io/blog/distributed-tracing-with-spring-boot/)
+[27](https://www.javacodegeeks.com/2025/04/opentelemetry-with-spring-boot-modern-distributed-tracing.html)
+[28](https://openliberty.io/guides/microprofile-telemetry-jaeger.html)
+[29](https://uptrace.dev/tools/distributed-tracing-tools)
+[30](https://tech.licious.com/observability-distributed-tracing-with-opentelemetry-part-1-9643f6431a08)
+[31](https://opentelemetry.io/docs/demo/architecture/)
+[32](https://signoz.io/blog/distributed-tracing-tools/)

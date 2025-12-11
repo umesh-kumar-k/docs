@@ -1,0 +1,50 @@
+Microservices integration testing verifies service interactions without full end-to-end fragility using contract tests, component isolation, and real dependencies via containers.[1][2]
+
+## Key Patterns
+Consumer-driven contracts (Pact) define provider-consumer APIs; component tests spin up single services with Testcontainers for DB/message queues.  Service virtualization mocks external deps; integration in CI/CD with can-i-deploy gates; mutation testing validates test coverage.[2][3][4][1]
+
+## Use Cases & Tools
+E-commerce tests payment-inventory flows without real prod DBs; streaming validates recommendation API contracts pre-deploy.  Tools: Pact Broker for contract sharing, Testcontainers for Dockerized deps (Postgres/Kafka), WireMock for HTTP mocks, Cucumber for BDD, ArchUnit for architectural tests, Jenkins/GitHub Actions for pipelines.[3][5][6][2]
+
+Big tech refs: Netflix Spinnaker pipelines with contract testing accelerating safe deploys (netflixtechblog.com); Spotify Backstage golden paths standardizing tests across squads (eng.uber.com patterns).[7][8]
+
+## Trade-offs & Questions
+Contract tests catch API breaks fast but miss impl bugs; Testcontainers add spin-up time (30s+) vs mocks' instant but fake realism.  E2E tests validate full flows yet flake on deps—limit to critical paths.[9]
+
+- Contract vs integration? (Contract: API shape; integration: full stack incl DB)[1]
+- Pact flow? (Consumer generates contract → provider verifies in CI)[3]
+- Testcontainers vs in-memory? (Real deps for accuracy, slower)[6]
+
+## Cheat-Sheet Q&A
+**Q: Consumer-driven contract?** A: Consumer specs expectations, provider verifies[1]
+**Q: Can-i-deploy?** A: Pact Broker gate before promotion[3]
+**Q: Test pyramid shift?** A: More unit/component, fewer E2E[4]
+**Q: Service virtualization?** A: Mock external APIs (WireMock)[2]
+**Q: Mutation testing?** A: Kill mutants to validate test strength[2]
+
+## Data Structures & Algorithms
+Graphs model service deps (BFS for test order, cycles detection); queues simulate async events. Hashmaps cache contracts; topological sort sequences parallel tests.
+
+## Concise Keywords Summary
+- ConsumerDrivenContract, PactBroker, Testcontainers, ComponentTesting, ServiceVirtualization, CanIDeploy, TestPyramid, WireMock, ArchUnit, MutationTesting, IntegrationContractTest, DockerComposeDeps, CI/CDGates, BoundedContextTests[1][2][3]
+
+[1](https://microservices.io/patterns/testing/service-integration-contract-test.html)
+[2](https://vfunction.com/blog/microservices-testing/)
+[3](https://pact.io)
+[4](https://martinfowler.com/articles/microservice-testing/)
+[5](https://openliberty.io/guides/contract-testing.html)
+[6](https://openliberty.io/guides/testcontainers.html)
+[7](https://www.netguru.com/blog/scaling-microservices)
+[8](https://netflixtechblog.com/tagged/microservices)
+[9](https://www.techtarget.com/searchapparchitecture/tip/Why-contract-testing-can-be-essential-for-microservices)
+[10](https://www.cigniti.com/blog/microservices-architecture-testing-strategies/)
+[11](https://www.geeksforgeeks.org/system-design/types-of-microservices-testing/)
+[12](https://microservices.io/patterns/microservices.html)
+[13](https://www.logicmonitor.com/blog/what-are-microservices)
+[14](https://github.com/Devinterview-io/microservices-interview-questions)
+[15](https://www.datacamp.com/blog/microservices-interview-questions)
+[16](https://technology.discover.com/posts/end-to-end-contract-testing)
+[17](https://www.cortex.io/post/an-overview-of-the-key-microservices-testing-strategies-types-of-tests-the-best-testing-tools)
+[18](https://www.secondtalent.com/interview-guide/unit-testing/)
+[19](https://www.index.dev/blog/component-contract-testing-microservices)
+[20](https://www.reddit.com/r/softwaretesting/comments/152rpdc/proper_way_to_integration_test_in_microservices/)

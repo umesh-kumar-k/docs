@@ -1,0 +1,51 @@
+Microservices security addresses authentication, authorization, and data protection across distributed services using layered patterns like edge gateways and service meshes.[1]
+
+## Key Patterns
+Edge-level authorization centralizes checks at API gateways with coarse policies, while service-level uses PDP/PEP models: decentralized (code-level), centralized single PDP (remote decisions), or embedded PDP (local policy cache).  Identity propagation employs signed structures like Netflix's "Passport" (HMAC-protected user context) over raw tokens; service-to-service uses mTLS or token-based auth.  Logging follows stdout-to-agent-to-broker for resilience, with correlation IDs and sanitization.[2][1]
+
+## Use Cases & Tools
+E-commerce enforces per-service RBAC for orders/inventory; streaming secures user personalization via propagated identity.  Tools: Keycloak/OPA for centralized authz, Istio service mesh for mTLS/authorization policies, Spring Security OAuth2/JWT, Kong API Gateway, Fluentd/Fluent Bit for logging to Kafka/ELK.[3][4][2][1]
+
+Big tech refs: Netflix TechBlog on Passport for identity propagation and OPA-embedded PDP scaling authorization across 1000s of services (netflixtechblog.com); AWS on mTLS in EKS for secure inter-pod comms improving auditability.[5][6][7]
+
+## Trade-offs & Questions
+Embedded PDP cuts latency vs remote PDP's HA needs but risks stale policies; mTLS excels in trust but burdens key rotation vs tokens' simplicity.  OAuth2 scales delegation but adds token validation overhead.[1]
+
+- PDP vs PEP roles? (PDP decides, PEP enforces)[1]
+- Edge-only authz risks? (Bypass, single failure; mitigate with mTLS)[1]
+- Passport vs JWT propagation? (Passport internal-only, token-agnostic)[5]
+
+## Cheat-Sheet Q&A
+**Q: Recommended service auth?** A: mTLS for mutual identity + TLS encryption[1]
+**Q: Logging flow?** A: Microservice stdout → agent → broker (Kafka) → central[1]
+**Q: Identity propagation?** A: Edge signs "Passport" with user claims, propagates internally[1]
+**Q: Defense in depth?** A: Gateway coarse + service fine + code-specific[1]
+**Q: Token validation?** A: Offline (local key) for low-latency, online for revocation[1]
+
+## Data Structures & Algorithms
+Graphs model service call chains for anomaly detection (BFS/DFS traversal); JWT claims use JSON trees for policy evaluation.  Caching employs LRU (hashmap + doubly-linked list) for PDP decisions; Bloom filters approximate token revocation checks to minimize DB hits.[2][1]
+
+## Concise Keywords Summary
+- PDP/PEP/PAP/PIP, EmbeddedPDP, EdgeAuthorization, mTLS, OAuth2JWT, PassportNetflix, ServiceMeshIstio, KeycloakOPA, CorrelationID, DefenseInDepth, RBACRBAC, LoggingAgentBroker, XACMLNGAC, BulkheadCircuitBreaker[2][5][1]
+
+[1](https://dev.to/vijayskr/advanced-spring-boot-concepts-every-java-developer-should-know-4j9g)
+[2](https://daily.dev/blog/microservices-security-best-practices-and-patterns)
+[3](https://prepare.sh/articles/keycloak-in-the-service-mesh-securing-microservices-communication-with-istio-integration)
+[4](https://www.linkedin.com/pulse/secure-spring-boot-microservices-best-practices-strategies-singh-74dzf)
+[5](https://www.youtube.com/watch?v=eEZHZ806d6o)
+[6](https://www.youtube.com/watch?v=R6tUNpRpdnY)
+[7](https://netflixtechblog.com)
+[8](https://netflixtechblog.com/tagged/microservices)
+[9](https://www.techaheadcorp.com/blog/design-of-microservices-architecture-at-netflix/)
+[10](https://microservices.io/patterns/microservices.html)
+[11](https://aws.amazon.com/microservices/)
+[12](https://gotowebsecurity.com/securely-building-spring-boot-microservices-best-practices-and-guidelines/)
+[13](https://www.simplilearn.com/microservices-interview-questions-article)
+[14](https://www.netguru.com/blog/cloud-native-patterns-examples)
+[15](https://www.javacodegeeks.com/2024/08/mastering-microservices-tricky-interview-questions-and-answers.html)
+[16](https://istio.io/latest/docs/concepts/security/)
+[17](https://blog.dreamfactory.com/microservices-examples)
+[18](https://cheatsheetseries.owasp.org/cheatsheets/Microservices_based_Security_Arch_Doc_Cheat_Sheet.html)
+[19](https://arxiv.org/pdf/2009.02114.pdf)
+[20](https://www.interviewbit.com/microservices-interview-questions/)
+[21](https://www.opensourcerers.org/2023/04/17/how-to-secure-microservice-applications-with-role-based-access-control-5-7/)

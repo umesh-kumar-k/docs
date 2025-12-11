@@ -1,0 +1,50 @@
+Microservices commandments enforce loose coupling, autonomy, and resilience through principles like single responsibility, no shared persistence, and self-discovery to avoid distributed monoliths.[1][2]
+
+## Key Patterns
+Stateless services with dedicated DBs per service; lightweight async messaging (gRPC/Kafka) over shared libs; self-registration via Consul/Eureka; explicit policy checks at boundaries; polyglot stacks with independent CI/CD pipelines.  IDEALS framework: Interface segregation, Deployability, Event-driven, Availability>Consistency, Loose-coupling, Single responsibility.[2][3][1]
+
+## Use Cases & Tools
+E-commerce isolates payments/inventory DBs for independent scaling; Netflix applies commandments post-2008 outage for 700+ resilient services.  Tools: Docker/Kubernetes for isolation, Consul for discovery, Kafka for events, Istio for traffic/policy enforcement, ArgoCD for GitOps deploys.[4][5][6][2]
+
+Big tech refs: Netflix TechBlog on commandments enabling chaos-safe deploys (netflixtechblog.com); Uber Eng on polyglot + no-affinity cutting scaling pains (eng.uber.com).[5][6]
+
+## Trade-offs & Questions
+Polyglot boosts fit but spikes ops tooling; event-driven ensures availability yet complicates debugging vs sync—use traces.  No shared DBs prevent coupling but demand sagas for consistency.[3][2]
+
+- Shared DB risks? (Coupling kills autonomy, single failure)[1]
+- Polyglot vs monostack? (Fit-for-purpose vs uniform tooling)[1]
+- Stateless enforcement? (Externalize sessions to Redis/Kafka)[2]
+
+## Cheat-Sheet Q&A
+**Q: Commandment 1?** A: Stateless/stateful separation[1]
+**Q: No shared libs?** A: Dependency hell avoided[1]
+**Q: Self-registration?** A: Eureka/Consul dynamic discovery[1]
+**Q: IDEALS core?** A: Interface/Deploy/Event/Avail/Loose/Single[3]
+**Q: Polyglot benefit?** A: Best tool per domain[1]
+
+## Data Structures & Algorithms
+Consistent hashing for service discovery rings; graphs for dependency mapping (topo sort deploys); CRDTs for eventual consistency. Bloom filters optimize policy caches.
+
+## Concise Keywords Summary
+- StatelessServices, DBPerService, NoSharedLibs, SelfDiscoveryEureka, LightweightMessaging, PolyglotStacks, SingleResponsibility, IDEALSFramework, EventDriven, AvailabilityFirst, CircuitBreakers, ChaosEngineering, GitOpsArgoCD, BoundedContexts[2][3][1]
+
+[1](https://dev.to/kgoralski/deep-dive-into-microservices-architecture-h54)
+[2](https://www.geeksforgeeks.org/system-design/10-microservices-design-principles-that-every-developer-should-know/)
+[3](https://www.infoq.com/articles/microservices-design-ideals/)
+[4](https://group107.com/blog/microservices-architecture-best-practices/)
+[5](https://dev.to/vincenttommi/mastering-microservices-lessons-from-netflixs-journey-on-aws-3b7n)
+[6](https://blog.dreamfactory.com/microservices-examples)
+[7](https://www.linkedin.com/pulse/ten-commandments-microservices-janakiram-msv)
+[8](http://javaonfly.blogspot.com/2021/02/10-commandments-on-microservice.html)
+[9](https://www.felipepolo.me/ten-commandments-changing-microservice/)
+[10](https://dl.thenewstack.io/ebooks/TheNewStack_GuideToCloudNativeMicroservices.pdf)
+[11](https://www.sayonetech.com/blog/principles-of-microservice-architecture/)
+[12](https://www.netguru.com/blog/scaling-microservices)
+[13](https://nubenetes.com/faq/)
+[14](https://www.sayonetech.com/blog/5-microservices-examples-amazon-netflix-uber-spotify-and-etsy/)
+[15](https://javarevisited.substack.com/p/10-rules-that-made-our-microservices)
+[16](https://foojay.io/today/microservices-design-principles-for-well-crafted-architecture/)
+[17](https://www.hys-enterprise.com/blog/why-and-how-netflix-amazon-and-uber-migrated-to-microservices-learn-from-their-experience/)
+[18](https://www.linkedin.com/posts/the-new-stack_how-to-fail-at-microservices-activity-7258097561486401538-EDi1)
+[19](https://www.virtuosoqa.com/post/the-7-principles-of-microservices)
+[20](https://chaordic.io/blog/microservices-principles-pitfalls-to-avoid-pain/)

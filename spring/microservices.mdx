@@ -1,0 +1,51 @@
+Spring Boot modules enable building loosely coupled microservices through auto-configuration, embedded servers, and starters for REST, JPA, and discovery integration.[1][2]
+
+## Advanced Concepts
+Spring microservices leverage Spring Cloud for service discovery (Eureka), config management, and resilience patterns like circuit breakers.  Advanced topics include reactive programming with WebFlux for non-blocking I/O, event-driven architecture via Spring Cloud Stream with Kafka/RabbitMQ binders, and containerization with Docker/Kubernetes for orchestration.[2][1]
+
+## Key Classes, Interfaces, Configurations
+Controllers use `@RestController` with `@GetMapping` for endpoints; services autowire `@Repository` interfaces extending `JpaRepository<Entity, ID>`.  Configurations include `@SpringBootApplication`, `@EnableDiscoveryClient` for Eureka, `application.yml` with `spring.datasource.url` and `eureka.client.serviceUrl.defaultZone`.  ModelMapper `@Bean` handles DTO mapping; `@Configuration` defines custom beans like services.[1][2]
+
+| Component | Spring Class/Interface/Config |
+|-----------|-------------------------------|
+| Data Layer | `JpaRepository`, `@Entity`, `spring.datasource.*` [2] |
+| API Layer | `@RestController`, `@RequestMapping` [2] |
+| Discovery | `@EnableDiscoveryClient`, `eureka.client.*` [1] |
+| Config | `@Configuration`, `@Bean`, `ModelMapper` [2] |
+
+## Interview Summary
+Spring Boot simplifies microservices via starters (`spring-boot-starter-web`, `-data-jpa`) and actuators for health checks, enabling 12-factor apps with externalized config.  Senior architects discuss scaling via Kubernetes, observability with Micrometer/Prometheus, and inter-service communication (REST/gRPC/events). Know how `@EnableAutoConfiguration` reduces boilerplate while `@EntityScan`/`@EnableJpaRepositories` scans for domain models.[2][1]
+
+## Keywords & Patterns
+- **Core**: `@SpringBootApplication`, `@RestController`, `JpaRepository`
+- **Data**: `@Entity`, `@Id @GeneratedValue`, ModelMapper DTO
+- **Discovery**: `@EnableDiscoveryClient`, `RestTemplate @LoadBalanced`
+- **Config**: `application.yml`, `@Configuration @Bean`, `spring.profiles.active`
+- **Resilience**: CircuitBreaker (Resilience4j), Retry, Bulkhead
+- **Observability**: Actuator `/health`, Micrometer, Spring Boot Admin
+- **Patterns**: Single Responsibility, API Gateway, Database-per-Service, Saga[1][2]
+
+## Trade-offs & Questions
+Embedded Tomcat speeds dev but limits custom server tweaks; JPA eases CRUD but hinders NoSQL sharding.  Monolith-to-microservices migration boosts scalability yet spikes ops complexity—use strangler pattern.[2]
+
+- How does `@LoadBalanced RestTemplate` resolve service URLs? (Via Ribbon/Eureka lookup)[1]
+- JPA vs native queries? (JPA for portability, native for perf)[2]
+- Sync REST vs async Kafka? (REST for request-response, Kafka for high-throughput events)[1]
+
+## Use Cases & Tools
+E-commerce splits inventory/orders into services for independent scaling; finance uses per-service DBs for isolation.  Tools: Spring Initializr, Docker Compose, Kubernetes Helm charts, Prometheus/Grafana, Postman for API testing, Maven/Gradle BOMs.[2][1]
+
+Big tech refs: Netflix Tech Blog on Spring Boot for streaming resilience (netflixtechblog.com), Pivotal (VMware) on microservices patterns improving deploy velocity.[1]
+
+## Cheat-Sheet Q&A
+**Q: Enable JPA repos?** A: `@EnableJpaRepositories(basePackages="...")`[2]
+**Q: Multi-profile config?** A: `spring.profiles.active=dev` in `application-dev.yml`[1]
+**Q: Health endpoint?** A: Add `spring-boot-starter-actuator`; hit `/actuator/health`[1]
+**Q: DTO mapping?** A: `@Bean public ModelMapper modelMapper() { return new ModelMapper(); }`[2]
+**Q: Service discovery URL?** A: `eureka.client.serviceUrl.defaultZone=http://localhost:8761/eureka/`[1]
+
+## Concise Keywords Summary
+- SpringBootApplication, RestController, JpaRepository, EnableDiscoveryClient, LoadBalanced RestTemplate, EntityScan, application.yml, ModelMapper, ActuatorHealth, DockerKubernetes, MicrometerPrometheus, CloudStreamKafka, DatabasePerService, SagaPattern[2][1]
+
+[1](https://dev.to/vijayskr/advanced-spring-boot-concepts-every-java-developer-should-know-4j9g)
+[2](https://www.linkedin.com/posts/eng-omar-ismail_advanced-spring-boot-concepts-every-java-activity-7278840680498532352-Ffxm)

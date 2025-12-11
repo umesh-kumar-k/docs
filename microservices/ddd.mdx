@@ -1,0 +1,122 @@
+Azure microservices domain modeling applies Domain‑Driven Design (DDD) to identify the right service boundaries, so each microservice “does one thing well” and aligns tightly with a business capability.[1][2]
+
+## Use cases and key patterns
+
+- **Use cases**  
+  - Complex domains (e‑commerce, logistics, fintech, IoT, SaaS platforms) where incorrect boundaries cause chatty services, duplicated logic, and hard‑to‑evolve systems.[3][4][1]
+  - Migrating monoliths to microservices by decomposing into subdomains and bounded contexts instead of arbitrary technical slices.[2][5]
+
+- **Key domain‑modeling steps (Azure guidance)**  
+  - Analyze the domain with business experts to build a **domain model** and ubiquitous language.[4][1]
+  - Define **bounded contexts**: coherent subdomains (e.g., Orders, Billing, Fleet Management) that each own their own model.[1][2]
+  - Within each bounded context, define **entities, value objects, aggregates, domain services** (tactical DDD).[6][1]
+  - Identify microservices: in general, a microservice should not cross a bounded context boundary.[7][2]
+
+## Related design patterns
+
+- **DDD strategic patterns** – Bounded Contexts, Context Map, Core/Supporting/Generic subdomains to prioritize where to invest and how services relate.[5][4][1]
+- **DDD tactical patterns** – Entities, Value Objects, Aggregates, Domain Services, Repositories inside each microservice.[8][9][6]
+- **Microservice patterns** – Database per Service, Saga/Compensating Transactions, CQRS, Event Sourcing, and Anti‑corruption Layer to integrate between contexts.[10][11][4]
+
+Mention explicitly: “Start from DDD (strategic + tactical), then map bounded contexts to microservices and use Saga/CQRS/etc. between them.”[6][2][1]
+
+## Azure vs AWS implementation
+
+- **Azure (DDD‑oriented microservices)**  
+  - Azure guidance uses a “Drone Delivery” example to show: domain analysis → bounded contexts (e.g., Scheduling, Drone Management, Accounts) → aggregates/services → microservice boundaries.[2][1]
+  - Implementation:  
+    - One microservice per bounded context (or per major part of it), hosted on AKS/Container Apps/App Service.[12][13]
+    - Each service owns its data store (Cosmos DB, Azure SQL, Storage, etc.).[10][12]
+    - Context boundaries enforced via APIs and messaging (Service Bus/Event Grid) rather than shared tables.[14][10]
+
+- **AWS (DDD‑aligned microservices)**  
+  - AWS Well‑Architected and Prescriptive Guidance recommend building services around **business domains and bounded contexts**, mirroring Azure’s approach.[15][16][5]
+  - Implementation:  
+    - Services per domain/subdomain hosted on ECS/EKS/Lambda.[17][15]
+    - Domain‑based data ownership with DynamoDB/RDS etc. per service.[15][17]
+    - Domain events and async integration via SNS/SQS/EventBridge.[17][15]
+
+The modeling approach (DDD, bounded contexts) is cloud‑agnostic; Azure and AWS differ mainly in service names.[18][1][15]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: What is domain modeling for Azure microservices?**  
+A: It’s applying DDD (strategic + tactical) to design microservices so each service aligns with one bounded context, has a cohesive domain model, and maps directly to a business capability.[1][6][2]
+
+**Q2: Why start with domain modeling instead of cutting by technical layers?**  
+A: Slicing by UI/DB/“CRUD” leads to tight coupling and cross‑cutting changes; slicing by business domains and bounded contexts gives autonomy, clearer ownership, and better change isolation.[19][3][1]
+
+**Q3: What are bounded contexts and how do they relate to microservices?**  
+A: A bounded context defines where a particular domain model applies; usually, one microservice maps to one bounded context (or a coherent part of it) and never mixes models from multiple contexts.[4][2][1]
+
+**Q4: Which tactical DDD patterns matter per microservice?**  
+A: Entities and value objects model state; aggregates define consistency boundaries; domain services hold domain logic not naturally belonging to an entity; repositories encapsulate persistence.[9][8][6]
+
+**Q5: How is this implemented on Azure?**  
+A: Do domain analysis → define bounded contexts → assign each to one or more services on AKS/App Service → give each its own data store (Cosmos/SQL) → coordinate cross‑context workflows via messaging (Service Bus/Event Grid) using Saga/CQRS where needed.[12][2][10][1]
+
+**Q6: How would you do a similar DDD‑based design on AWS?**  
+A: Apply the same DDD process, then implement each bounded context as services on ECS/EKS/Lambda with their own DBs (DynamoDB/RDS), and integrate via SNS/SQS/EventBridge; use Saga/Event Sourcing/CQRS patterns for cross‑context flows.[16][5][15][17]
+
+**Q7: How do you know if a microservice boundary is wrong?**  
+A: Symptoms: services frequently change together, excessive synchronous chatty calls, shared database tables across services, or mixing different domain concepts in one service.[7][3][2]
+
+**Q8: How do you decompose a monolith using DDD?**  
+A: Discover subdomains (core/supporting/generic), define bounded contexts, map existing modules to these contexts, then incrementally carve them out as independent services (often using Strangler Fig).[20][5][4]
+
+**Q9: What interview‑level trade‑offs should you mention?**  
+A: Upfront modeling effort and need for close business collaboration vs. long‑term benefits in evolvability, clear ownership, independent scaling, and reduced coupling; over‑fine boundaries can create unnecessary complexity.[15][4][1]
+
+**Q10: What’s a strong example answer?**  
+A: “For a ride‑sharing system, run domain analysis to identify contexts like Trips, Payments, Drivers, and Pricing; each becomes its own bounded context and microservice, with separate data and APIs; cross‑context flows (trip lifecycle) are handled with Sagas and domain events on Service Bus/EventBridge.”[2][1][15]
+
+## Data structures and algorithms
+
+- **Data structures**  
+  - Domain model objects: entities and value objects capturing domain concepts per bounded context.[6][1]
+  - Aggregate roots enforcing invariants and acting as transactional boundaries inside a service.[8][6]
+  - Context maps and relationship diagrams (e.g., Customer Management ↔ Billing ↔ Shipping) to visualize bounded contexts and their integrations.[4][1]
+
+- **Algorithms / techniques**  
+  - No special low‑level algorithms; focus is on **partitioning and consistency**:  
+    - Designing aggregates for invariants with simple transactional updates.[6]
+    - Using Sagas and event‑driven workflows for cross‑aggregate/context processes.[11][5]
+    - Applying decomposition heuristics (e.g., by subdomain, by change/failure coupling) to refine boundaries iteratively.[2][15]
+
+Interview emphasis should be on modeling and partitioning logic, not on complex DS/Algo.[1][2]
+
+## Concise bullet summary (keywords & terms)
+
+- Domain‑Driven Design (DDD): **strategic DDD** (subdomains, bounded contexts, context maps) + **tactical DDD** (entities, value objects, aggregates, domain services, repositories).[3][1][6]
+- Bounded context as natural microservice boundary; microservice should rarely span multiple contexts.[4][2]
+- Azure: domain analysis → bounded contexts → microservice boundaries → AKS/App Service/Functions + per‑service data (Cosmos/SQL) + Service Bus/Event Grid integration.[14][10][12][1]
+- AWS: same DDD modeling → ECS/EKS/Lambda services per domain → per‑service data (DynamoDB/RDS) → SNS/SQS/EventBridge for events and workflows.[5][16][17][15]
+- Related patterns: Database per Service, Saga/Compensating Transaction, CQRS, Event Sourcing, Anti‑corruption Layer, Strangler Fig for migration.[11][20][10][4]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/microservices/model/domain-analysis)
+[2](https://learn.microsoft.com/en-us/azure/architecture/microservices/model/microservice-boundaries)
+[3](https://www.sayonetech.com/blog/domain-driven-design-microservices/)
+[4](https://www.einfochips.com/blog/micromigrate-unveiling-the-journey-from-monolith-to-microservices-with-domain-driven-design/)
+[5](https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-decomposing-monoliths/decompose-subdomain.html)
+[6](https://learn.microsoft.com/en-us/azure/architecture/microservices/model/tactical-ddd)
+[7](https://www.tatvasoft.com/blog/azure-microservices/)
+[8](https://www.java-success.com/10-domain-driven-design-e-ddd-interview-questions-answers/)
+[9](https://roshancloudarchitect.me/implementing-domain-driven-design-ddd-in-microservices-with-net-core-f27ab380f39b?gi=5bb3d4bd8629)
+[10](https://learn.microsoft.com/en-us/azure/architecture/microservices/design/patterns)
+[11](https://microservices.io/patterns/data/saga.html)
+[12](https://docs.particular.net/architecture/azure/microservices)
+[13](https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks-microservices/aks-microservices)
+[14](https://dev.to/dazevedo/bounded-contexts-with-azure-service-bus-scaling-domain-driven-design-4d89)
+[15](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_service_architecture_business_domains.html)
+[16](https://ddd.mikaelvesavuori.se/strategic-ddd/setting-boundaries)
+[17](https://docs.aws.amazon.com/pdfs/whitepapers/latest/microservices-on-aws/microservices-on-aws.pdf)
+[18](https://www.reddit.com/r/aws/comments/azpfgn/best_practices_at_designing_microservices_based/)
+[19](https://microservices.io/patterns/microservices.html)
+[20](https://microservices.io/post/refactoring/2023/06/21/strangler-fig-application-pattern-incremental-modernization-to-services.md.html)
+[21](https://github.com/microsoftdocs/architecture-center/blob/main/docs/microservices/model/domain-analysis.md)
+[22](https://qiita.com/get-latest-information/items/5da2088e952c2562347f)
+[23](https://jonathandotchin.github.io/resources/2018-05-11-Defining-Microservices-Boundaries/References/Designing,%20building,%20and%20operating%20microservices%20on%20Azure.pdf)
+[24](https://dzfweb.gitbooks.io/microsoft-microservices-book/content/architect-microservice-container-applications/identify-microservice-domain-model-boundaries.html)
+[25](https://stackoverflow.com/questions/74941494/microservices-communication-within-bounded-context)
+[26](https://www.simplilearn.com/microservices-interview-questions-article)
+[27](https://www.uber.com/en-IN/blog/microservice-architecture/)

@@ -1,0 +1,144 @@
+The Circuit Breaker pattern stops your code from repeatedly calling an unhealthy dependency by “tripping” after enough failures and failing fast until the dependency shows signs of recovery.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Protecting microservices or databases that are slow, flaky, or under outage so callers don’t pile up threads waiting on timeouts, causing cascading failures.[3][1]
+  - Third‑party APIs with rate limits or intermittent faults where retries alone would amplify load and cost.[4][5]
+
+- **Core behavior (states & flow)**  
+  - **Closed**: Normal operation; all calls go through; failures are counted in a sliding window.[2][1]
+  - **Open**: Failure threshold exceeded; new calls fail fast (or go to fallback) for a cool‑down period; no calls hit the dependency.[6][1][2]
+  - **Half‑open**: After timeout, allow a limited number of “probe” calls; if they succeed, move back to Closed and reset counters; if they fail, go back to Open.[1][2]
+
+Typical configuration knobs: failure‑rate threshold, rolling window size, wait duration in Open, permitted calls in Half‑open, and call timeout.[7][2][1]
+
+## Related design patterns
+
+- **Bulkhead**: isolates resources per dependency (separate pools); used with Circuit Breaker so only the failing dependency’s compartment degrades.[8][9]
+- **Retry + Backoff**: retries transient failures but must be bounded and combined with Circuit Breaker to avoid retry storms.[5][6]
+- **Rate Limiter**: limits incoming requests globally; Circuit Breaker is dependency‑specific and failure‑aware.[5][3]
+- **Fallback / Graceful Degradation**: often wired into Circuit Breaker to return cached data, default responses, or route to a simpler backup service when Open.[10][6]
+
+Mention the trio “Circuit Breaker + Bulkhead + Retry with backoff” as a standard resilience stack in system design interviews.[11][8]
+
+## Azure vs AWS implementation
+
+- **Azure (Azure Architecture Center + ecosystem)**  
+  - Pattern guidance: wrap calls from an App Service / Function / AKS pod to dependencies (e.g., Cosmos DB, other APIs) with a Circuit Breaker library.[12][1]
+  - No first‑class Circuit Breaker service; typical options:  
+    - **Resilience4j / Polly / .NET HttpClient handlers** in code (App Service, Functions, AKS).[13][1]
+    - Azure Front Door / API Management focus mostly on timeouts and retries; Circuit Breaker logic usually lives in the application or in a service mesh (Istio/Linkerd on AKS).[14][6]
+  - Azure docs emphasize: configure thresholds so occasional transient failures don’t open the circuit; use App Insights to monitor state transitions and failure rates.[15][6][1]
+
+- **AWS (Prescriptive + blogs)**  
+  - Pattern usually implemented in code or orchestration:  
+    - Libraries inside ECS/EKS/Lambda (e.g., Resilience4j, custom wrappers) making calls to RDS, DynamoDB, or external APIs.[16][2]
+    - Serverless variant: use Step Functions with Catch/Retry and fallback states to act as a “circuit breaker” in workflows: after N failures, route to a fallback or pause calls.[17]
+    - App Mesh / Envoy provide outlier detection and connection limits that behave similarly to Circuit Breakers at the network layer.[18]
+  - AWS Builders / TechOps examples show storing breaker state in DynamoDB or cache for shared Lambda instances, and using DLQs or flags to stop calling downstream when unhealthy.[2][16][17]
+
+Across both clouds: concept is identical; difference is whether you implement it in code (most common), workflow (Step Functions/Durable Functions), or mesh (Istio/App Mesh/Envoy).
+
+## Big‑company / blog style references
+
+- **Azure Architecture Center**: canonical explanation of Circuit Breaker with diagrams, emphasizing protection of cloud apps calling remote services like Cosmos DB.[1]
+- **Azure + community content**: LinkedIn Learning, Azure design‑pattern blogs, and Durable Functions examples show serverless circuit breakers around queue processing and APIs.[19][15][6]
+- **AWS & general practice**: blogs on “strong serverless architecture” and AWS TechOps examples show using Circuit Breakers with Step Functions, Lambda, and caches to avoid hammering degraded dependencies.[17][2]
+
+These are good to cite when you’re asked who actually uses this pattern.
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One‑line definition?**  
+A: Circuit Breaker is a fault‑tolerance pattern that stops sending requests to a failing dependency after a threshold is reached, fails fast for a while, and then periodically tests if the dependency has recovered.[3][2][1]
+
+**Q2: Why is it important in microservices?**  
+A: It prevents cascading failures and thread exhaustion when one service or database slows or goes down, keeping the caller responsive with fast errors or fallbacks instead of long timeouts.[10][5][1]
+
+**Q3: What are the states and transitions?**  
+A:  
+- Closed → Open: failure rate exceeds threshold in the rolling window.[2][1]
+- Open → Half‑open: cool‑down time passes; allow a few trial calls.[6][1]
+- Half‑open → Closed: trial calls succeed under thresholds; reset counters. Half‑open → Open: trial calls fail; restart cool‑down.[1][2]
+
+**Q4: How does Circuit Breaker differ from Retry and Rate Limiter?**  
+A: Retry keeps trying a failing call (with backoff); Circuit Breaker decides to stop trying at all for a while; Rate Limiter limits request volume regardless of downstream health. They’re often combined.[6][5][3]
+
+**Q5: How would you implement it on Azure?**  
+A: Use Resilience4j/Polly in App Service/AKS/Functions to wrap calls to Cosmos DB or other services, configure thresholds and timeouts, and monitor with App Insights; optionally combine with AKS service mesh (Istio) for network‑level protection.[13][19][6][1]
+
+**Q6: How would you implement it on AWS?**  
+A: Wrap downstream calls (RDS, DynamoDB, external APIs) from Lambda/ECS/EKS in a Circuit Breaker library; or model it via Step Functions with Retry + Catch + fallback states; store breaker state in memory, DynamoDB, or cache if needed across instances.[16][17][2]
+
+**Q7: What are common thresholds/configs?**  
+A: E.g., failure rate > 50% over last N calls or time window; open duration 30–60 seconds; a handful of trial calls in half‑open; timeouts on calls shorter than client timeouts.[7][6][1]
+
+**Q8: What is a fallback in Circuit Breaker?**  
+A: A backup behavior when the circuit is open: return cached data, a default response, a degraded experience (partial data), or route to a backup instance/region.[10][6]
+
+**Q9: How does Circuit Breaker interact with Bulkhead?**  
+A: Bulkhead isolates resource pools per dependency; Circuit Breaker prevents calls to a dependency that is already unhealthy. Together they confine failures and preserve resources.[9][8][11]
+
+**Q10: When *not* to use Circuit Breaker?**  
+A: For idempotent, very low‑latency local operations where failures are rare or where fast retry is enough; or when the dependency is critical and must always be tried, but you still typically want timeouts and backpressure.[3][1]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Per‑dependency breaker state: structure storing current state (Closed, Open, Half‑open), failure counters, success counters, timestamps.[2][1]
+  - Sliding window counters: track successes/failures over last N calls or time period (ring buffer or rolling window with buckets).[6][1]
+  - Optionally store breaker state in distributed stores (Redis, DynamoDB, etc.) for serverless or multi‑instance scenarios.[16][2]
+
+- **Algorithms / techniques**  
+  - State machine: deterministic transitions based on failure rate and timers (Closed ↔ Open ↔ Half‑open).[1][2]
+  - Rolling window failure calculation: count failures and total calls in last window and compare to threshold.[6][1]
+  - Exponential backoff with jitter for retries while Closed/Half‑open to avoid synchronized retry storms.[17][6]
+
+This is plenty to answer DSA‑style follow‑ups about how a breaker actually works internally.
+
+## Tools / frameworks / software
+
+- **Libraries**  
+  - Resilience4j (modern JVM), Spring Cloud Circuit Breaker, Polly (.NET), Hystrix (legacy), Istio/Envoy/App Mesh outlier detection as network‑level breakers.[20][4][18][7]
+
+- **Cloud‑native surroundings**  
+  - Azure: App Service/AKS/Functions with Resilience4j/Polly + Application Insights dashboards for breaker metrics.[15][1][6]
+  - AWS: ECS/EKS/Lambda with Resilience4j/custom; Step Functions state machine “circuit breaker”; App Mesh/Envoy config.[18][17][2]
+
+## Concise bullet summary (keywords & terms)
+
+- Circuit Breaker pattern; states: **Closed**, **Open**, **Half‑open**.[2][1]
+- Goal: prevent **cascading failures** and protect callers from slow/unhealthy dependencies; fail fast with fallback.[10][3][1]
+- Key knobs: failure‑rate threshold, rolling window, open timeout, half‑open probe count, call timeout.[7][1][6]
+- Related patterns: **Bulkhead**, **Retry + backoff**, **Rate Limiter**, **Fallback**, **Backpressure**.[8][5][3][6]
+- Azure: implement in code (Resilience4j/Polly) around calls to Cosmos/HTTP; monitor via App Insights.[15][13][1]
+- AWS: implement in code or Step Functions; optional App Mesh/Envoy outlier detection and limits.[18][17][2]
+- Internals: breaker state machine, sliding window metrics, exponential backoff, distributed state if needed.[1][6][2]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker)
+[2](https://www.techopsexamples.com/p/circuit-breaker-pattern-in-aws)
+[3](https://www.geeksforgeeks.org/system-design/rate-limter-vs-circuit-breaker-in-microservices/)
+[4](https://dev.to/dazevedo/circuit-breaker-pattern-building-resilience-4ll0)
+[5](https://stackoverflow.com/questions/64657624/how-to-use-rate-limitor-circuit-breakerarchitectural-question)
+[6](https://www.digitalix-it.com/articles/engineering-tips/azure-design-patterns-combining-patterns-for-robust-scalable-architectures)
+[7](https://www.linkedin.com/posts/vitthal-chandankar_10k-microservices-circuitbreaker-activity-7385314371142324224-nkhJ)
+[8](https://www.geeksforgeeks.org/system-design/circuit-breaker-with-bulkhead-isolation-in-microservices/)
+[9](https://openillumi.com/en/en-circuit-breaker-bulkhead-difference-microservice-resilience/)
+[10](https://www.sayonetech.com/blog/circuit-breaker-in-microservices/)
+[11](https://www.pluralonline.com/fault-tolerance-in-microservices/)
+[12](https://github.com/microsoftdocs/architecture-center/blob/main/docs/patterns/cqrs.md)
+[13](https://stackoverflow.com/questions/34339496/is-there-any-native-implementation-of-circuit-breaker-pattern-in-azure)
+[14](https://www.cloudwithchris.com/tags/azure-architecture-center/)
+[15](https://www.linkedin.com/learning/azure-cloud-design-patterns/circuit-breaker-pattern)
+[16](https://stackoverflow.com/questions/56400244/how-to-implement-circuit-pattern-in-aws-lambda)
+[17](https://dzone.com/articles/enhancing-resiliency-implementing-the-circuit-brea)
+[18](https://aws.amazon.com/blogs/containers/building-a-fault-tolerant-architecture-with-a-bulkhead-pattern-on-aws-app-mesh/)
+[19](https://dev.to/azure/serverless-circuit-breakers-with-durable-entities-3l2f)
+[20](https://www.splunk.com/en_us/blog/learn/bulkhead-sidecar-design-patterns.html)
+[21](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker?WT.mc_id=dotnet-90136-dotnet)
+[22](https://learn.microsoft.com/en-us/azure/architecture/patterns/)
+[23](https://www.youtube.com/watch?v=r6MgGB3i5Vw)
+[24](https://www.linkedin.com/pulse/microservices-design-patterns-series-part-25-phaneendra-kumar-namala-z6cje)
+[25](https://dev.to/somadevtoo/19-microservices-patterns-for-system-design-interviews-3o39)
+[26](https://www.reddit.com/r/AZURE/comments/19brzy7/how_do_i_implement_a_circuit_breaker_pattern_on/)

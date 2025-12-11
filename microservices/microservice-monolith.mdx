@@ -1,0 +1,34 @@
+Microservices split apps into independent services for scalability, while monoliths unify codebases for simplicity but hinder growth beyond startup scale.[1]
+
+## Key Patterns
+Monoliths favor single-repo deploys with shared DBs; microservices use database-per-service, API gateways for aggregation, and strangler fig for incremental migration.  Microservices apply bulkhead isolation and saga patterns for resilience; monoliths rely on vertical scaling and ACID transactions.[2][3][1]
+
+## Use Cases & Tools
+Startups build monoliths (e.g., early Jira) for rapid iteration; Netflix/Atlassian migrated to microservices post-scale pains, boosting deploys from weekly to 1000s/day.  Tools: Docker/Kubernetes for microservices orchestration, Spring Boot for service scaffolding, Jenkins/GitHub Actions for CI/CD, Prometheus for monitoring monoliths/micros.[1]
+
+Big tech refs: Netflix TechBlog on monolith explosion forcing microservices (700+ services, chaos engineering); Atlassian Vertigo project decomposing Jira/Confluence for AWS multi-tenancy and team autonomy.[1]
+
+## Trade-offs & Questions
+Monoliths excel in dev speed/debugging but cap at ~100 engineers; microservices enable polyglot tech/team velocity yet multiply ops (networking, logs) by 10x.  Migration risks "distributed monolith" without proper boundaries.[1]
+
+- When to migrate? (Team >50 devs, frequent conflicts, scaling walls)[1]
+- Ops cost delta? (Monolith: 1 infra; Micros: N services + mesh overhead)[1]
+- Testing shift? (Monolith E2E; Micros contract/per-service)[2]
+
+## Cheat-Sheet Q&A
+**Q: Monolith advantages?** A: Easy deploy/test, single DB perf[1]
+**Q: Microservices wins?** A: Independent scale/deploy, tech diversity[1]
+**Q: Migration pattern?** A: Strangler—extract edges first[1]
+**Q: Atlassian shift?** A: Monolith→1300+ micros via Vertigo/AWS[1]
+**Q: Netflix trigger?** A: 2008 outage, cloud pivot[1]
+
+## Data Structures & Algorithms
+Service graphs (adjacency lists, DFS for dependency resolution); consistent hashing for load distribution across microservices instances.  Monoliths use in-memory caches (hashmaps); micros leverage CRDTs for eventual consistency across services.[4]
+
+## Concise Keywords Summary
+- MonolithicSingleRepo, SharedDB, VerticalScale, MicroservicesDBPerService, APIGateway, StranglerFig, BulkheadSaga, DistributedMonolith, VertigoProject, ChaosEngineering, ContractTesting, PolyglotPersistence, KubernetesCI/CD[3][2][1]
+
+[1](https://dev.to/vijayskr/advanced-spring-boot-concepts-every-java-developer-should-know-4j9g)
+[2](https://microservices.io/patterns/microservices.html)
+[3](https://codefresh.io/learn/microservices/top-10-microservices-design-patterns-and-how-to-choose/)
+[4](http://www.arxiv.org/abs/2411.04143)

@@ -1,0 +1,111 @@
+## Java/J2EE Observability Stack Overview
+
+### **Log Aggregation**
+| Tool | Overview | Big Tech Usage |
+|------|----------|---------------|
+| **ELK Stack** (Elasticsearch/Logstash/Kibana) | Logstash parses/ship logs → ES indexes → Kibana dashboards. Battle-tested, JSON parsing, alerting. | **Netflix**: Streams logs across 1000+ microservices to Elasticsearch clusters |
+| **Fluentd/Fluent Bit** | Lightweight log forwarder (CNCF), buffers, multiline parsing, Kubernetes-native. | **Uber**: Fluent Bit sidecar → Kafka → ES for 1B+ daily events |
+| **Vector** | Rust-based, high-perf, programmable pipelines (VRL), multi-sink. | **Discord**: Replaces Fluentd for 10x lower CPU |
+
+### **Metrics & Monitoring**
+| Tool | Overview | Big Tech Usage |
+|------|----------|---------------|
+| **Prometheus** | Pull-based, multidimensional metrics, PromQL, service discovery (K8s). | **Uber**: 1M+ series, Thanos for long-term storage |
+| **Micrometer** | Java facade (Prometheus/Graphite/New Relic), Spring Boot Actuator integration. | **Netflix**: Micrometer + Atlas across all Java services |
+| **Grafana** | Visualization (Prometheus/Influx), dashboards-as-code, alerting. | **LinkedIn**: 10K+ dashboards, Grafana + Samoan |
+
+### **Distributed Tracing**
+| Tool | Overview | Big Tech Usage |
+|------|----------|---------------|
+| **OpenTelemetry (OTel)** | CNCF standard, auto-instrumentation (Java agent), vendor-neutral export. | **ServiceNow**: OTel Java agent across 1000+ services |
+| **Jaeger** | CNCF tracing backend, adaptive sampling, Jaeger Query UI. | **Airbnb**: Jaeger + Kafka for high-cardinality traces |
+| **Zipkin** | Lightweight, Spring Cloud Sleuth integration, brave instrumentation. | **Twitter**: Early microservices tracing pioneer |
+
+### **Unified Platforms (Full MELT)**
+| Tool | Overview | Big Tech Usage |
+|------|----------|---------------|
+| **New Relic** | MELT + AIOps, Java agent (zero-config), entity correlation. | **Slack**: Full-stack observability, 90% MTTR reduction |
+| **Datadog** | Agent-based, RUM + infra + APM, AI root cause. | **Peloton**: 500+ services, auto-instrumentation |
+| **Dynatrace** | AI-driven, OneAgent (auto-discovery), Davis AI. | **SAP**: Enterprise-scale, purepath analytics |
+
+## **Implementation Patterns (Java/J2EE)**
+
+```
+# 1. Spring Boot 3 (Zero-config)
+spring-boot-starter-actuator
+micrometer-tracing-bridge-otel
+# Auto: HTTP/DB/JVM metrics + traces
+
+# 2. OTel Java Agent (Production)
+-javaagent:opentelemetry-javaagent.jar
+-Dotel.traces.exporter=otlp
+-Dotel.metrics.exporter=otlp
+
+# 3. Manual Custom Spans
+@Observed("user.create")
+public User createUser() { ... }
+
+# 4. Kubernetes (Prometheus Operator)
+ServiceMonitor → scrape actuator/prometheus
+Jaeger Operator → auto-tracing
+Fluent Bit → logs → Loki
+```
+
+## **Other Essential Architect Concepts**
+
+### **SLO/SLI/SLA Engineering**
+```
+SLI: 99.9% requests < 200ms (quantile)
+SLO: 99.5% monthly error budget
+SLA: $100/5min downtime (business alignment)
+```
+
+### **Distributed Tracing Fundamentals**
+- **Context Propagation**: `traceparent:00-<traceId>-<spanId>-01`
+- **Sampling**: Head (pre-collect), Tail (post-collect), Always/Parent-based
+- **Span Attributes**: Semantic conventions (`http.method`, `db.statement`)
+
+### **AIOps & ML Observability**
+- **Anomaly Detection**: Isolation Forest, statistical baselines
+- **Causal Analysis**: Bayesian networks, Granger causality
+- **Predictive Capacity**: Time-series forecasting (Prophet)
+
+### **High Cardinality Challenges**
+```
+❌ BAD: userId=12345, sessionId=abc123 (explosion)
+✅ GOOD: Exemplars, aggregation, label dropping
+```
+
+### **Golden Signals (Google SRE)**
+```
+LATENCY | TRAFFIC | ERRORS | SATURATION
+P99 < 200ms | 10k RPS | 0.1% | 70% CPU
+```
+
+## **Interview Cheat-Sheet**
+```
+Q: Microservices observability stack?
+A: OTel agent → Alloy Collector → Jaeger(Prometheus/Loki) + Grafana
+
+Q: High cardinality mitigation?
+A: Exemplars, aggregation, low-cardinality labels, sampling
+
+Q: Trace sampling strategy?
+A: Head-based (resource mgmt), Tail-based (anomalies), Always (critical)
+
+Q: Java agent overhead?
+A: 5-10% CPU/memory, configurable sampling
+
+Q: Service mesh vs agent?
+A: Mesh=auto propagation + security, Agent=zero-infra instrumentation
+```
+
+## **Big Tech Patterns**
+```
+Netflix: OTel + custom Kafka Streams → Atlas + custom Jaeger
+Uber: Istio + Zipkin → M3 (Prometheus-compatible)
+LinkedIn: Samoan (Grafana) + proprietary streaming
+Airbnb: Jaeger + Kafka → custom visualization
+```
+
+**Keywords**: OTel Java Agent, Micrometer Tracing, Prometheus Operator, Jaeger All-in-One, Service Mesh (Istio), MELT Correlation, SLO Engineering, Golden Signals, High Cardinality, AIOps Causal ML

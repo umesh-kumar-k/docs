@@ -1,0 +1,50 @@
+Microservices architecture decomposes applications into independently deployable services organized by business capabilities, enabling scalability and resilience over monoliths.[1][2]
+
+## Key Patterns
+Database-per-service ensures loose coupling with polyglot persistence; API Gateway aggregates routes and handles cross-cutting concerns like auth.  Saga orchestrates distributed transactions via compensating actions; CQRS separates read/write models for scale; Service Mesh (sidecars) manages traffic, resilience, and observability.  Strangler Fig incrementally migrates monoliths; Bulkhead isolates failures.[2][3][4][1]
+
+## Use Cases & Tools
+E-commerce decouples orders/inventory for independent scaling; streaming handles peak loads via per-service autoscaling.  Tools: Kubernetes/Docker Swarm for orchestration, Istio/Linkerd service meshes, Spring Cloud/Quarkus frameworks, Consul/Etcd for discovery, Kafka/RabbitMQ for async events, Helm for deployments.[5][6][7]
+
+Big tech refs: Netflix TechBlog on 700+ services boosting deploy velocity post-2008 outage (netflixtechblog.com); Uber's migration scaling rides to millions daily; Amazon's polyglot persistence improving checkout throughput.[8][9][5]
+
+## Trade-offs & Questions
+Independent deploys accelerate velocity but spike ops overhead (networking, monitoring); eventual consistency trades ACID for availability.  Fine-grained scalability shines but risks distributed monolith if boundaries blur.[10][2]
+
+- Monolith vs microservices migration? (Strangler pattern, start non-customer-facing)[5]
+- Saga vs 2PC? (Saga for availability, 2PC blocks on failures)[2]
+- Service mesh overhead? (5-10% CPU for sidecars, offsets with centralized resilience)[6]
+
+## Cheat-Sheet Q&A
+**Q: Bounded context?** A: DDD subdomains per service for cohesion[1]
+**Q: Circuit breaker state?** A: Closed→Open (fail-fast)→Half-Open (test)[2]
+**Q: API composition?** A: Gateway aggregates multiple service calls[3]
+**Q: Backends for Frontends?** A: Tailored APIs per client type[4]
+**Q: Event sourcing?** A: Append-only log for state reconstruction[2]
+
+## Data Structures & Algorithms
+Graphs model service dependencies (DFS/BFS for impact analysis, topological sort for deploy order); consistent hashing rings distribute load across nodes.  Bloom filters approximate service discovery caches; CRDTs (conflict-free replicated data types) enable eventual consistency.[11][12]
+
+## Concise Keywords Summary
+- DatabasePerService, APIGateway, SagaOrchestration, CQRS, EventSourcing, ServiceMesh, BoundedContext, StranglerFig, Bulkhead, CircuitBreaker, ConsistentHashing, PolyglotPersistence, KubernetesIstio, SpringCloud, KafkaEvents, DDDSubdomains[4][1][2]
+
+[1](https://microservices.io/patterns/microservices.html)
+[2](https://codefresh.io/learn/microservices/top-10-microservices-design-patterns-and-how-to-choose/)
+[3](https://www.atlassian.com/microservices/cloud-computing/microservices-design-patterns)
+[4](https://dev.to/somadevtoo/19-microservices-patterns-for-system-design-interviews-3o39)
+[5](https://blog.dreamfactory.com/microservices-examples)
+[6](https://piotrminkowski.com/2020/06/01/service-mesh-on-kubernetes-with-istio-and-spring-boot/)
+[7](https://developer.okta.com/blog/2022/06/09/cloud-native-java-microservices-with-istio)
+[8](https://www.sayonetech.com/blog/5-microservices-examples-amazon-netflix-uber-spotify-and-etsy/)
+[9](https://www.hys-enterprise.com/blog/why-and-how-netflix-amazon-and-uber-migrated-to-microservices-learn-from-their-experience/)
+[10](https://aloa.co/blog/microservices-interview-questions-to-help-mid-level-engineers-succeed)
+[11](http://www.arxiv.org/abs/2411.04143)
+[12](http://arxiv.org/pdf/2411.04143.pdf)
+[13](https://www.geeksforgeeks.org/system-design/microservices-design-patterns/)
+[14](https://www.openlegacy.com/blog/microservices-architecture-patterns/)
+[15](https://github.com/Devinterview-io/microservices-interview-questions)
+[16](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/microservices)
+[17](https://www.geeksforgeeks.org/system-design/microservices/)
+[18](https://www.youtube.com/watch?v=NucXvPL1z5o)
+[19](https://www.datacamp.com/blog/microservices-interview-questions)
+[20](https://dzone.com/articles/design-patterns-for-microservices)

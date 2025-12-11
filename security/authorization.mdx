@@ -1,0 +1,94 @@
+Authorization techniques control **what authenticated principals can access/do**: **RBAC** (roles), **ABAC** (attributes), **ReBAC** (relationships), **PBAC** (policies), **DAC** (owner discretion), **MAC** (central labels)—policy engines (OPA/Cerbos) + data stores (Zanzibar/SpiceDB) externalize decisions from apps for scale/flexibility.[cerbos] Senior architects choose RBAC for simplicity (org hierarchies), ABAC/ReBAC for fine-grained (SaaS/multi-tenant), PBAC for dynamic (runtime context), trading policy complexity for centralized governance.[1]
+
+## Interview Summary
+**RBAC**: User → Role → Permission (static); **ABAC**: User attrs + Resource attrs + Env → Policy eval (dynamic); **ReBAC**: Graph relationships (user owns project → edit docs); **PBAC**: YAML/Rego policies + PDP (OPA); **DAC**: Owner grants (file shares); **MAC**: Labels/clearance (military). **PDP**: Policy Decision Point (OPA/Cerbos), **PEP**: Policy Enforcement Point (app/gateway).[cerbos][2]
+
+## Keywords & Patterns
+- **RBAC**: Role hierarchies, Perm-Role/User-Role matrices.[cerbos]
+- **ABAC**: XACML-like (subject/object/env attrs), PDP eval.[1]
+- **ReBAC**: Zanzibar tuples (user:doc:viewer), graph traversal.[3]
+- **PBAC**: Rego/YAML policies, external PDP (OPA).[4]
+- **DAC/MAC**: Owner-controlled vs system-enforced.[cerbos]
+- **Externalized**: App → PDP query → allow/deny + obligations.[1]
+
+## Common Trade-offs + Questions
+RBAC: Simple/static vs inflexible; ABAC: Granular/dynamic vs policy explosion; ReBAC: Natural hierarchies vs graph complexity; PBAC: Centralized vs latency/OPA learning curve; DAC: Flexible vs insecure; MAC: Secure vs rigid.[cerbos][2]
+
+**Example questions**:
+- SaaS multi-tenant? (ABAC: tenant_id attr).[1]
+- Social permissions? (ReBAC: friends/followers).[3]
+- Dynamic policies? (PBAC: OPA Rego).[cerbos]
+
+| Model | Granularity | Complexity | Scale | Flexibility |
+|-------|-------------|------------|-------|-------------|
+| RBAC | Role-level | Low | High | Static [cerbos] |
+| ABAC | Attr-level | High | Medium | Dynamic [1] |
+| ReBAC | Relationship | High | High | Natural [3] |
+| PBAC | Policy-level | Medium | High | Programmable [4] |
+
+## Use Cases
+- **RBAC**: Enterprise HR (employee/manager roles).[cerbos]
+- **ABAC**: SaaS (tenant+role+time).[1]
+- **ReBAC**: Social (friends/documents).[3]
+- **PBAC**: Microservices (OPA sidecar).[cerbos]
+- **MAC**: Military/gov classified.[cerbos]
+
+## Big Tech Blogs & Efficiency Wins
+**Google Zanzibar**: ReBAC powers YouTube/Drive/Calendar (2B users, 99.999% availability). **Netflix**: ABAC + Casbin reduced permission bugs 90%. **Uber**: OPA Rego centralized 100+ service auth (policy-as-code).[5][6][7]
+
+## Cheat-Sheet Q&A
+**Q: RBAC vs ABAC?** A: Roles (static) vs attrs (dynamic).[cerbos]  
+**Q: Zanzibar tuples?** A: `user:doc#viewer@group:team#member`.[3]
+**Q: OPA Rego example?** A: `allow if input.user.role == "admin"`.[4]
+**Q: PDP vs PEP?** A: Decision (PDP) vs Enforcement (PEP).[cerbos]  
+**Q: ReBAC traversal?** A: Graph BFS/DFS (permission inheritance).[3]
+
+## Tools/Frameworks
+- **RBAC**: Keycloak, Auth0 Roles.[cerbos]
+- **ABAC**: OPA Rego, XACML (legacy).[1]
+- **ReBAC**: SpiceDB, Authzed, Permify (Zanzibar).[3]
+- **PBAC**: Cerbos (YAML), OPA (Rego).[cerbos]
+- **Java**: Spring Security `@PreAuthorize`, Casbin-Java.[8]
+
+## Data Structures & Algorithms
+**RBAC**: Role-Perm/User-Role matrices (adjacency lists). **ABAC**: Policy trees (AND/OR eval). **ReBAC**: Graph traversal (BFS/DFS tuples), materialized views. **Caching**: LRU PDP responses (principal+resource).[cerbos][3]
+
+## Key Highlights & Tradeoffs
+**RBAC**: Start simple, scales poorly  
+**ABAC**: Flexible, policy explosion  
+**ReBAC**: Natural hierarchies, graph ops  
+**PBAC**: Centralized, latency/vendor  
+
+**Interviews**: "RBAC early, ReBAC social, PBAC+OPA enterprise"
+
+## Concise Keywords Summary
+- RBAC/ABAC/ReBAC/PBAC/DAC/MAC, PDP/PEP
+- Zanzibar (ReBAC), OPA Rego, Cerbos YAML, SpiceDB
+- Role Hierarchies, Attr Policies, Relationship Tuples
+- Policy Externalization, Fine-grained Auth, Graph Traversal
+- Principle of Least Privilege, XACML, Rego, Tuples
+
+[1](https://www.strongdm.com/blog/rbac-vs-abac)
+[2](https://www.pingidentity.com/en/resources/identity-fundamentals/authorization/authorization-methods.html)
+[3](https://www.osohq.com/learn/opa-vs-cedar-vs-zanzibar)
+[4](https://www.cerbos.dev/blog/cerbos-vs-opa)
+[5](https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/)
+[6](https://netflixtechblog.com)
+[7](https://www.systemdesignhandbook.com/guides/uber-system-design-interview/)
+[8](https://newrelic.com)
+[9](https://www.avigilon.com/blog/access-control-models)
+[10](https://omadaidentity.com/resources/blog/what-are-the-different-types-of-access-control/)
+[11](https://www.scribd.com/document/615257871/Chapter-6-AC-MAC-DAC-BRAC-ABAC)
+[12](https://www.permit.io/blog/mac-dac-rbac-and-fga-and-access-control)
+[13](https://www.permit.io/blog/zanzibar-vs-opa)
+[14](https://www.aserto.com/blog/rbac-abac-and-rebac-differences-and-scenarios)
+[15](https://permify.co/post/opa-vs-google-zanzibar/)
+[16](https://blog.devgenius.io/system-design-access-control-6ead65a62219)
+[17](https://www.aserto.com/blog/open-policy-agent-vs-google-zanzibar)
+[18](https://www.osohq.com/learn/rbac-vs-abac-vs-pbac)
+[19](https://www.styra.com/blog/comparing-opa-rego-to-aws-cedar-and-google-zanzibar/)
+[20](https://www.permit.io/blog/rbac-vs-abac-vs-rebac)
+[21](https://www.cerbos.dev/blog/framework-evaluating-authorization-providers-solutions)
+[22](https://workos.com/guide/google-zanzibar)
+[23](https://authzed.com/learn/google-zanzibar)
+

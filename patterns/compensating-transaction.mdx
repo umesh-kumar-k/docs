@@ -1,0 +1,156 @@
+Compensating Transaction is a cloud pattern where a long-running, multi-step operation is made “eventually consistent” by defining explicit undo actions (compensations) for each step instead of relying on a single ACID transaction.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Cross-service workflows: booking flows (flight + hotel + car), e‑commerce orders (reserve inventory, charge payment, create shipment) where each step touches different services/datastores.[3][1]
+  - Long-running or user-driven flows (hours/days) where 2PC is impossible and rollback must respect business rules (e.g., non‑full refunds, cancellation fees).[4][1]
+
+- **Key patterns inside a compensating flow**  
+  - For each forward action `T1, T2, T3...` define a compensating transaction `C1, C2, C3...` that semantically undoes or adjusts the effect (cancel booking, refund, restock, etc.).[5][1][4]
+  - On failure at step `Tk`, the workflow “rewinds” through already-completed steps and invokes their compensations in a safe order (often reverse, but may be domain-specific).[6][7][1]
+  - Compensations are not strict reversals: they bring the system to a *new, acceptable* state (e.g., partial refund) rather than the exact original state.[7][1]
+
+## Related design patterns
+
+- **Saga pattern (orchestration/choreography)**  
+  - Compensating Transaction is *the mechanism* used by Sagas to maintain consistency across local transactions.[8][2][3]
+  - Orchestrated Saga: a coordinator/workflow engine keeps track of steps and invokes compensations on failure.[3][4]
+  - Choreographed Saga: services publish events; others react with forward or compensating actions.[2][6][3]
+
+- **Outbox / Reliable Messaging**  
+  - Ensures events that trigger compensations are reliably persisted and delivered (no missing compensate events).[2]
+
+- **Other related patterns**  
+  - Process Manager / Workflow, Retry with backoff, Idempotent receiver (since compensations must be idempotent and retryable).[4][2]
+
+## Azure vs AWS implementation
+
+- **Azure (Azure Architecture Center & Durable functions)**  
+  - Azure pattern description: use a workflow to implement the long-running operation, recording how to undo each step; if a step fails, run the compensating actions.[9][1]
+  - Typical Azure implementation options:  
+    - **Durable Functions (orchestration)**: orchestrator function calls activity functions for each step and, on failure, invokes compensating activities in the right order.[10]
+    - **Logic Apps / Azure Functions + Service Bus/Event Grid**: orchestrate steps via messages and topics; compensations are separate handlers that respond to failure events.[11][1]
+  - Azure Saga guidance: combine compensating transactions with Saga pattern across microservices with database-per-service, often using Service Bus for coordination.[12][8][11]
+
+- **AWS (Step Functions & serverless Saga)**  
+  - AWS prescriptive guidance: model each step as a Step Functions state with a corresponding compensation state (e.g., `BookHotel` ↔ `CompensateHotel`); transitions on failure trigger compensations.[13][14][15]
+  - Use Lambda functions to implement both forward and compensating actions; Step Functions state machine codifies the saga (including retries and error branches).[16][13]
+  - SQS/SNS/EventBridge carry domain events; services listen for failure/compensation events to roll back local changes.[13][2]
+
+In interviews, phrase it as: “Same concept on both clouds; Azure tends to use Durable Functions/Logic Apps, AWS uses Step Functions/Lambdas; both use messaging (Service Bus/EventBridge) for Sagas.”
+
+## Big‑company style references
+
+- Azure Architecture Center: canonical explanation with travel itinerary example (book flights, hotel, car; compensating steps for cancellation).[1]
+- Saga/compensation articles for high-volume orders and ticketing emphasize idempotent compensations and orchestration for ordering/seat cancellations.[3][4]
+- AWS Step Functions Saga examples: multi-step booking workflows with `Book*` and `Compensate*` states; used in many AWS demos and talks.[15][13]
+
+These are good references to drop when asked for “real-world use.”
+
+## Trade-offs & interview talking points
+
+- **Benefits**  
+  - Avoids distributed ACID/2PC; enables high availability and scalability across microservices.[1][2]
+  - Highly expressive: business rules can govern how to compensate (partial refunds, penalties, dependencies between steps).[7][1]
+
+- **Trade-offs / pitfalls**  
+  - Complexity: must design compensations for each step, ensure they are idempotent, and handle partial compensation failures.[4][2][1]
+  - Eventual consistency: users may temporarily see partially completed state (e.g., flight booked but hotel not yet cancelled).[2][1]
+  - Not all operations can be fully undone (especially side effects like emails, shipping); compensations may be approximate (credits, manual workflows).[7][1]
+
+Expect questions like:
+
+- “Explain the difference between a compensating transaction and a traditional rollback.”  
+- “How does Saga use compensating transactions in microservices?”  
+- “What if a compensating transaction itself fails?”
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One‑line definition?**  
+A: Compensating Transaction is a pattern where each step of a long-running, distributed operation has an explicit “undo” action that restores a business-acceptable state when some later step fails.[1][4]
+
+**Q2: When should you use it?**  
+A: When a business operation spans multiple services/datastores or runs for a long time and you cannot use a single ACID transaction, but you still need consistency and the ability to “roll back” domain-wise.[3][2][1]
+
+**Q3: How is it different from a database rollback?**  
+A: DB rollback is atomic and instantaneous within one transaction boundary; compensating transaction is another forward-going action that semantically reverses previous work across systems and may not return to the exact original state.[7][1]
+
+**Q4: How does this relate to the Saga pattern?**  
+A: Saga is the overall pattern for distributed transactions; compensating transactions are the building blocks: each local transaction in the Saga has a compensating step.[8][4][2]
+
+**Q5: What are key requirements for compensating steps?**  
+A: They must be idempotent, retryable, and respect business rules (e.g., cancellation windows, partial refunds).[4][2]
+
+**Q6: How would you implement this on Azure?**  
+A: Model the workflow with Durable Functions/Logic Apps; for each activity (BookFlight, BookHotel, ChargeCard) define a compensating activity (CancelFlight, CancelHotel, RefundCard); orchestrator stores step state and invokes compensations in sequence if a later step fails.[11][10][1]
+
+**Q7: How would you implement this on AWS?**  
+A: Use Step Functions: each state is a local transaction; on error transitions to a compensating state (e.g., `BookHotel` → `CompensateHotel`); implement steps and compensations in Lambda; events (via EventBridge/SNS/SQS) trigger compensations in other services.[14][15][13]
+
+**Q8: How do you handle failure of compensating transactions?**  
+A: Retries with backoff (since compensations are idempotent), alerting, and potentially manual remediation; keep state in a durable log/workflow so compensation can resume.[2][4][7]
+
+**Q9: When should you not use compensating transactions?**  
+A: When a simple local ACID transaction is sufficient, when operations are trivially rollback-able with classic DB features, or when the domain cannot meaningfully define compensations.[17][1]
+
+**Q10: Example scenario you can describe in an interview?**  
+A: Travel booking: reserve flights, hotel, car; if car booking fails, either propose alternatives or, if user cancels, execute compensations to cancel all reservations and refund according to policy.[13][1][3]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - **Saga / workflow state**: a record/log of steps done, their status, and associated compensation handlers; often stored in a DB, workflow engine, or orchestration state store.[13][1][4]
+  - **Event log**: events like `OrderCreated`, `PaymentAuthorized`, `ShipmentFailed`; compensating commands are triggered based on these events.[6][4][2]
+  - **Command & compensation tables**: tables or queues holding pending commands/compensations, with status to support retries and monitoring.[12][13]
+
+- **Algorithms / techniques**  
+  - **Workflow orchestration logic**: sequence through steps, branch on failure, and walk back invoking compensations; conceptually, a DAG or linear chain with reverse traversal on failure.[1][13]
+  - **Idempotency checks**: compensations check current state (e.g., reservation already cancelled?) before making changes, so repeated invocations are safe.[4][2]
+  - **Retry with backoff**: for compensating steps, combined with durable logs so retries resume after crashes.[13][4]
+
+Nothing exotic is required; the sophistication lies in workflow design and idempotent business logic.
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Durable Functions, Logic Apps for orchestration; Service Bus/Event Grid for events; state in Azure Storage/Cosmos; sample Saga/compensation repos demonstrating this pattern.[10][11][12][1]
+
+- **AWS**  
+  - Step Functions for Sagas and compensating flows; Lambda for actions; SQS/SNS/EventBridge for event-driven compensations; DynamoDB/RDS as state stores.[14][15][13]
+
+- **General**  
+  - Workflow engines like Camunda, Temporal, Netflix Conductor, or custom orchestrators; microservices frameworks that support Saga orchestration and compensation hooks.[3][2][4]
+
+## Concise bullet summary (keywords & terms)
+
+- Compensating Transaction = explicit “undo” operations for long-running/distributed steps.[1][4]
+- Used in **Sagas** for microservices, long-running workflows (travel bookings, orders, payments).[8][2][3]
+- Each step `Ti` has compensating `Ci`; on failure, orchestrator invokes `Ci...C1` to reach acceptable state.[6][4][1]
+- Azure: Durable Functions / Logic Apps orchestration + Service Bus/Event Grid.[11][10][1]
+- AWS: Step Functions + Lambda, SQS/SNS/EventBridge; state machine with `Book*` and `Compensate*` states.[15][14][13]
+- Requirements: compensations **idempotent**, **retryable**, and **business-rule aware** (partial refunds, policies).[7][4]
+- Trade-offs: more complexity, eventual consistency, not always fully reversible; but avoids distributed ACID and supports high-scale cloud-native systems.[2][1]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction)
+[2](https://microservices.io/patterns/data/saga.html)
+[3](https://dev.to/willvelida/the-saga-pattern-3o7p)
+[4](https://www.baeldung.com/cs/saga-pattern-microservices)
+[5](https://eprints.soton.ac.uk/260079/1/dagstuhl.pdf)
+[6](https://stackoverflow.com/questions/78548598/in-the-saga-pattern-how-do-microservices-listen-for-compensating-events)
+[7](http://www.cs.um.edu.mt/~svrg/Papers/CS2011-01.pdf)
+[8](https://learn.microsoft.com/en-us/azure/architecture/patterns/saga)
+[9](https://github.com/MicrosoftDocs/architecture-center/blob/main/docs/patterns/compensating-transaction.yml)
+[10](https://tamafuyou.hatenablog.com/entry/durable_functions_compensation_transaction_pattern)
+[11](https://roshancloudarchitect.me/mastering-distributed-transactions-implementing-the-saga-pattern-in-net-with-azure-cloud-services-68f78f5b02c4)
+[12](https://github.com/error505/Saga-Distributed-Transactions-Pattern-on-Azure)
+[13](https://awsforengineers.com/blog/aws-step-functions-saga-pattern-implementation/)
+[14](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/implement-the-serverless-saga-pattern-by-using-aws-step-functions.html)
+[15](https://aws.amazon.com/awstv/watch/0128e601ef9/)
+[16](https://dzone.com/articles/enhancing-resiliency-implementing-the-circuit-brea)
+[17](https://pcg.io/insights/a-case-for-cqrs/)
+[18](https://interviewprep.org/transaction-analyst-interview-questions/)
+[19](https://www.visdum.com/case-study/how-gocomet-automated-saas-sales-commissions)
+[20](https://interviewprep.org/transaction-monitoring-interview-questions/)
+[21](https://www.geeksforgeeks.org/dbms/transactions-concurrency-recovery-interview-questions/)
+[22](https://www.elementsofcomputerscience.com/posts/implementing-saga-pattern-in-csharp-03/)

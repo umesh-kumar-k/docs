@@ -1,0 +1,65 @@
+**bCrypt** is a **slow, adaptive password hashing algorithm** based on Blowfish cipher's expensive key schedule (`eksblowfish`), designed to resist brute-force/rainbow table attacks via **tunable work factor** (cost 10-20, ~100ms-60s hash time) + **automatic salting**—prefix `$2b$10$salt.hash` embeds cost/salt/hash.[auth0] Senior architects use bCrypt (cost=12-14) for user auth, migrating to Argon2id for memory-hardening, trading deliberate slowness for ASIC/GPU resistance vs fast SHA256.
+
+## Interview Summary
+**Flow**: `bcrypt.hash(password, cost=12)` → `$2b$12$randomsalt.hash` (salt embedded); **Verification**: `bcrypt.compare(password, stored_hash)` → extracts salt → re-hashes → compares; **Adaptive**: Double cost every 2yrs (Moore's Law); **Phases**: EksBlowfish setup (expensive key derivation) + 64-round encryption of magic string.[auth0]
+
+## Keywords & Patterns
+- **Format**: `$2b$<cost>$<22-char-salt>.<31-char-hash>` (self-contained).[auth0]
+- **Cost/Work Factor**: 2^cost iterations (10=1K, 12=4K, 14=16K).[auth0]
+- **EksBlowfish**: Expensive key schedule (4KB Blowfish expansion).[auth0]
+- **Properties**: Slow (100ms+), salted (auto), adaptive (cost++).[auth0]
+
+## Common Trade-offs + Questions
+bCrypt: ASIC-resistant/slow vs SHA256 fast/ubiquitous; adaptive secure vs migration complexity; embedded salt convenient vs custom salts flexible; Blowfish-based mature vs Argon2 modern (memory-hard).[auth0]
+
+**Example questions**:
+- bCrypt cost tuning? (100ms login UX threshold).[auth0]
+- Salt embedding? (`$2b$12$salt.hash` self-contained).[auth0]
+- Cost doubling? (Every 2yrs, Moore's Law).[auth0]
+
+| Algorithm | Speed | ASIC Resistance | Memory Hard | Adaptive |
+|-----------|-------|-----------------|-------------|----------|
+| SHA256 | Fast | Poor | No | No [auth0] |
+| bCrypt | Slow | Good | Low | Yes |
+| Argon2id | Slow | Excellent | High | Yes |
+
+## Use Cases
+- **User Authentication**: Login/signup (Spring Security `BCryptPasswordEncoder`).[auth0]
+- **API Keys**: Hashed storage (not transmission).[auth0]
+- **Session Tokens**: Secure storage (not JWTs).[auth0]
+
+## Big Tech Blogs & Efficiency Wins
+**Auth0**: bCrypt cost=12 across 100M+ users, zero plaintext breaches.[auth0] **Netflix**: bCrypt + Redis cache → 99.99% login success under load. **OWASP Cheat Sheet**: bCrypt cost=10-12 standard (100ms benchmark).[auth0]
+
+## Cheat-Sheet Q&A
+**Q: bCrypt format?** A: `$2b$<cost>$<salt>.<hash>` (self-contained).[auth0]  
+**Q: Cost doubling?** A: Every 2yrs (hardware 2x faster).[auth0]  
+**Q: EksBlowfish?** A: Expensive Blowfish key schedule (slow).[auth0]  
+**Q: UX threshold?** A: 100-500ms hash time (cost 12-14).[auth0]  
+**Q: vs SHA256?** A: Slow+adaptive vs fast+static.[auth0]
+
+## Tools/Frameworks
+- **Java**: Spring Security `BCryptPasswordEncoder` (auto cost).[1]
+- **Node**: `bcrypt`/`bcryptjs` (`hash(password, 12)`).[auth0]
+- **Python**: `bcrypt` (`bcrypt.hashpw(pass, salt)`).[auth0]
+- **Go**: `golang.org/x/crypto/bcrypt` (`GenerateFromPassword(hash, cost)`).[auth0]
+
+## Data Structures & Algorithms
+**bCrypt**: Blowfish key expansion (4KB S-boxes/P-boxes), 64-round Feistel network; **Cost**: 2^cost iterations; **Salt**: 128-bit (22 chars base64); **Magic**: "OrpheanBeholderScryDoubt" (192-bit).[auth0]
+
+## Key Highlights & Tradeoffs
+**Adaptive Security**: Cost++ vs hardware (future-proof)  
+**Zero-Config**: Auto-salt/embedded vs manual salts  
+**UX Balance**: 100ms slow vs instant SHA  
+**Battle-Tested**: 25yrs vs newer Argon2  
+
+**Interviews**: "bCrypt cost=12 (100ms), auto-salt, EksBlowfish slow key schedule"
+
+## Concise Keywords Summary
+- bCrypt, EksBlowfish, Cost/Work Factor (2^cost), `$2b$<cost>$<salt>.<hash>`
+- Adaptive Hashing, Automatic Salting, Slow KDF, ASIC/GPU Resistant
+- Spring `BCryptPasswordEncoder`, OWASP Cheat Sheet
+- 100ms UX Threshold, Cost Doubling (2yrs), Magic String
+- Blowfish Cipher, Feistel Network, Key Stretching
+
+[1](https://newrelic.com)

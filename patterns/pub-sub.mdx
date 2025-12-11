@@ -1,0 +1,131 @@
+The Publisher–Subscriber (pub/sub) pattern lets producers publish events to a broker (topic), which fan‑outs copies to many decoupled subscribers asynchronously.[1][2]
+
+## Use cases & key patterns
+
+- **Use cases**  
+  - Event-driven microservices: order events fan out to billing, inventory, notifications, analytics with no direct coupling to the order service.[3][1]
+  - Integration of heterogeneous systems (IoT, SaaS, legacy) where many consumers react to the same business event.[4][1]
+
+- **Key patterns**  
+  - Publisher writes to a **topic** or **event bus**; a broker creates separate output channels (subscriptions/queues) per subscriber.[1][4]
+  - Subscribers filter by **topic** or **content** (attributes, headers) and consume independently at their own pace; publishers stay unaware of subscribers.[5][3][1]
+
+## Related design patterns
+
+- **Event-driven architecture & Event Sourcing** – pub/sub is the distribution mechanism for domain/integration events; often paired with CQRS and materialized views.[6][7][3]
+- **Queue-based load leveling** – SQS/Service Bus queues behind topics handle backpressure; each subscription can be a queue.[8][3][1]
+- **Request/Reply** – when subscribers must respond back, use a separate reply channel; Azure docs explicitly call this out as a complementary pattern.[2][1]
+
+Mention “pub/sub + event-driven + CQRS” as a standard microservices toolkit in interviews.[9][3]
+
+## Azure vs AWS implementation
+
+- **Azure**  
+  - Azure Architecture Center pattern: one input channel, many output channels; broker copies messages to all subscriptions that match filters.[1]
+  - Typical options:  
+    - **Azure Service Bus Topics + Subscriptions** for reliable pub/sub and competing consumers per subscription.[3][8]
+    - **Azure Event Grid** for lightweight, high‑fanout event routing (resource or custom events) to Functions, WebHooks, Service Bus, etc.[3]
+    - **Event Hubs** for high-throughput telemetry with consumer groups (streaming/pub-sub).[3]
+
+- **AWS**  
+  - **SNS + SQS**: SNS topic broadcasts to many SQS queues, HTTP endpoints, Lambda functions; each consumer reads its own queue.[10][11]
+  - **Kinesis** streams for high-throughput event streams; multiple consumers use separate apps/consumer groups.[12][13]
+  - **EventBridge** buses for event routing between AWS services, SaaS, and custom apps with filtering rules.[14][12]
+
+Concept is identical; the names change (Service Bus/Event Grid vs SNS/SQS/EventBridge/Kinesis).
+
+## Big-company style references
+
+- Azure Event Grid + Service Bus guides show pub/sub architectures for large event-driven systems (e.g., multiple microservices reacting to business events).[3]
+- Industry examples (e.g., market data pipelines) use SNS+SQS pub/sub so new analytics consumers can be added without changing publishers.[11][10]
+- Many large microservices platforms (e.g., at Amazon, Netflix, Uber) use pub/sub internally for decoupled event-driven communication, as discussed across microservices patterns articles.[15][16][9]
+
+## Cheat‑sheet (Q&A style)
+
+**Q1: One-line definition?**  
+A: Pub/Sub lets publishers send messages to a topic, and a broker asynchronously delivers copies to all subscribed consumers that expressed interest, decoupling senders from receivers.[2][4][1]
+
+**Q2: When would you use pub/sub?**  
+A: When multiple services must react to the same event (order created, user registered), when you want loose coupling and independent scaling of consumers, or when new subscribers should be addable without touching publishers.[9][4][1]
+
+**Q3: How is it implemented on Azure?**  
+A: Use Service Bus Topics + Subscriptions or Event Grid; publishers send to topics; each subscriber has its own subscription with filters; Functions/AKS/webhooks consume messages independently.[8][1][3]
+
+**Q4: How is it implemented on AWS?**  
+A: Use SNS topics to publish events, with subscribers as SQS queues, Lambdas, HTTP endpoints, or Kinesis/EventBridge for more advanced routing; each consumer reads from its own queue/stream.[10][11][14]
+
+**Q5: How do subscribers filter messages?**  
+A: By topic names (hierarchical subjects) or content-based filters (attributes/headers/JSON fields) defined in subscriptions or rules.[5][1][3]
+
+**Q6: What are main trade-offs?**  
+A: Pros: decoupling, fan‑out, independent scaling. Cons: eventual consistency, harder debugging (events flying everywhere), need for idempotent consumers and careful ordering/duplication handling.[4][9][1]
+
+**Q7: How is pub/sub different from simple queues?**  
+A: Queue = point-to-point, one consumer per message; pub/sub = broadcast to many subscribers, each gets its own copy via subscription/queue.[4][1]
+
+**Q8: How do you ensure reliability and avoid message loss?**  
+A: Use durable topics/queues, at-least-once delivery, DLQs, retry policies, and idempotent handlers; Service Bus and SQS/SNS provide these features.[11][8][3]
+
+**Q9: How does pub/sub fit into microservices?**  
+A: Domain services publish events; many other services subscribe and react asynchronously, enabling eventual consistency and loose coupling.[17][9][3]
+
+**Q10: Example to describe in an interview?**  
+A: User signup publishes `UserCreated` to a topic; email service sends welcome mail, analytics logs metrics, recommendation service seeds defaults—each subscriber is independent and can be added without changing the signup service.[5][1]
+
+## Data structures & algorithms
+
+- **Data structures**  
+  - Topics/streams with **append-only logs** or message queues; subscription metadata lists which subscribers receive which messages.[2][1]
+  - Subscription filters as rules/predicates (e.g., attribute maps) evaluated per message.[1][3]
+
+- **Algorithms / techniques**  
+  - Fan‑out: broker copies messages from input topic to each subscription/queue that matches filters (O(number of matching subs)).[1]
+  - Consumer groups & offset tracking (for streaming systems) to allow independent consumption and replay.[12][14]
+  - Ordering and delivery semantics: at-least-once or exactly-once where supported; idempotent consumers to handle duplicates.[8][3]
+
+## Tools / frameworks / software
+
+- **Azure**  
+  - Azure Service Bus (topics/subscriptions), Event Grid (event routing), Event Hubs (streams), Functions/AKS as subscribers.[8][1][3]
+
+- **AWS**  
+  - SNS (topics) + SQS (queues per subscriber), EventBridge (event bus and routing), Kinesis (streams), Lambda/ECS/EKS consumers.[18][14][10][11]
+
+- **General**  
+  - Kafka, RabbitMQ, NATS, Google Pub/Sub, Dapr pub/sub components etc.[18][2]
+
+## Concise bullet summary (keywords & terms)
+
+- Publisher–Subscriber / Pub/Sub pattern; **topic**, **subscription**, **message broker**, **event bus**.[2][1]
+- Fan‑out to multiple subscribers; decoupled, asynchronous event-driven communication.[4][1][3]
+- Topic-based vs content-based filtering; wildcard subscriptions.[5][1]
+- Azure: Service Bus Topics/Subs, Event Grid, Event Hubs; AWS: SNS, SQS, EventBridge, Kinesis.[14][10][1][3]
+- Use with CQRS, Event Sourcing, Sagas; handle at-least-once delivery, duplicates, ordering.[7][6][9]
+
+[1](https://learn.microsoft.com/en-us/azure/architecture/patterns/publisher-subscriber)
+[2](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern)
+[3](https://multishoring.com/blog/building-scalable-event-driven-architectures-with-azure-event-grid-and-service-bus/)
+[4](https://www.geeksforgeeks.org/system-design/what-is-pub-sub/)
+[5](https://www.willvelida.com/posts/pub-sub-pattern/)
+[6](https://appmaster.io/blog/cqrs-event-sourcing-microservices)
+[7](https://www.youtube.com/watch?v=0s3yjmJ0ksA)
+[8](https://dev.to/viitorcloud/event-driven-microservices-in-net-8-using-azure-service-bus-2ig7)
+[9](https://www.designgurus.io/blog/19-essential-microservices-patterns-for-system-design-interviews)
+[10](https://www.trinitylogic.co.uk/blog/spring-cloud-sns-sqs-pubsub)
+[11](https://reflectoring.io/publisher-subscriber-pattern-using-aws-sns-and-sqs-in-spring-boot/)
+[12](https://www.reddit.com/r/aws/comments/zyv5wq/event_sourcing_on_aws_in_2023_kinesis_vs_dynamodb/)
+[13](https://stackoverflow.com/questions/78306102/create-materialized-view-in-redshift-using-kinesis-stream)
+[14](https://dellenny.com/implementing-event-sourcing-in-aws-modeling-state-as-a-sequence-of-events/)
+[15](https://www.sayonetech.com/blog/5-microservices-examples-amazon-netflix-uber-spotify-and-etsy/)
+[16](https://blog.bytebytego.com/p/79-engineering-blogs-to-level-up)
+[17](https://dev.to/bobur/querying-microservices-in-real-time-with-materialized-views-211c)
+[18](https://docs.dapr.io/reference/components-reference/supported-pubsub/setup-aws-snssqs/)
+[19](https://learn.microsoft.com/en-us/azure/)
+[20](https://dev.to/willvelida/the-publisher-subscriber-pattern-pubsub-messaging-10in)
+[21](https://iamachs.com/blog/cloud-design-patterns/part-1-publisher-subscriber-azure/)
+[22](https://learn.microsoft.com/ja-jp/azure/architecture/patterns/publisher-subscriber)
+[23](https://www.iamachs.com/p/cloud-design-patterns/part-1-publisher-subscriber-azure)
+[24](https://www.youtube.com/watch?v=iu8wV8MBUnE)
+[25](https://dev.to/somadevtoo/19-microservices-patterns-for-system-design-interviews-3o39)
+[26](https://netflixtechblog.com)
+[27](https://learn.microsoft.com/en-us/answers/questions/5602115/how-to-set-the-event-schema-on-a-pubsub-event-hand)
