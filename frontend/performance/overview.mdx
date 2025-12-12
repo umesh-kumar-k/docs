@@ -1,0 +1,368 @@
+These web.dev modules define a **holistic performance baseline**: optimize HTML delivery, critical rendering path, resource loading, images/video/fonts, JavaScript (code-splitting, lazy-loading, workers), and use prefetch/prerender/precaching to improve subsequent navigations. They frame performance in terms of user and business impact (Core Web Vitals).[1][2][3][4][5][6]
+
+***
+
+## 1) Welcome / Course Overview[7][1]
+
+**Key Topics**  
+- Performance = load speed + responsiveness; core to UX and business goals.  
+- Modules (each later page):  
+  - Why speed matters  
+  - General HTML performance  
+  - Critical path  
+  - Resource loading + hints  
+  - Images, video, web fonts  
+  - Code-splitting, lazy-loading images/iframes  
+  - Prefetching/prerendering/precaching  
+  - Web workers (overview + demo).
+
+**Important Concepts**  
+- Course is fundamentals‑oriented, with demos per module.  
+- Aimed at beginners but relevant as a structured checklist for senior roles.
+
+***
+
+## 2) Why Speed Matters[2]
+
+**Sections & Concepts**  
+
+- **Performance & Retention**  
+  - Faster sites retain users; slow ones lose them (e.g., BBC lost ~10% users per additional second).  
+  - Core Web Vitals (LCP, INP, CLS) are user‑centric metrics Google uses for ranking and UX.
+
+- **Performance & Conversions**  
+  - Case studies:  
+    - Rakuten 24: better Core Web Vitals → +53% revenue/visitor, +33% conversion rate.  
+    - Vodafone: 31% LCP improvement → +8% sales.  
+    - redBus: INP improvements → +7% sales.
+
+- **Performance & UX**  
+  - Perceived delays trigger stress similar to horror movies/math problems.  
+  - On slow connections, long “no content yet” phases and heavy JS/CSS compound frustration.
+
+**Best Practices / Tradeoffs**  
+- Performance is *foundational*: business, UX, SEO.  
+- Invest early; avoid trading UX for unnecessary visual/JS complexity.
+
+***
+
+## 3) General HTML Performance Considerations[4]
+
+**Sections & Concepts**  
+
+- **Initial HTML Request & TTFB**  
+  - Steps: DNS → TCP/TLS handshake → server processing → first byte.  
+  - Lowering **TTFB** helps meet LCP/FCP thresholds.
+
+- **Server Decisions**  
+  - Things that delay HTML: heavy server processing, auth, DB calls, origin latency.  
+  - Use **Navigation Timing API** to measure server phases (e.g., custom headers for auth time).
+
+- **Caching HTML**  
+  - `Cache-Control` and `ETag`/`Last-Modified` for HTML; balance freshness vs speed.  
+  - Stale‑while‑revalidate, cookie‑varying responses: tradeoffs for personalized pages.
+
+- **Parser‑Blocking & Render‑Blocking**  
+  - `<script>` without `async/defer` blocks parser; `<link rel="stylesheet">` can block render.  
+  - Early `<link rel="preload">` for critical CSS; delay non‑critical scripts.
+
+**Best Practices**  
+- Keep HTML lean; minimize inlined `<script>` in `<head>`.  
+- Reduce server‑side work per request; use caching/CDN.
+
+***
+
+## 4) Understanding the Critical Path[1][4]
+
+**Sections & Concepts**  
+
+- **Critical Rendering Path**  
+  - Steps: HTML parse → DOM; CSS parse → CSSOM; JS execution; layout; paint.  
+  - **Critical resources**: those needed for first meaningful paint.
+
+- **Render‑Blocking Resources**  
+  - CSS files in `<head>` block render; scripts can block parsing and build of critical CSS/JS.  
+  - Goal: minimize number/size of render‑blocking resources.
+
+- **Metrics Context**  
+  - Critical path optimization directly impacts **FCP** and **LCP**.
+
+**Best Practices**  
+- Inline minimal critical CSS; load rest asynchronously.  
+- Defer non‑essential JS; avoid DOM‑blocking synchronous scripts.
+
+***
+
+## 5) Optimize Resource Loading[5]
+
+**Sections & Concepts**  
+
+- **CSS Optimization**  
+  - Combine/prune critical CSS; avoid unused CSS.  
+  - Media queries (`media="print"`) to avoid blocking for non‑needed styles.
+
+- **JS Optimization**  
+  - Defer low‑priority scripts (`defer`, `async` where safe).  
+  - Load vendor/analytics after initial rendering.
+
+- **Head vs Body Loading**  
+  - Head loading for critical CSS; late load for JS to reduce main thread contention.
+
+**Tradeoffs**  
+- Too much inlining inflates HTML; too much splitting increases requests.  
+- Balance size vs request overhead.
+
+***
+
+## 6) Resource Hints[6]
+
+**Sections & Concepts**  
+
+- **Types of Resource Hints**  
+  - `dns-prefetch`: early DNS resolution.  
+  - `preconnect`: open TCP/TLS connection early.  
+  - `prefetch`: low‑priority fetch for likely future resources.  
+  - `preload`: high‑priority load of known critical resource.
+
+**Examples**  
+```html
+<link rel="dns-prefetch" href="//example-cdn.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="/styles/critical.css">
+<link rel="prefetch" href="/next-page.html">
+```
+
+**Best Practices / Tradeoffs**  
+- Use `preload` for **true** critical path assets (fonts, hero image CSS).  
+- Use `preconnect` for third-party origins known to be used early (CDN, APIs).  
+- Avoid overusing prefetch/preload: can waste bandwidth and hurt low‑end devices.
+
+***
+
+## 7) Image Performance[3][1]
+
+**Sections & Concepts**  
+
+- **Formats**  
+  - Prefer modern formats (AVIF, WebP) with fallbacks as needed.  
+  - Choose lossy/lossless based on content (photos vs icons).
+
+- **Responsive Images**  
+  - Use `srcset` + `sizes`:
+    ```html
+    <img
+      src="image-800.jpg"
+      srcset="image-400.jpg 400w, image-800.jpg 800w, image-1600.jpg 1600w"
+      sizes="(max-width: 600px) 100vw, 50vw"
+      alt="Description">
+    ```
+  - Avoid sending 1600px image to 400px viewport.
+
+- **Delivery**  
+  - Use CDNs, caching, compression, and proper `width`/`height` to avoid CLS.
+
+**Tradeoffs**  
+- More variants vs storage/complexity; image CDNs can automate transformations.
+
+***
+
+## 8) Video Performance[1]
+
+**Sections & Concepts**  
+
+- **Delivery Strategy**  
+  - Stream via `<video>` with adaptive formats (HLS/DASH) where appropriate.  
+  - Don’t autoplay heavy video on first paint; consider posters/low-res placeholders.
+
+- **Embedding**  
+  - Lazy‑load third‑party players (e.g., YouTube) with a static thumbnail + deferred iframe.
+
+**Best Practices**  
+- Limit bitrate; choose resolutions by device/network.  
+- Preload metadata only; avoid `preload="auto"` for large videos on initial load.
+
+***
+
+## 9) Optimize Web Fonts[1]
+
+**Sections & Concepts**  
+
+- **Font Loading Behavior**  
+  - FOIT/FOUT: invisible or fallback text while fonts load.  
+  - `font-display` controls swap behavior (`swap`, `fallback`, `optional`).
+
+- **Loading Techniques**  
+  - Self‑host fonts; subset by needed characters (latin only vs full).  
+  - Preload crucial font files with `<link rel="preload" as="font" crossorigin>`.
+
+**Tradeoffs**  
+- More fonts/weights = more requests/bytes.  
+- Balance brand typography vs performance.
+
+***
+
+## 10) Code‑Split JavaScript[3][1]
+
+**Sections & Concepts**  
+
+- **Code Splitting**  
+  - Split JS bundles so only critical code loads for initial route; rest on demand.  
+  - Reduces **JS parse/compile/execute** time on initial load.
+
+- **Techniques**  
+  - Route‑level splitting: lazy routes (in Angular/React/Vue).  
+  - Component‑level splitting via dynamic imports:
+    ```js
+    import('./heavy-module').then(...)
+    ```
+
+**Best Practices**  
+- Keep initial bundle small; avoid importing entire libraries where a subset suffices.  
+- Monitor TBT and INP; JS main thread work is a major contributor.
+
+***
+
+## 11) Lazy‑Load Images & `<iframe>`[1]
+
+**Sections & Concepts**  
+
+- **Native Lazy Loading**  
+  - `loading="lazy"` on `<img>` and `<iframe>`:
+    ```html
+    <img src="..." alt="..." loading="lazy">
+    <iframe src="..." loading="lazy"></iframe>
+    ```
+  - Browser loads when near viewport.
+
+- **IntersectionObserver (legacy/advanced)**  
+  - For custom/staggered lazy strategies when native is insufficient.
+
+**Tradeoffs**  
+- Lazy too aggressively → content pops in late; tune thresholds.  
+- Don’t lazy‑load above‑the‑fold hero visuals.
+
+***
+
+## 12) Prefetching, Prerendering, Precaching[1]
+
+**Sections & Concepts**  
+
+- **Prefetching**  
+  - Load likely future resources in idle time (`rel="prefetch"`, JS prefetch) for next navigation.
+
+- **Prerendering**  
+  - Render full next page in background; near‑instant next navigation (may be heavy; use sparingly).
+
+- **Service Worker Precaching**  
+  - Use Workbox or custom SW to precache shell/assets for offline + instant repeat visits.
+
+**Best Practices**  
+- Use analytics to identify high‑probability next pages to prefetch.  
+- Avoid prefetch/prerender on metered/slow connections; check network conditions.
+
+***
+
+## 13) Web Worker Overview[1]
+
+**Sections & Concepts**  
+
+- **Main Thread vs Workers**  
+  - Main thread handles DOM, layout, user events.  
+  - **Web Workers** run CPU‑heavy JS in separate threads; no DOM access.
+
+- **Worker Lifecycle**  
+  - Create: `const worker = new Worker('worker.js');`  
+  - Communicate via `postMessage` / `onmessage` with structured cloning.
+
+**Best Practices**  
+- Use for CPU‑intensive tasks (image processing, data crunching) to keep UI responsive.  
+- Keep messages small to avoid overhead.
+
+***
+
+## 14) Web Worker Demo[1]
+
+**Concrete Use Case**  
+- Worker fetches JPEG, extracts metadata (EXIF), returns to main thread to display.  
+- Pattern:
+  - Main thread → sends URL/file.  
+  - Worker → performs fetch/decode/processing.  
+  - Worker → posts back metadata; main thread updates UI.
+
+**Design Patterns**  
+- Offload heavy logic; treat worker as “domain worker” for specific tasks.  
+- Use message schema/types to ensure robustness.
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Why is web performance critical for businesses?**  
+A: It directly impacts user retention, conversions, and revenue; case studies (Rakuten, Vodafone, redBus, BBC) show measurable gains/losses tied to Core Web Vitals like LCP and INP.[2]
+
+**Q2: What is the critical rendering path?**  
+A: The sequence from HTML → DOM, CSS → CSSOM, JS execution, layout, and paint; critical resources (CSS/JS) on this path determine FCP/LCP.[4][1]
+
+**Q3: How can you optimize initial HTML performance?**  
+A: Reduce TTFB via caching/fast backends, keep HTML lean, minimize parser/render‑blocking resources, and measure phases via Navigation Timing API.[4]
+
+**Q4: When should you use resource hints like `preconnect` and `preload`?**  
+A: `preconnect` for origins you know you’ll hit early (CDNs, font hosts); `preload` for truly critical assets needed for above‑the‑fold content (fonts, hero CSS/images).[6]
+
+**Q5: Name three best practices for image performance.**  
+A: Use modern formats (AVIF/WebP), responsive images (`srcset`/`sizes`), and proper `width`/`height` + lazy loading for below‑the‑fold images.[1]
+
+**Q6: What is code-splitting and why is it important?**  
+A: Splitting JS bundles so non‑critical code loads on demand; it reduces initial JS execution cost, improving TBT and startup responsiveness.[3][1]
+
+**Q7: How do you safely lazy-load iframes and images?**  
+A: Use `loading="lazy"` for non‑critical content, ensure above‑the‑fold visuals are eager, and optionally tune via IntersectionObserver.[1]
+
+**Q8: What’s the role of service worker precaching?**  
+A: Preload core shell/assets into cache at install time, enabling fast repeat visits and offline support; must be used judiciously to avoid cache bloat.[1]
+
+**Q9: When and why to use Web Workers?**  
+A: For CPU-intensive tasks to keep main thread free for user interaction; workers have no DOM access and communicate via `postMessage`.[1]
+
+***
+
+## Important Terms & Keywords
+
+1. Core Web Vitals (LCP, FCP, INP, CLS, TBT, TTI, Speed Index)  
+2. TTFB, Navigation Timing API  
+3. Critical Rendering Path, render‑blocking, parser‑blocking  
+4. Resource Hints: `dns-prefetch`, `preconnect`, `preload`, `prefetch`  
+5. Responsive Images: `srcset`, `sizes`, AVIF, WebP  
+6. Lazy Loading: `loading="lazy"`, IntersectionObserver  
+7. Video performance: streaming, poster images, preload strategies  
+8. Web Fonts: `font-display`, subsetting, self‑hosting, preload  
+9. Code Splitting: dynamic imports, route-based splitting  
+10. Prefetching, prerendering, service worker precaching  
+11. Web Workers: `new Worker()`, `postMessage`, main thread vs worker  
+12. CDN, caching, compression, HTTP/2/3 multiplexing
+
+These notes should drop cleanly into MDX and serve as a performance “map” for senior‑level interviews.
+
+[1](https://web.dev/learn/performance/welcome)
+[2](https://web.dev/learn/performance/why-speed-matters)
+[3](https://web.dev/learn/performance)
+[4](https://web.dev/learn/performance/general-html-performance)
+[5](https://web.dev/learn/performance/optimize-resource-loading)
+[6](https://web.dev/learn/performance/resource-hints)
+[7](https://web.dev/learn/)
+[8](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Performance/HTML)
+[9](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Performance)
+[10](https://web.developers.google.cn/learn/performance)
+[11](https://rabbitloader.com/articles/resource-loading/)
+[12](https://nitropack.io/blog/post/resource-hints-performance-optimization)
+[13](https://web.developers.google.cn/learn/performance/general-html-performance?hl=zh-cn)
+[14](https://library.linkbot.com/how-can-i-optimize-my-websites-resource-hints-like-preload-prefetch-and-dns-prefetch-to-improve-core-web-vitals-scores/)
+[15](https://developer.chrome.com/docs/performance)
+[16](https://developer.mozilla.org/en-US/docs/Learn/Performance/Web_Performance_Basics)
+[17](https://developers.google.com/profile/badges/playlists/webdev/learn-performance)
+[18](https://developers.google.com/speed)
+[19](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Performance/Web_Performance_Basics)
+[20](https://www.htmhell.dev/adventcalendar/2023/14/)
+[21](https://web.developers.google.cn/learn/performance/optimize-resource-loading?hl=zh-cn)
+[22](https://www.debugbear.com/blog/resource-hints-rel-preload-prefetch-preconnect)
+[23](https://web.nodejs.cn/en-us/docs/learn/performance/html/)

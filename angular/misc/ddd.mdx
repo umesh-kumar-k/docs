@@ -1,0 +1,280 @@
+Angular Domain-Driven Design (DDD) applies **Strategic Design** (subdomains, bounded contexts, context mapping) to frontend architectures for **low coupling, high cohesion, autonomous teams** via vertical slices aligned with business domains. Event Storming identifies boundaries; Nx/Sheriff enforce them in Angular monoliths; Micro Frontends for extreme decoupling.[1]
+
+## Goals of Vertical Slicing Section
+**Key Points**:
+- **Low Coupling**: Independent development/testing/deployment of verticals[1]
+- **High Cohesion**: Related business functionality grouped together[1]
+- **Conway's Law**: Architecture reflects/mirrors team structure (Inverse Conway Maneuver)[1]
+- **Autonomous Teams**: End-to-end ownership per vertical[1]
+- **Reduced Cognitive Load**: Focused context per team/developer[1]
+
+## Strategic Design Fundamentals Section
+**Subdomains** (Problem Space):
+- **Core Domain**: Competitive advantage, heavy investment[1]
+- **Supporting Subdomain**: Enables core without differentiation[1]
+- **Generic Subdomain**: Buy/don't build (auth, payments)[1]
+
+**Bounded Contexts** (Solution Space):
+- Own domain model + Ubiquitous Language per context[1]
+- "Flight" = sellable offer (Booking) vs operational process (Boarding)[1]
+- Excellent vertical candidates, especially core domain[1]
+
+## Context Mapping Patterns Section
+| Pattern | Description | Use Case |
+|---------|-------------|----------|
+| **Anti-Corruption Layer** | Translates foreign models to own Ubiquitous Language | ERP/legacy integration |
+| **Open/Host Service** | Publishes clean API/events from own model | Booking → Check-in data |
+| **Shared Kernel** | Shared model fragment (use sparingly) | Same team, multiple contexts |
+| **Separate Ways** | Independent implementations | Diverging needs over time |
+
+**Shared technical code** (UI libs) outside DDD scope[1]
+
+## Heuristics for Context Boundaries Section
+- **Terminology conflicts**: Same word, different meanings[1]
+- **Different models**: Same concept, different attributes/rules[1]
+- **Different responsibilities**: Different actors/roles[1]
+- **Pivotal Events**: State/responsibility shifts (flight booked → airline owns)[1]
+- **Event Storming signals**: Swimlanes, expert clustering, body language[1]
+
+## Event Storming Section
+**Big Picture Event Storming**:
+- Orange sticky notes = domain events ("Flight Booked")[1]
+- Pivotal events = yellow splits (context boundaries)[1]
+- Swimlanes = parallel processes[1]
+- Milestones = coarse sections[1]
+- Include UX/Frontend: Wireframes, user moods/journey[1]
+
+**Heuristics**:
+- Different term usage (nouns + verbs)
+- Pivotal events, actors, hotspots[1]
+
+## Frontend vs Backend Slicing Section
+**Same slicing** (preferred):
+```
+Backend Contexts ↕ Frontend Verticals
+Booking ↕ Booking UI
+Boarding ↕ Boarding UI
+```
+**Different slicing** (regulated/simple UI):
+```
+Backend: Ticketing + Payment + Seat
+Frontend: Customer Journey (BFF translates)
+```
+
+**BFF Pattern**: Backend-for-Frontend owned by frontend team[1]
+
+## Angular Implementation Section
+**Monolith/Modulith** (Folders/Libraries):
+- **Nx**: Library-per-context, tag-based linting[1]
+- **Sheriff**: Folder-level TypeScript linting[1]
+```
+Booking → only Booking/Shared
+Boarding → only Boarding/Shared
+```
+- Enforce: Open/Host (public API), ACL access[1]
+
+**Micro Frontends**:
+- Bounded Contexts = Micro Frontend candidates[1]
+- Native Federation for shell integration[1]
+- Challenges: Bundle size, tech/version conflicts, styling[1]
+
+## Key Classes/Interfaces (Enforcement Tools)
+- **Nx**: `tag: 'booking'`, `tag: 'shared-kernel'`, import restrictions[1]
+- **Sheriff**: `.sheriff.yml` rules for folder boundaries[1]
+- **Native Federation**: Module federation for Micro Frontends[1]
+
+## Design Patterns & Best Practices
+- **Vertical Slices > Horizontal Layers**: Business domains first[1]
+- **Event Storming**: Cross-functional (domain + UX + frontend)[1]
+- **Modulith first**: Folders/Nx libs before Micro Frontends[1]
+- **Explicit Boundaries**: Linting enforces context mapping[1]
+- **BFF for Frontend Contexts**: Translation layer[1]
+
+## Advanced Topics
+- **Pivotal Events**: Scene changes = context boundaries[1]
+- **Shared Kernel caution**: Coordination overhead, prefer Separate Ways[1]
+- **Frontend as Context**: Customer journey vs backend complexity[1]
+- **Nx/Sheriff combos**: Tags + folder rules[1]
+
+## Interview Cheat Sheet
+**Q: DDD Strategic Design for Angular?**  
+A: Subdomains (Core/Supporting/Generic) → Bounded Contexts → Vertical slices with low coupling/high cohesion[1]
+
+**Q: Bounded Context heuristics (3)?**  
+A: 1) Terminology conflicts, 2) Different models/responsibilities, 3) Pivotal events[1]
+
+**Q: Context Mapping patterns?**  
+A: Anti-Corruption Layer (translate), Open/Host (publish), Shared Kernel (careful)[1]
+
+**Q: Event Storming for frontend?**  
+A: Orange events, yellow pivots, UX wireframes, swimlanes, expert clustering[1]
+
+**Q: Angular enforcement?**  
+A: Nx library tags or Sheriff folder linting: `booking → only booking/shared`[1]
+
+**Q: Micro Frontends vs Modulith?**  
+A: Modulith (Nx/Sheriff) first; Micro FE when teams can't collaborate[1]
+
+**Q: Frontend slicing differs from backend?**  
+A: Customer journey (BFF translates); simple UI vs complex backend orchestration[1]
+
+Domain-Driven Design’s core is **Strategic Design**: deeply understanding the domain with experts, defining **bounded contexts** with their own **ubiquitous language**, and only then choosing Tactical patterns (Entities, Value Objects, Aggregates) and implementation style (OO/FP/actors/events).[1]
+
+***
+
+## DDD in a Nutshell
+
+- DDD focuses on building software around a **shared domain model** created jointly by domain experts and software experts.[1]
+- A **model** captures relevant concepts, relationships, and processes and is expressed directly in code and language.[1]
+
+**Strategic Design**:  
+- Identify **subdomains** and define **bounded contexts**; each context has its own model and ubiquitous language.[1]
+- Different contexts can model the same concept differently (e.g., Product in Sales vs Product in Logistics).[1]
+
+**Tactical Design**:  
+- Within a bounded context, use building blocks such as **Entities**, **Value Objects**, **Aggregates**, **Repositories** to implement the model.[1]
+
+***
+
+## Strategic Design Core
+
+- Strategic Design is the **core of DDD**, not the tactical building blocks.[1]
+- Key strategic elements:
+  - **Bounded Contexts**: Explicit boundaries where a specific model/language applies.[1]
+  - **Ubiquitous Language**: Shared vocabulary used in conversations, docs, diagrams, and code.[1]
+
+Eric Evans’ distilled definition:  
+- Focus on the **core domain**.  
+- Explore models in **collaboration** between domain and software practitioners.  
+- Speak a **ubiquitous language** within **explicitly bounded contexts**.[1]
+
+**When can we call it DDD?**  
+- If you have:
+  - **Ubiquitous Language** and  
+  - **Bounded Contexts**,  
+  you are “doing DDD”, even if not using every tactical pattern.[1]
+
+***
+
+## Tactical Design & Misconceptions
+
+- Original book layout (tactics first, strategy later) caused many to think DDD = Entities/Repositories only.[1]
+- Tactical patterns are important but **support** the strategic model; they are not the “core”.[1]
+
+Tactical building blocks (classic OO flavor):  
+- **Entity**: Identity + lifecycle (Order).  
+- **Value Object**: Immutable, identity by value (Money, Address).  
+- **Aggregate**: Consistency boundary (Order + OrderLines).  
+- **Repository**: Abstraction over persistence for Aggregates/Entities.[1]
+
+***
+
+## DDD Beyond OO: FP, Events, Actors, Relational, Graphs
+
+- DDD is **paradigm-agnostic**; it is not bound to OO.[1]
+- Functional Programming adaptation:
+  - Data as immutables/records, domain logic as **pure functions**.[1]
+  - Functions return new aggregate state or **Domain Events** instead of mutating state.[1]
+
+- Other tactical adaptations now considered part of DDD:
+  - **Domain Events** (not explicit in original book).[1]
+  - **Event Sourcing** + **CQRS** (command-query segregation).[1]
+  - **Actor model** for Aggregates (actors enforce invariants and ordering).[1]
+
+- Alternative modeling paradigms:
+  - **Relational**: Multiple specialized schemas per bounded context (not a single global schema).[1]
+  - **Graphs**: Nodes/edges as domain abstractions for graph-like problems.[1]
+
+***
+
+## Recent Developments & Ecosystem
+
+- **Collaborative Modelling**:
+  - **Event Storming**, **Domain Storytelling**: Workshops to explore flows, events, and boundaries with domain + devs.[1]
+
+- Strategic Design applied to:
+  - **Microservices**: Find service boundaries.[1]
+  - **Micro Frontends / Frontend Moduliths**: Vertical slices per bounded context.[1]
+  - **Team Topologies**: Teams aligned to bounded contexts (stream-aligned, platform, etc.).[1]
+
+***
+
+## Design Patterns & Best Practices (Angular Angle)
+
+For Angular/Frontend architectures, treat DDD as:
+
+- **Strategic**:
+  - Slice frontend into **feature areas aligned to bounded contexts** (e.g., Booking, Billing, Admin).  
+  - Each slice can have its own NgRx store, routes, and UI language (component names, actions, selectors) reflecting its ubiquitous language.  
+  - Use Event Storming with UX/POs to design states/screens and events.
+
+- **Tactical**:
+  - Represent **Value Objects** as strongly typed TS value types (e.g., `Money`, `FlightId`).  
+  - Use NgRx or signal stores as **Aggregates** boundaries: state + invariants + domain actions.  
+  - Use **Domain Events** (TS types) to drive effects and cross-bounded-context communication.
+
+***
+
+## Advanced Topics
+
+- **Core Domain**: Highest business value bounded contexts should get best people and most investment.[1]
+- Non-core subdomains might be:
+  - **Supporting**: Necessary but not differentiating (e.g., Billing UI).  
+  - **Generic**: Use off-the-shelf solutions (Auth, CMS).  
+
+- **Innovation Space**: DDD is a set of guiding principles; communities are consciously evolving tactics (e.g., event-sourced aggregates, functional DDD).[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: What are the three core guiding principles of DDD according to Evans?**  
+A: 1) Focus on the **core domain**, 2) Explore models in **collaboration** between domain and software practitioners, 3) Speak a **ubiquitous language** within **explicitly bounded contexts**.[1]
+
+**Q: When can a team reasonably claim they’re doing DDD?**  
+A: When they have a clearly defined **ubiquitous language** and **bounded contexts** for their models; other tactical patterns are helpful but secondary.[1]
+
+**Q: Why is Strategic Design more central than Tactical Design?**  
+A: Because it determines the **overall architecture and boundaries** (contexts, languages, core domain), while tactical patterns merely implement models within those boundaries; focusing only on Entities/Repositories misses the main value.[1]
+
+**Q: How does DDD relate to different paradigms like FP or actors?**  
+A: DDD is paradigm-agnostic; tactical patterns must be adapted: in FP, data is immutable and behavior is pure functions; in actor model, aggregates become actors enforcing invariants; event sourcing and CQRS are additional tactical styles.[1]
+
+**Q: How is Strategic Design used in microservices and micro frontends?**  
+A: Bounded contexts become **service** or **micro frontend** boundaries; each context has its own model and language, reducing coupling and aligning with team boundaries (Team Topologies).[1]
+
+**Q: What is the role of Domain Events in modern DDD?**  
+A: Domain Events capture meaningful state transitions (e.g., `FlightBooked`), support event sourcing/CQRS, integration between contexts, and clearer history of what happened.[1]
+
+***
+
+## Key Terms & Keywords
+
+- Strategic Design  
+- Tactical Design  
+- **Bounded Context**  
+- **Ubiquitous Language**  
+- Subdomains: Core, Supporting, Generic  
+- Entity, Value Object, Aggregate, Repository  
+- Domain Events  
+- Event Storming, Domain Storytelling (collaborative modeling)  
+- Microservices, Micro Frontends, Frontend Moduliths  
+- Team Topologies, stream-aligned teams  
+- Functional DDD, event sourcing, CQRS, actor model  
+- Relational modeling with multiple schemas per context  
+- Graph modeling (nodes/edges as domain abstractions)[1]
+
+[1](https://www.angulararchitects.io/blog/micro-frontends-with-modern-angular-part-1-standalone-and-esbuild/)
+
+## Key Terms & Keywords
+- Strategic Design, Subdomains (Core/Supporting/Generic)
+- Bounded Contexts, Ubiquitous Language
+- Context Mapping: Anti-Corruption Layer, Open/Host, Shared Kernel
+- Pivotal Events, Event Storming (orange events, yellow splits)
+- Vertical slices, Modulith, Micro Frontends
+- Nx tags, Sheriff linting
+- Conway's Law, Inverse Conway Maneuver
+- BFF (Backend-for-Frontend)
+- Low coupling, high cohesion[1]
+
+[1](https://angularexperts.io/blog/the-most-impactful-rx-js-best-practice-of-all-time)

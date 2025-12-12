@@ -1,0 +1,105 @@
+Angular Router enables SPA navigation via `provideRouter(ROUTES)` configuration, matching URLs to components with lazy-loading (`loadComponent`), guards (CanActivate/Match/Deactivate), resolvers for pre-fetch, and features like input binding, custom matchers, and preloading strategies. First-match-wins ordering with `pathMatch: 'full'` and wildcard `**` ensures precise routing.
+
+## Core Mechanism
+
+```
+provideRouter([
+  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
+  { path: 'products/:id', loadComponent: () => import('./ProductCmp') },
+  { path: '**', component: NotFoundCmp }
+]);
+```
+
+- **Matching**: First-match-wins; specific before params/wildcards
+- **Lazy**: `loadComponent/loadChildren` → code-split chunks
+- **Hierarchy**: `children[]` for nested routes
+
+## Important Classes/Interfaces
+
+- **Routes/Route**: `{path, component, children, canActivate, resolve}`
+- **ActivatedRouteSnapshot/RouterStateSnapshot**: Guard/resolver params
+- **Router/ActivatedRoute**: Navigation (`navigate()`), params (`paramMap`)
+- **UrlMatcher/UrlMatchResult**: Custom path matching
+
+## Design Patterns
+
+- **Component-less Routes**: `{path: '', canActivateChild: [guard], children: [...]}` middleware
+- **Matcher Factories**: Custom param extraction (e.g., `@username` → `username`)
+- **Guard Chaining**: Multiple `canActivate: [g1, g2]` sequential checks
+
+## Best Practices
+
+```
+✅ Specific → General: 'products/top' before ':id'
+✅ Lazy Always: loadComponent() → code splitting
+✅ Guards Early: CanMatch skips matching (perf)
+✅ Resolvers: Pre-fetch data before component init
+✅ Titles: Custom TitleStrategy for "App | Page"
+```
+
+## Advanced Topics
+
+```
+Custom Matcher:
+nameMatcher: (segments) => ({consumed: [seg], posParams: {username: seg.slice(1)}})
+
+Component Input Binding (v16+):
+customerId = input.required<string>({alias: 'id'});
+customer = input<Customer>({transform: validateCustomer});
+
+Preloading:
+withPreloading(FlagBasedStrategy) // data: {preload: true}
+```
+
+## Big Tech References
+
+- **Netflix**: CanMatch role-based dashboards; resolvers + lazy reduced TTI 40% 
+- **Uber**: Custom matchers for `/ride/:id/@driver` → `{rideId, driverId}`
+
+## Interview Q&A
+
+**Q: First-match-wins impact?**  
+A: `'top'` before `':id'` prevents "top" matching as param 
+
+**Q: CanMatch vs CanActivate timing?**  
+A: CanMatch: matching phase (skips route); CanActivate: post-match 
+
+**Q: Resolver error handling?**  
+A: Return `RedirectCommand(router.createUrlTree(['/not-found']))` 
+
+**Q: Component-less guard?**  
+A: `{path: '', canActivateChild: [guard], children: [...]}` middleware 
+
+**Q: Title resolver?**  
+A: `resolve: {title: titleFn}` → `route.data['title']` 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Param captures literal | `:id` before `'top'` | Order specific first |
+| No SSR hydration | Blocking initial nav | `withEnabledBlockingInitialNavigation()` |
+| Chunk preload fail | No strategy | `withPreloading(CustomStrategy)` |
+| Nested param loss | Default inheritance | `paramsInheritanceStrategy: 'always'` |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Lazy chunks, functional guards, input binding, resolvers.
+- **Tradeoffs**:
+  | Feature | Pros | Cons |
+  |---------|------|------|
+  | CanMatch | Early skip | Match-only |
+  | Resolvers | Pre-fetch | Blocking nav |
+
+## Essential Terms & Keywords
+
+- provideRouter
+- Routes/Route
+- loadComponent/loadChildren
+- pathMatch: 'full'
+- CanActivate/CanMatch/CanDeactivateChild
+- ResolveFn/ActivatedRouteSnapshot
+- UrlMatcher/UrlMatchResult
+- withComponentInputBinding
+- TitleStrategy
+- PreloadingStrategy

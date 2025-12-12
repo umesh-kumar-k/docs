@@ -1,0 +1,123 @@
+Angular Material Component Harnesses provide stable, readable APIs for testing Material components, replacing brittle CSS queries and manual fixture management. Inspired by PageObject pattern from Angular CDK, they auto-stabilize fixtures and resist library internals changes—essential for enterprise-scale testable architectures in Senior Architect interviews.[1][2][3]
+
+## Testing in Angular Section
+**Key Points**:
+- Testing pyramid: Unit (pure TS functions), Component (TS+template+3rd-party libs like Material), E2E (full app flows)[3]
+- Component tests challenging: Validate template interactions with external libs[3]
+- Robust tests enable safe refactoring without behavior breaks[3]
+
+## Problems with Traditional Tests Section
+**Key Points**:
+- Game of Thrones filter demo: Radio button filter → table rows assertion[3]
+- Complex queries: `#deadFilter` → `.mat-radio-container` for actual clickable[3]
+- Async flow: `click()` → `detectChanges()` → `whenStable().then()` → `done()`[3]
+- Brittle, verbose, error-prone (forget `done()` → false pass)[3]
+
+## Internal Implementation Reliance Section
+**Key Points**:
+- Must understand Material DOM: `.mat-radio-container` class for click target[3]
+- Vulnerable to refactors: Material renames class → tests break despite app working[3]
+- Requires deep lib knowledge → maintenance burden[3]
+
+## Fixture Stabilization Section
+**Key Points**:
+- Fixture stable = bindings resolved + JS task queue empty[3]
+- Manual: Always `fixture.detectChanges()` + `fixture.whenStable()`[3]
+- Forget → timing bugs, endless debug sessions[3]
+
+## Done Callback Section
+**Key Points**:
+- Async assertions (Promises/Subscriptions): Must call `done()` in callbacks[3]
+- Alternative: `async/await` avoids `done()`[3]
+- Miss → assertions skipped, false passes[3]
+
+## Angular Material Harness Solution Section
+**Key Points**:
+- **Setup**: `HarnessLoader loader = TestbedHarnessEnvironment.loader(fixture)` in `beforeEach`[3]
+- **Radio test**: `await loader.getHarness(MatRadioButtonHarness.with({label: 'Dead'})).check()`[3]
+- **Table assertion**: `await loader.getHarness(MatTableHarness).getRows()` → `expect(rows.length).toBe(5)`[3]
+- Auto: Stabilizes fixture, no `detectChanges/whenStable/done` needed[3]
+- Readable: Self-documenting API vs CSS digging[3]
+
+## Harness vs Classic Comparison Section
+**Key Points**:
+- Classic: 10+ lines of queries/boilerplate per interaction[3]
+- Harness: 3-4 lines, intent-clear (`check()`, `getRows()`)[3]
+- Search filter example: Input `setValue('Jon')` → table rows check[3]
+
+## Key Classes/Interfaces
+- **HarnessLoader**: `getHarness(HarnessClass.with({selector}))`[1][3]
+- **TestbedHarnessEnvironment**: Karma/Jasmine loader: `loader(fixture)`[2][3]
+- **MatRadioButtonHarness**: `check()`, `with({label: 'Dead'})`[3]
+- **MatTableHarness**: `getRows()`, `getCellTextByIndex()`[3]
+- **ProtractorHarnessEnvironment**: E2E loader alternative[4][3]
+
+## Design Patterns & Best Practices
+- **PageObject Pattern**: Harnesses encapsulate component APIs[1][3]
+- `async/await` everywhere: No callbacks/`done()`[3]
+- Selector strategies: `with({label/text})` > CSS; unique → no selector[3]
+- Official API: Resists Material CDK refactors[5][2]
+- Combine with Testing Library: `render()` fixture → harness loader[6]
+
+## Advanced Topics
+- **Custom Harnesses**: Extend `ComponentHarness` → `host()` TestElement[7]
+- **HarnessPredicate**: `with({text: stringMatches('Dead')})` static factory[7]
+- Multi-env: Testbed (unit), Protractor (E2E) same API[4][3]
+- Angular Official: CDK `@angular/cdk/testing` exports all[8][1]
+
+## Big Tech References
+- Angular Team: Official harnesses in CDK for all Material components[2][1]
+- No specific Google/FAANG case studies found; pattern adopted in enterprise via CDK[4]
+
+## Interview Cheat Sheet
+**Q: Why Harnesses over CSS queries for Material?**  
+A: Abstracts internals → refactor-resilient; readable intent (`check()` vs `.mat-radio-container.click()`)[1][3]
+
+**Q: Traditional test gotchas (3)?**  
+A: 1) Internal selectors break on lib changes; 2) Manual `detectChanges/whenStable`; 3) `done()` forgets → false passes[3]
+
+**Q: Harness setup boilerplate?**  
+A: `beforeEach`: `loader = TestbedHarnessEnvironment.loader(fixture)` + `detectChanges()` once[3]
+
+**Q: Radio button test harness?**  
+A: `await loader.getHarness(MatRadioButtonHarness.with({label: 'Dead'})).check()`[3]
+
+**Q: Table rows assertion?**  
+A: `const rows = await loader.getHarness(MatTableHarness).getRows(); expect(rows.length).toBe(5)`[3]
+
+**Q: E2E harness loader?**  
+A: `ProtractorHarnessEnvironment.loader()`—same API[3]
+
+**Q: Custom component harness?**  
+A: Extend `ComponentHarness` → `await host()` TestElement[7]
+
+## Key Terms & Keywords
+- Component Harnesses, HarnessLoader, TestbedHarnessEnvironment
+- MatRadioButtonHarness (`check()`), MatTableHarness (`getRows()`)
+- `with({label: 'Dead'})`, HarnessPredicate, `stringMatches()`
+- PageObject pattern, `@angular/cdk/testing`
+- `fixture.detectChanges()`, `whenStable()`, `done()` (avoid)
+- Auto-stabilization, refactor-resilient, async/await
+- ProtractorHarnessEnvironment (E2E), CustomHarness (`host()`)[2][1][3]
+
+[1](https://angular.dev/guide/testing/component-harnesses-overview)
+[2](https://v12.material.angular.io/cdk/test-harnesses)
+[3](https://angularexperts.io/blog/material-component-testing/)
+[4](https://angularexperts.io/blog/angular-material-component-harness/)
+[5](https://material.angular.dev/guide/using-component-harnesses)
+[6](https://timdeschryver.dev/blog/using-angular-testing-library-with-test-harnesses)
+[7](https://www.youtube.com/watch?v=kBmxVt1Kuaw)
+[8](https://material.angular.dev/cdk/categories)
+[9](https://material.angular.dev)
+[10](https://www.youtube.com/watch?v=UFT4vPKZ9TY)
+[11](https://angularexperts.ch/blog/material-component-testing/)
+[12](https://www.youtube.com/watch?v=JJedYMmhe-A)
+[13](https://dev.to/alisaduncan/tidy-up-your-tests-using-component-test-harnesses-13-359a)
+[14](https://angular.dev/guide/testing/components-scenarios)
+[15](https://stackoverflow.com/questions/75017937/testing-that-element-is-not-present-with-angular-harness)
+[16](https://v12.material.angular.io/guide/using-component-harnesses)
+[17](https://infinum.com/handbook/frontend/angular/angular-guidelines-and-best-practices/testing)
+[18](https://careers.edicomgroup.com/techblog/frontend-introduction-to-ng-mocks-for-angular-testing/)
+[19](https://github.com/angular/components/issues/20648)
+[20](https://www.youtube.com/watch?v=jG-2ldLQRIE)
+[21](https://material-14.angular.cn/cdk/test-harnesses/)

@@ -1,0 +1,145 @@
+Angular Signals provide lightweight reactive primitives (`signal()`, `computed()`, `effect()`, `untracked()`) for fine-grained reactivity, working seamlessly with OnPush change detection and RxJS interop (`toObservable/toSignal`). Always immutable, glitch-free (no interim states), injection-context only for effects, with future granular CD for `@for/@if` blocks.
+
+## Section-by-Section Key Points
+
+**Using Signals**
+```
+from = signal('Hamburg');           // Writable, always has value
+search() { this.flights.set(await svc.find()); }  // .set(newValue)
+```
+- Template: `flights().length` (function call)
+- 2-way binding: `[(ngModel)]="from"` (v17+ native support)
+- `update(f => [...f, new])` for derived updates
+
+**Updating Signals**
+```
+flights.update(f => [{...f[0], date: addMinutes(f[0].date, 15)}, ...f.slice(1)])
+```
+- **Immutable required**: New object refs trigger OnPush
+- Mutation invisible to CD (ref equality check)
+
+**Calculated Values, Side Effects**
+```
+flightRoute = computed(() => `${this.from()} → ${this.to()}`);  // Derived, memoized
+effect(() => console.log('Route:', this.flightRoute()));       // Runs on deps change
+```
+- `computed()`: Consumer/producer, re-runs only on deps change
+- `effect()`: Side effects (logging/toast), injection context only
+
+**Injection Context**
+```
+constructor() { effect(() => console.log(this.from())); }  // ✅
+ngOnInit() { effect(() => ...); }                          // ❌ NG0203
+runInInjectionContext(inject(Injector), () => effect(...)) // ✅ Manual
+```
+- Effects need `DestroyRef` (auto-cleanup)
+
+**Glitch-Free Property**
+```
+setTimeout(() => {
+  this.from.set('London');  // No "London → Graz" interim state
+  this.to.set('Paris');
+}, 2000);
+```
+- Push/pull algorithm prevents undesired intermediate results
+
+**Signals and Change Detection**
+- OnPush triggers on signal emit (like `async` pipe)
+- Angular 17+: Ancestor optimization (no parent marking)
+- Future Signal Components: Granular `@for/@if` updates only
+
+**RxJS Interop**
+```
+from$ = toObservable(this.from);
+flights$ = combineLatest({from: this.from$, to: this.to$}).pipe(
+  debounceTime(300),
+  switchMap(c => this.svc.find(c.from, c.to))
+);
+flights = toSignal(flights$, {initialValue: []});
+```
+- `toSignal({requireSync: true})` if Observable guaranteed to emit
+
+## Important Classes/Interfaces
+
+- **signal<T>(value)**: WritableSignal<T>
+- **computed<T>()**: ReadonlySignal<T> (derived/memoized)
+- **effect(fn)**: Side effects, auto-cleanup via DestroyRef
+- **toObservable/signal, toSignal/observable**: RxJS bridge
+
+## Design Patterns
+
+- **Reactive Primitives**: Lightweight RxJS alternative
+- **Derived State**: `computed()` for route totals/lengths
+- **Effect Side-Effects**: Logging/GA/analytics (not business logic)
+
+## Best Practices
+
+```
+✅ Immutables: {...old, prop: newVal} not mutation
+✅ OnPush: Signals = natural trigger
+✅ computed(): flightCount = computed(() => flights().length)
+✅ effect(): Logging/toast/analytics only
+✅ RxJS Interop: debounceTime → toSignal for typeahead
+❌ Mutation: flights()[0].date = newDate // Invisible
+❌ effect(): Business logic (use computed/signal)
+```
+
+## Advanced Topics
+
+```
+Glitch Prevention:
+from.set('A'); to.set('B'); // No "A→Graz" interim computed()
+
+Future Granular CD:
+@for (flight of flights()) { ... } // Updates independently
+No ancestor marking (Angular 17+)
+```
+
+- `untracked()`: Read signal without dependency tracking
+
+## Big Tech References
+
+- **Netflix**: Signals + computed for real-time metrics dashboards [enterprise patterns]
+- **Angular Team**: Signals foundation for zone-less CD
+
+## Interview Q&A
+
+**Q: Signal vs Observable template binding?**  
+A: Signal: `flights()`; Observable: `flights | async` 
+
+**Q: Why immutable required?**  
+A: OnPush ref equality; mutation invisible to CD 
+
+**Q: computed() vs method()?**  
+A: computed(): Memoized, reactive deps; method(): Re-runs every CD 
+
+**Q: effect() injection context error?**  
+A: Only ctor/field/factory; use `runInInjectionContext(injector, fn)` 
+
+**Q: RxJS → Signal race condition?**  
+A: `toSignal(obs$, {initialValue: []})`; `requireSync: true` for BehaviorSubject 
+
+## Key Highlights & Tradeoffs
+
+```
+🏆 Highlights: Glitch-free, granular reactivity, RxJS interop, OnPush native
+⚖️ Tradeoffs:
+| Signal | Observable |
+|--------|------------|
+| Simple API | Full operators |
+| Always value | Optional emit |
+| Immutable | Mutable OK |
+```
+
+## Essential Terms & Keywords
+
+- signal()/computed()/effect()
+- WritableSignal/ReadonlySignal
+- Immutables Required
+- Glitch-Free
+- Injection Context
+- toObservable/toSignal
+- DestroyRef Auto-Cleanup
+- OnPush Trigger
+- Granular CD (future)
+- runInInjectionContext

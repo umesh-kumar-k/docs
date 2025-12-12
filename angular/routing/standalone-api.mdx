@@ -1,0 +1,177 @@
+Angular Router Standalone APIs replace `RouterModule` with tree-shakable functions and standalone directives/components, reducing router bundle size (around 7–11% in examples) while enabling fully standalone apps. They center on `bootstrapApplication`, `provideRouter`, and lazy standalone `loadComponent` routes.[1][2]
+
+## Standalone Router Basics
+- `provideRouter(routes, ...features)` registers routes and router features (tracing, config) in the application injector instead of using `RouterModule.forRoot`.[2][1]
+- Router directives/components like `RouterOutlet`, `RouterLinkWithHref`, `RouterLinkActive` are available as **standalone imports** and must be listed in `imports` of standalone components.[1][2]
+- `bootstrapApplication(AppComponent, { providers: [provideRouter(routes)] })` bootstraps a standalone root component and configures routing.[2][1]
+
+## Hybrid Approach Section (Partial Migration)
+**Goal**: Use `provideRouter` but keep existing lazy feature modules.
+
+Key points:
+- Convert only `AppComponent` to standalone: `standalone: true`, `imports: [RouterOutlet, RouterLinkWithHref]`.[1]
+- Delete `AppModule` and `AppRoutingModule`; move root routes into `main.ts` and use `bootstrapApplication`.[1]
+- Keep lazy-loaded feature **NgModules** and `loadChildren`:
+
+  ```ts
+  const routes: Routes = [
+    {
+      path: 'shows',
+      loadChildren: () => import('./app/features/shows/shows.module')
+        .then(m => m.ShowsModule),
+    },
+    {
+      path: 'movies',
+      loadChildren: () => import('./app/features/movies/movies.module')
+        .then(m => m.MoviesModule),
+    },
+  ];
+  bootstrapApplication(AppComponent, {
+    providers: [provideRouter(routes)],
+  });
+  ```
+
+
+- Bundle result in article example: overall app size slightly down, but router size slightly **up** because `RouterModule` still used in feature modules plus new standalone APIs.[1]
+
+Implications:
+- Good **intermediate step** during migration to standalone.[1]
+- Does **not** deliver full router bundle shrink, because `RouterModule` still included.[1]
+
+## Full Standalone Components Section
+**Goal**: Remove `RouterModule` entirely, use only standalone APIs.
+
+Key points:
+- Remove feature routing modules (`movies.routing.module.ts`, `movies.module.ts`, same for `shows`).[1]
+- Convert feature root components to standalone:
+
+  ```ts
+  @Component({
+    selector: 'app-movies',
+    templateUrl: './movies.component.html',
+    styleUrls: ['./movies.component.scss'],
+    standalone: true,
+    imports: [MovieCardComponent, NgFor],
+  })
+  export class MoviesComponent {
+    movies = this.moviesService.getMovies();
+    constructor(private moviesService: MoviesService) {}
+  }
+  ```
+
+
+- Convert nested feature components like `MovieCardComponent` to standalone similarly.[1]
+- Replace `loadChildren` with `loadComponent` in routes:
+
+  ```ts
+  const routes: Routes = [
+    {
+      path: 'shows',
+      loadComponent: () =>
+        import('./app/features/shows/shows.component')
+          .then(c => c.ShowsComponent),
+    },
+    {
+      path: 'movies',
+      loadComponent: () =>
+        import('./app/features/movies/movies.component')
+          .then(c => c.MoviesComponent),
+    },
+  ];
+  bootstrapApplication(AppComponent, {
+    providers: [provideRouter(routes)],
+  });
+  ```
+
+
+- `loadComponent` lazy-loads a **standalone component**, not a module.[2][1]
+- Result in article example:
+  - App total: `246.23 KB` → `233.61 KB` (−`12.62 KB`) for same features.[1]
+  - Router: `65.62 KB` → `60.54 KB` (−`5.08 KB`, ≈ `7.74%` reduction).[1]
+  - Angular team tweet mentions up to ~`11%` improvement in other scenarios.[1]
+
+## Key Topics / APIs
+- **`bootstrapApplication`** (from `@angular/platform-browser`): Bootstraps standalone `AppComponent`.[2][1]
+- **`provideRouter(routes, ...features)`**:
+  - First param: `Routes` array (supports `loadComponent`, `loadChildren` if still using modules).[2][1]
+  - Additional options: `withDebugTracing()`, `withRouterConfig({...})` etc.[2][1]
+- **Standalone Router Declarations**:
+  - `RouterOutlet`, `RouterLink`, `RouterLinkWithHref`, `RouterLinkActive` imported directly in `imports`.[2][1]
+- **Lazy APIs**:
+  - `loadComponent`: Lazy-loads standalone component.
+  - `loadChildren`: Lazy-loads NgModule (for hybrid/legacy).[2][1]
+
+## Design Patterns & Best Practices
+- **Incremental Migration Pattern**:
+  - Step 1: Make root `AppComponent` standalone; use `bootstrapApplication` + `provideRouter`.[1]
+  - Step 2: Gradually convert feature modules to standalone components and switch `loadChildren` → `loadComponent`.[1]
+  - Step 3: Delete `RouterModule` usage when all features are standalone.[1]
+
+- **Tree-Shaking & Minimal Surface**:
+  - Prefer `provideRouter` + standalone imports over `RouterModule.forRoot/forChild` for smaller bundles.[2][1]
+  - Avoid long-term mix of `RouterModule` and standalone APIs; treat hybrid as transitional only.[1]
+
+- **Separation of Concerns**:
+  - Keep route configuration close to bootstrap (`main.ts`) or a dedicated routes file consumed by `provideRouter`.[2][1]
+  - Standalone features import only what they need (`NgFor`, feature components, router directives), improving clarity and scanning for dependencies.[1]
+
+## Advanced / Architect-Level Considerations
+- **Bundle-size Strategy**:
+  - Router often a substantial portion of small apps; standalone router is a low-friction win when moving to standalone architecture anyway.[1]
+  - For large enterprise apps, benefits depend on how many router features / directives are used; still beneficial due to tree-shaking.[2][1]
+
+- **Testing & Tooling Impacts**:
+  - Standalone routing integrates with modern Angular devtools and testing patterns (no need to spin up modules for router config).[2]
+  - Encourages consolidation of configuration: `provideRouter` in one place for all tests and apps.[2]
+
+- **Versioning & Stability**:
+  - Article notes APIs were in developer preview at the time and stable in v15; for interviews, assume they are standard for current Angular versions.[2][1]
+
+## External / Official References
+- Angular official docs on standalone router & bootstrap: `bootstrapApplication`, `provideRouter`, `loadComponent`, `loadChildren`.[3][2]
+- Angular team communication (e.g., tweets by Minko Gechev) highlighting standalone router’s tree-shaking and bundle improvements.[1]
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What are Angular Router Standalone APIs and why were they introduced?**  
+A: They are function-based router configuration (`provideRouter`, `loadComponent`) plus standalone router directives/components, replacing `RouterModule` to improve tree-shaking and align with the standalone component model.[2][1]
+
+**Q2: How do you bootstrap a standalone app that uses router standalone APIs?**  
+A: Use `bootstrapApplication(AppComponent, { providers: [provideRouter(routes)] })` and make `AppComponent` `standalone: true` with `RouterOutlet` and router link directives in its `imports`.[2][1]
+
+**Q3: What is the difference between `loadChildren` and `loadComponent` in a standalone router setup?**  
+A: `loadChildren` lazy-loads NgModules and is used for module-based features, while `loadComponent` lazy-loads a standalone component directly, enabling fully module-less routing.[2][1]
+
+**Q4: What are the pros and cons of the hybrid approach (standalone root + module-based features)?**  
+A: Pro: Enables gradual migration and immediate use of `provideRouter` without refactoring all features. Con: Router bundle size does not shrink significantly because `RouterModule` is still included, and both old and new APIs are present.[1]
+
+**Q5: How much bundle size reduction can standalone router provide?**  
+A: In the example app, total bundle reduced about `12.62 KB` and router specifically about `5.08 KB` (~7.74% reduction), with Angular team examples showing up to roughly 11% router size reduction.[1]
+
+**Q6: Why should mixing `provideRouter` and `RouterModule` be treated as temporary?**  
+A: Because it duplicates router features and APIs, undermines tree-shaking, and complicates mental models; the target architecture is standalone-only for cleaner config and smaller bundles.[2][1]
+
+**Q7: What changes are needed in `AppComponent` when moving to standalone router?**  
+A: Mark as `standalone: true`, remove `AppModule`, import `RouterOutlet` and appropriate `RouterLink` variants in `imports`, and switch bootstrap from `platformBrowserDynamic().bootstrapModule(...)` to `bootstrapApplication(AppComponent, ...)`.[1]
+
+## Important Terms & Keywords (for quick revision)
+- `bootstrapApplication`  
+- `provideRouter(routes, ...features)`  
+- `withDebugTracing()`, `withRouterConfig({...})`  
+- Standalone router directives: `RouterOutlet`, `RouterLink`, `RouterLinkWithHref`, `RouterLinkActive`  
+- `Routes` array  
+- `loadComponent` (lazy standalone component)  
+- `loadChildren` (lazy NgModule)  
+- Standalone components: `standalone: true`, `imports: [...]`  
+- Hybrid approach: standalone root + module-based features  
+- Full standalone approach: all features + router standalone  
+- `RouterModule` vs standalone router  
+- Tree-shakable router, bundle size reduction (≈7–11% router)  
+- Partial migration, transitional architecture  
+- Angular v14+ introduction; stable from v15 onwards  
+
+These bullets and Q&A can be dropped directly into your notes/Obsidian for spaced repetition before Senior Architect interviews.
+
+[1](https://angularexperts.io/blog/angular-router-standalone-apis)
+[2](https://angular.dev/guide/directives/directive-composition-api)
+[3](https://angular.dev/guide/directives/directive-composition-api/)

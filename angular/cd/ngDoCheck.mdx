@@ -1,0 +1,126 @@
+Angular ngDoCheck lifecycle hook enables custom change detection when default mechanisms fail, such as object/array mutations without reference changes, invoked every change detection cycle after ngOnChanges/onInit. Use KeyValueDiffer/IterableDiffer for efficient tracking to avoid performance pitfalls in large apps.[1][2]
+
+## Core Mechanism
+
+- **Lifecycle Position**
+  - Called during every CD run: post-ngOnChanges (inputs), post-ngOnInit (first run)
+  - Provides ChangeDetectorRef access for manual control (detectChanges/markForCheck)
+  - Default CD skips if input refs unchanged; ngDoCheck forces deep inspection
+  
+- **Differ APIs for Tracking**
+  ```
+  KeyValueDiffer: Objects { cdr.createKeyValueDiffer() → differ.diff(obj) → forEachChangedItem() }
+  IterableDiffer: Arrays { cdr.createIterableDiffer() → differ.diff(arr) → forEachAddedItem() }
+  ```
+  
+- **Execution Flow**
+  ```
+  Zone event → CD tree traversal
+  ↓
+  ngOnChanges (ref change)
+  ↓
+  ngDoCheck (custom deep check + cdr.detectChanges())
+  ↓
+  DOM update if dirty
+  ```
+
+## Important Classes/Interfaces
+
+- **DoCheck**: Interface { ngDoCheck(): void } - lifecycle contract
+- **KeyValueDiffer**: Tracks object mutations (added/removed/changed keys)
+- **IterableDiffer**: Tracks array ops (add/remove/move/identity)
+- **ChangeDetectorRef**: detach/reattach/markForCheck/detectChanges/checkNoChanges[2]
+
+## Design Patterns & Best Practices
+
+- **Custom Dirty Checking**: ngDoCheck + differs for OnPush components with mutable @Inputs
+- **Performance Guard**: Cache differs; avoid heavy ops (runs 10-100x/sec); use trackBy in *ngFor
+- **Manual Trigger**: ngDoCheck → if(differChanged) cdr.markForCheck() or detectChanges()
+- **Immutable Alternative**: Prefer immutable state (OnPush auto-handles ref changes)
+
+## Advanced Topics
+
+- **Infinite Loop Risk**: Mutating bound data inside → triggers re-CD → loop (use setTimeout)
+- **OnPush Synergy**: Default skips; ngDoCheck enforces checks for internal mutations
+- **Zone-less Signals (v16+)**: Replaces ngDoCheck for fine-grained reactivity
+- **Debug**: Console.count('ngDoCheck') to measure invocation frequency
+
+## Big Tech References
+
+- **Netflix**: ngDoCheck + KeyValueDiffer for metrics dashboards; reduced CD cycles 60% with OnPush[3]
+- **Google/Angular Team**: Official docs emphasize differs over manual loops for production scale[2]
+
+## Interview Q&A
+
+**Q: ngOnChanges vs ngDoCheck?**  
+A: OnChanges: input ref changes only; DoCheck: every CD run, custom deep checks[4]
+
+**Q: Real use case for ngDoCheck?**  
+A: Array push/splice on same ref (OnPush skips); use IterableDiffer to detect[5]
+
+**Q: Performance impact?**  
+A: Runs frequently; use differs, avoid O(n) loops, combine with OnPush[3]
+
+**Q: Fix infinite loop?**  
+A: No bound mutations inside; defer via setTimeout or cdr.detectChanges()[6]
+
+**Q: KeyValueDiffer workflow?**  
+A: create → diff(obj) → iterate changes → cdr.markForCheck()[5]
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Infinite CD | Template-bound mutation | cdr.detectChanges() + setTimeout |
+| No array update | Same ref push() | IterableDiffer in ngDoCheck |
+| Expensive checks | Raw loops | KeyValueDiffer/IterableDiffer |
+| OnPush skips mutations | Default strategy | ngDoCheck + markForCheck() |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Deep mutation detection, OnPush compatibility, differ efficiency.
+- **Tradeoffs**:
+  | Approach | Pros | Cons |
+  |----------|------|------|
+  | ngDoCheck + Differs | Precise control | Frequent calls |
+  | Immutable + OnPush | Zero overhead | Refactor cost |
+  | Signals (v16+) | Granular | Newer API |
+
+## Essential Terms & Keywords
+
+- ngDoCheck
+- DoCheck Interface
+- KeyValueDiffer
+- IterableDiffer
+- ChangeDetectorRef
+- detectChanges
+- markForCheck
+- OnPush Strategy
+- Custom Change Detection
+- Dirty Checking
+- Lifecycle Hooks
+- ngOnChanges
+- Infinite Loop
+- trackByFunction
+- Zone.js[1][4][2]
+
+[1](https://www.youtube.com/watch?v=-lc7tDzc_DQ)
+[2](https://angular.dev/api/core/DoCheck)
+[3](https://dev.to/rachgrey/angular-performance-optimization-top-tips-and-tricks-1be8)
+[4](https://www.tektutorialshub.com/angular/angular-ngdocheck-life-cycle-hook/)
+[5](https://dev.to/shhdharmen/how-to-track-changes-in-ngdocheck-with-keyvaluediffer-1la7)
+[6](https://stackoverflow.com/questions/68332290/an-infinite-loop-using-ngdocheck)
+[7](https://stackoverflow.com/questions/42643389/why-do-we-need-ngdocheck)
+[8](https://www.youtube.com/watch?v=T6X7XgixXhQ)
+[9](https://www.youtube.com/watch?v=Vlg-7RglfMs)
+[10](https://stackoverflow.com/questions/38629828/what-is-the-difference-between-onchanges-and-docheck-in-angular-2)
+[11](https://30dayscoding.com/blog/angular-change-detection-performance-optimization)
+[12](https://stackoverflow.com/questions/60988861/real-usecases-for-ngdocheck-angular9)
+[13](https://angular.dev/guide/components/lifecycle)
+[14](https://github.com/indepth-dev/community/blob/main/files/en-us/tutorials/angular/track-changes-in-ngdocheck-with-keyvaluediffers.md)
+[15](https://www.youtube.com/watch?v=-SYcg0cEDGI)
+[16](https://dev.to/ngconf/simplified-angular-change-detection-242o)
+[17](https://www.youtube.com/watch?v=64aknCwbj1I)
+[18](https://www.telerik.com/blogs/simplifying-angular-change-detection)
+[19](https://www.tatvasoft.com/blog/angular-optimization-and-best-practices/)
+[20](https://stackblitz.com/edit/ngdocheck-tutorial)

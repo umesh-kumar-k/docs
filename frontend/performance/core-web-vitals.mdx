@@ -1,0 +1,275 @@
+Core Web Vitals is Google’s focused set of **user‑centric performance metrics** that quantify loading (LCP), interactivity (INP), and visual stability (CLS), with clear “good/needs improvement/poor” thresholds and strong guidance on **how to measure and optimize them in field and lab**.[1][2]
+
+***
+
+## 1) Web Vitals Overview[1]
+
+- Web Vitals = initiative to simplify performance measurement; **Core Web Vitals (CWV)** are the mandatory subset for all pages.[1]
+- Current CWV:
+  - **LCP ≤ 2.5s**, **INP ≤ 200ms**, **CLS ≤ 0.1**, evaluated at **75th percentile** per device type.[1]
+- Metrics lifecycle: **experimental → pending → stable**; stable CWV change at most once per year with clear communication.[1]
+
+**Measurement tools**  
+- Field: CrUX, PageSpeed Insights, Search Console, DevTools Experience pane, plus your own RUM (via `web-vitals` library).[1]
+- Lab: Lighthouse, DevTools Performance (LCP, CLS, and TBT as INP proxy).[3][1]
+
+***
+
+## 2) Largest Contentful Paint (LCP)[4]
+
+### Definition & Targets
+
+- LCP = time from navigation start to rendering of **largest image / text block / video** in viewport.[4]
+- “Good” LCP: **≤ 2.5 s** at 75th percentile (mobile/desktop separately).[4]
+
+### Elements considered
+
+- `<img>`, `<image>` in `<svg>`, `<video>` (poster or first frame), elements with **CSS `background-image: url()`**, block‑level text containers.[4]
+- Excludes:
+  - Fully transparent, full‑viewport background elements, low‑entropy placeholders.[4]
+
+### Measurement details
+
+- Browser emits `PerformanceEntry` of type `largest-contentful-paint` whenever LCP candidate changes.[4]
+- LCP entry only after element is **rendered and visible** (image loaded, web font passed block period).[4]
+- For measurement quirks (background tabs, iframes, prerender, render vs load times), prefer **`web-vitals` `onLCP()` helper**, which handles edge cases.[2][4]
+
+***
+
+## 3) Cumulative Layout Shift (CLS)[5]
+
+### Definition & Targets
+
+- CLS = **largest session window** of summed layout shift scores (bursts of shifts <1s apart, max 5s window).[5]
+- “Good” CLS: **≤ 0.1** at 75th percentile.[5]
+
+### Layout shift score
+
+- Shift occurs when **existing visible elements change start position** between frames (top/left in default writing mode).[5]
+- Score = **impact fraction × distance fraction**:  
+  - Impact fraction: union of visible areas of unstable elements / viewport area.  
+  - Distance fraction: max movement (horizontal/vertical) / largest viewport dimension.[5]
+
+### Expected vs unexpected
+
+- Only **unexpected** shifts should count:
+  - User‑initiated shifts within 500ms of input set `hadRecentInput = true` and are excluded.[5]
+  - Animations should use `transform` (translate/scale) instead of changing layout properties to avoid shifts.[5]
+
+### Measurement
+
+- Use Layout Instability API (`layout-shift` entries) + session‑window logic, or `web-vitals` `onCLS()` which implements spec nuances (background tabs, bfcache, iframes).[2][5]
+
+***
+
+## 4) Interaction to Next Paint (INP)[6][2]
+
+*(INP article not attached, but covered in overview + tools pages.)*  
+
+- INP replaces FID as CWV **responsiveness** metric; measures **worst or near‑worst interaction latency** (from input to next paint) across the page session.[2]
+- “Good” INP: **≤ 200 ms** at 75th percentile.[1]
+
+**Drivers of poor INP**  
+- Long JS tasks (main‑thread blocking), heavy rendering after input, expensive event handlers, synchronous XHR/fetch UI locks.[7][6]
+
+***
+
+## 5) Defining CWV Thresholds[2][1]
+
+- Thresholds derived from **user‑study + field data**:
+  - Boundaries where users start reporting “slow” or where task success drops.  
+- Percentiles:
+  - Evaluate at **75th percentile** so most users (esp. on slower networks/devices) get good experience.[1]
+
+***
+
+## 6) Getting Started with Measurement[3][1]
+
+**Field vs Lab**
+
+- Field:
+  - Use CrUX‑backed tools (PageSpeed Insights, Search Console) and **own RUM** with `web-vitals`.[2][1]
+- Lab:
+  - DevTools Performance live metrics; Lighthouse (LCP, CLS, TBT).[3]
+
+**`web-vitals` JS usage**
+
+```ts
+import {onCLS, onINP, onLCP} from 'web-vitals';
+
+function sendToAnalytics(metric) {
+  const body = JSON.stringify(metric);
+  (navigator.sendBeacon && navigator.sendBeacon('/analytics', body)) ||
+    fetch('/analytics', { method: 'POST', body, keepalive: true });
+}
+
+onCLS(sendToAnalytics);
+onINP(sendToAnalytics);
+onLCP(sendToAnalytics);
+```
+
+
+***
+
+## 7) Vitals Tools & Ecosystem[2][1]
+
+- **Google tools**:
+  - CrUX, PageSpeed Insights, Search Console, DevTools, Lighthouse.  
+- **Third‑party & platform**:
+  - `web-vitals` used by Grafana Faro, Sentry, DebugBear, Next.js, etc., for automatic CWV tracking.[8][9][10]
+
+***
+
+## 8) Field Measurement Best Practices[2][1]
+
+- Always segment by **device (mobile/desktop)** and sometimes by route/template.  
+- Use **75th percentile** and enough sample size per segment.  
+- Treat CWV changes as **product regressions**:
+  - Alerting, dashboards, release guards.  
+- Combine CWV with business KPIs (conversion, bounce) to prioritize.  
+
+***
+
+## 9) CrUX vs Your RUM[2]
+
+- **CrUX**:
+  - Public, anonymized, origin/page‑level; great for benchmarking and SEO view.  
+  - Limited breakdowns; thresholded sampling.  
+- **RUM**:
+  - Full control over dimensions (user type, feature flag, A/B test, geography, device).  
+  - Required for **root‑cause and regression analysis**.  
+
+***
+
+## 10) Optimize LCP[4][2]
+
+**Main levers**
+
+1. **Server & network**  
+   - Reduce TTFB (fast backend, CDN, edge caching).  
+   - Use HTTP/2/3, compression, and good caching.
+
+2. **Resource loading**  
+   - Prioritize hero image / main text:
+     - `preload` critical CSS, fonts, hero image; self‑host fonts.  
+   - Optimize images (modern formats, proper sizing).
+
+3. **Render‑blocking resources**  
+   - Minimize blocking CSS/JS on CRP; inline minimal critical CSS.  
+
+**Tradeoffs**  
+- Excessive `preload` can waste bandwidth; too much inline CSS bloats HTML.
+
+***
+
+## 11) Optimize CLS[5]
+
+**Key fixes**
+
+- Always set **explicit `width`/`height`** (or aspect‑ratio) for images/video/ads.[5]
+- Reserve space for late content (ads, embeds) with placeholders/skeletons.  
+- Avoid late‑loading web fonts that reflow text:
+  - Use `font-display` strategies; preloading key fonts.  
+- Prefer transform‑based animations; avoid layout jank from `top/left/height/width`.[3]
+
+**Tradeoffs**  
+- Over‑reserving space can leave large blank gaps on fast networks; choose realistic placeholder sizes.
+
+***
+
+## 12) Optimize INP[7][6]
+
+**Patterns**
+
+- Reduce **long JS tasks**:
+  - Split bundles, lazy‑load; move non‑critical work off interaction path.  
+- Make handlers **fast and non‑blocking**:
+  - Minimal synchronous work; offload heavy logic to Web Workers.  
+- Optimize rendering:
+  - Avoid layout thrashing; batch DOM updates; use `requestAnimationFrame` for visual updates.[7]
+- Tame noisy interactions:
+  - Debounce/throttle scroll/resize; use passive listeners where appropriate.[7]
+
+***
+
+## 13) “Top CWV Improvements” / Most Effective Practices[11][2]
+
+Common “top wins” called out by Chrome team:
+
+- Reduce **initial server response time** (TTFB).  
+- Remove or defer **render‑blocking CSS/JS**.  
+- Optimize hero images and fonts (formats, preload, sizing).  
+- Fix layout shifts from images/ads/fonts.  
+- Cut JS bloat and main‑thread blocking to improve INP.  
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What are the three Core Web Vitals and their “good” thresholds?**  
+A: **LCP ≤ 2.5s**, **INP ≤ 200ms**, **CLS ≤ 0.1**, each at the 75th percentile of page loads, split by mobile/desktop.[1][4][5]
+
+**Q2: Why did INP replace FID?**  
+A: FID measured only delay until the *first* input and ignored long interactions later; INP captures latency of **all significant interactions across the page lifecycle**, better reflecting real responsiveness.[1][2]
+
+**Q3: How is CLS calculated in simple terms?**  
+A: Browser sums layout shift scores (impact fraction × distance fraction) across bursts of unexpected shifts (session windows up to 5s), then CLS is the **largest burst** value.[5]
+
+**Q4: Give three concrete actions to improve LCP on a content page.**  
+A: Reduce TTFB (cache + CDN), optimize and prioritize the hero image (modern format + `preload` + correct size), and minimize render‑blocking CSS/JS via critical CSS and deferred scripts.[4]
+
+**Q5: What typical causes of bad CLS should a frontend architect watch for?**  
+A: Images/ads/iframes without reserved dimensions, late web‑font swaps changing text size, dynamically injected content above existing content, and non‑transform‑based animations.[5]
+
+**Q6: How do you measure CWV in production?**  
+A: Instrument RUM with `web-vitals` (`onLCP`, `onINP`, `onCLS`), send metrics to analytics (via `sendBeacon`/`fetch`), aggregate at 75th percentile by route + device, and correlate with regressions and releases.[2][1]
+
+**Q7: What’s the difference between CrUX and your own RUM data?**  
+A: CrUX is anonymized public field data used by Google tools, great for benchmarking, while your RUM is first‑party, fully segmentable (user type, feature, device), and necessary for debugging and regression detection.[2]
+
+**Q8: Why must CWV be evaluated at the 75th percentile?**  
+A: To ensure **most** users, including those on slower connections/devices, experience good performance, and to avoid optimizing only for best‑case scenarios.[1]
+
+***
+
+## Important Terms & Keywords
+
+1. Web Vitals, **Core Web Vitals (CWV)**  
+2. **LCP (Largest Contentful Paint)** – loading  
+3. **INP (Interaction to Next Paint)** – interactivity  
+4. **CLS (Cumulative Layout Shift)** – visual stability  
+5. 75th percentile, mobile vs desktop segmentation  
+6. CrUX, PageSpeed Insights, Search Console CWV report  
+7. Lab vs field data; Lighthouse, DevTools Performance; **TBT** as lab proxy for INP  
+8. `web-vitals` library: `onLCP`, `onINP`, `onCLS`  
+9. Layout Instability API (`layout-shift`), LCP API (`largest-contentful-paint`)  
+10. Session window, layout shift score = impact × distance  
+11. TTFB, FCP, SI, FID (legacy), bfcache, prerender  
+12. Hero image, critical CSS, render‑blocking resources  
+13. `Timing-Allow-Origin`, iframes and CWV measurement nuances  
+
+These points are structured for quick spaced‑repetition reading and last‑minute pre‑interview skimming.
+
+[1](https://web.dev/articles/vitals)
+[2](https://web.dev/explore/learn-core-web-vitals)
+[3](https://web.dev/articles/vitals-measurement-getting-started)
+[4](https://web.dev/articles/lcp)
+[5](https://web.dev/articles/cls)
+[6](https://web.dev/articles/optimize-inp)
+[7](https://raygun.com/blog/improve-inp-core-web-vitals/)
+[8](https://grafana.com/docs/grafana-cloud/monitor-applications/frontend-observability/instrument/web-vitals/)
+[9](https://www.youtube.com/watch?v=4pI8nBt98ys)
+[10](https://sematext.com/blog/core-web-vitals-monitoring-tools/)
+[11](https://www.debugbear.com/docs/metrics/core-web-vitals)
+[12](https://github.com/GoogleChrome/web-vitals)
+[13](https://developers.google.com/learn/pathways/web-vitals)
+[14](https://www.npmjs.com/package/web-vitals)
+[15](https://samuelschmitt.com/optimize-website/core-web-vitals-test/)
+[16](https://www.wix.com/seo/learn/resource/how-to-optimize-inp)
+[17](https://dev.to/appsignal/getting-started-with-web-vitals-in-next-js-1obg)
+[18](https://thatware.co/inp-step-by-step-guide/)
+[19](https://developers.google.com/search/docs/appearance/core-web-vitals)
+[20](https://developer.chrome.com/blog/web-vitals-extension)
+[21](https://www.youtube.com/watch?v=M0ROqRw2Fgs)
+[22](https://developer.chrome.com/docs/devtools/performance/overview)
+[23](https://web.dev/explore/how-to-optimize-inp)

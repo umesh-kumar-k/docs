@@ -1,0 +1,201 @@
+This article focuses on **CSS techniques to improve Core Web Vitals**, especially **LCP** and **CLS**, across layout, images, fonts, animations, and critical CSS loading.[1]
+
+***
+
+## Layout & DOM Insertion
+
+### Inserting Content After First Paint
+
+- Inserting banners/cookie notices/ads **above existing content** after render pushes content down → CLS.[1]
+- Example: cookie banner at top with `position: sticky; top: 0;` causes hero and article to shift when it appears.[1]
+
+**Fixes**
+
+- Move intrusive UI **to bottom** with fixed positioning:
+  ```css
+  .banner {
+    position: fixed;
+    bottom: 0;
+  }
+  ```
+- Or **reserve space** at top for the banner from the start (fixed height/header slot).[1]
+
+**Best practice**: never inject above‑the‑fold UI that changes layout without reserving space up front.  
+
+***
+
+## Images: LCP & CLS
+
+### Images and LCP
+
+- Images are often the **LCP element** (hero images, background images in key blocks).[1]
+- Background images used for effects (e.g., gradient in banner) can bloat bytes and delay LCP.[1]
+
+**Fix**
+
+- Replace decorative background images with **pure CSS gradients** where possible:
+  ```css
+  /* before */
+  .banner {
+    background: url(".../gradient.jpg");
+  }
+
+  /* after */
+  .banner {
+    background: linear-gradient(135deg, #fbc6ff 20%, #bdfff9 90%);
+  }
+  ```
+- Reduces bytes and speeds up LCP for that element.[1]
+
+### Images and Layout Shifts
+
+- If `width`/`height` is missing, browser only knows image size after load → page shifts when image appears (CLS).[1]
+
+**Identify**
+
+- Lighthouse: **“Image elements have explicit width and height”** audit.[1]
+
+**Fix**
+
+- Always specify intrinsic size:
+  ```html
+  <img src=".../2000x600" width="2000" height="600" alt="">
+  <img src=".../800x600"  width="800"  height="600" alt="">
+  ```
+- Browser can reserve correct space; CLS avoided.[1]
+
+***
+
+## Fonts (Delay & Shifts)
+
+### Delayed Text Rendering
+
+- Browsers block text until web fonts load to avoid FOUT; this can delay **FCP/LCP** for text‑heavy pages.[1]
+
+### Layout Shifts from Font Swaps
+
+- Swapping fallback → web font can shift lines/blocks if metrics differ; impact on **CLS**.[1]
+
+**Identify**
+
+- DevTools Network → filter by **Font**:
+  - Check file sizes (fewer fonts = better).  
+  - Timing tab: how late font is requested.  
+  - Initiator tab: whether CSS or `@import` adds extra hops.[1]
+
+**Fix: Prefer `<link>` + `preconnect` over `@import`**
+
+- Remove CSS `@import` for Google Fonts:
+  ```css
+  /* remove */
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400&family=Roboto:wght@300&display=swap');
+  ```
+- Add links early in `<head>`:
+  ```html
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100&display=swap" rel="stylesheet">
+  ```
+- Shorter request chain and early connection → faster font arrival, less impact on LCP/CLS.[1]
+
+**Best practices**
+
+- Use **fewer families/weights**, similar‑metric fallback fonts, and early discovery (preconnect + `<link>` in `<head>`).[1]
+
+***
+
+## Animations
+
+### Problem: Layout‑Triggering Animations
+
+- Animations that change layout properties (e.g., `margin-left`, `top`, `height`) cause repeated layout and can contribute to CLS and jank.[1]
+
+**Identify**
+
+- Lighthouse audit: **“Avoid non-composited animations”** to find animations not handled on compositor.[1]
+
+**Fix: Use `transform` / `opacity`**
+
+- Replace margin‑based slide‑in:
+  ```css
+  /* before */
+  .header { animation: slideIn 1s ease; }
+
+  @keyframes slideIn {
+    from { margin-left: -100%; }
+    to   { margin-left: 0; }
+  }
+  ```
+- With transform‑based animation:
+  ```css
+  /* after */
+  .header { animation: slideIn 1s ease; }
+
+  @keyframes slideIn {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+  }
+  ```
+- Uses GPU‑friendly compositing without re‑layout.[1]
+
+***
+
+## Critical CSS & Render Blocking
+
+- Stylesheets are **render‑blocking**: browser pauses rendering until critical CSS is downloaded and parsed, impacting **LCP**.[1]
+
+**Best practices**
+
+- Remove unused CSS to shrink blocking time.  
+- **Inline critical CSS** (above‑the‑fold layout/typography) directly in `<head>`; load non‑critical CSS asynchronously.[1]
+- Ensure font and image‑related CSS needed for LCP element is in that critical chunk.  
+
+***
+
+## Design Patterns & Trade‑offs (Architect Level)
+
+- **Layout safety pattern**:
+  - Do not insert top banners/ads after paint without reserved space; prefer bottom fixed banners or pre‑reserved slots.  
+- **Image contract pattern**:
+  - Every image & embed has explicit dimensions or aspect‑ratio defined in markup/CSS to prevent CLS.  
+- **Font pipeline pattern**:
+  - Use `<link>` + `preconnect` for fonts; small set of families/weights; early discovery; fallback fonts with similar metrics.  
+- **Animation performance pattern**:
+  - All motion done via `transform`/`opacity`; no layout‑changing keyframes.  
+- **Critical CSS pipeline**:
+  - Build step to extract critical CSS into inline block; defer remaining CSS.  
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: How can CSS cause layout shifts, and how do you prevent them?**  
+A: Inserting content (cookie banners, ads) above existing content or loading images/fonts without reserved space moves elements after initial paint. Prevent by reserving space via fixed heights/widths or moving such UI to fixed/bottom positions, and always setting `width`/`height` (or aspect-ratio) on images and embeds.[1]
+
+**Q2: What CSS changes improve LCP for image‑heavy hero sections?**  
+A: Replace decorative background images with CSS gradients when possible to remove large image bytes, ensure hero images have explicit dimensions and optimized formats, and keep their styling in critical CSS to load quickly.[1]
+
+**Q3: Why is `@import` generally worse than `<link>` for web fonts?**  
+A: `@import` in CSS adds another network hop (HTML → CSS → fonts), delaying font discovery; `<link>` in `<head>` plus `preconnect` lets the browser start fetching fonts earlier, improving FCP/LCP and reducing layout‑shift windows.[1]
+
+**Q4: How do CSS animations impact Core Web Vitals, and what’s the recommended pattern?**  
+A: Animations that change layout properties trigger repeated layout and can worsen CLS and responsiveness; prefer GPU‑composited animations using `transform` and `opacity`, identified via Lighthouse’s non‑composited animations audit.[1]
+
+**Q5: What is “critical CSS”, and how does it affect LCP?**  
+A: Critical CSS is the minimal set of styles needed to render above‑the‑fold content; inlining it reduces render‑blocking time and accelerates LCP, while deferring non‑critical CSS avoids blocking rendering on styles not needed for first paint.[1]
+
+***
+
+## Important Terms & Keywords
+
+- CLS, LCP, FCP (Core Web Vitals context)  
+- Layout shifts, cookie banner, ads/embeds  
+- `position: fixed`, reserved space, top/bottom banners  
+- Image dimensions: `width`, `height`, aspect‑ratio  
+- CSS gradients vs background images  
+- Web fonts, `@import` vs `<link>`, `preconnect` (fonts.googleapis.com / fonts.gstatic.com)  
+- Font swapping, fallback fonts, metrics similarity  
+- High‑performance animations: `transform`, `opacity`, non‑composited animations  
+- Critical CSS, render‑blocking stylesheets, unused CSS removal
+
+[1](https://web.dev/articles/css-web-vitals)

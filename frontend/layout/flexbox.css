@@ -1,0 +1,302 @@
+Flexbox is a **one‑dimensional layout model** for arranging items in a row or column with flexible sizing, wrapping, and powerful alignment, driven by the concepts of **main axis**, **cross axis**, and **flex items as a group**.[1]
+
+***
+
+## Core Concepts
+
+- Flexbox is ideal for patterns like sidebars, toolbars, nav bars, cards that must **reflow** as space changes rather than rely on rigid widths.[1]
+- It:
+  - Lays items in a **row or column** and respects document writing mode.  
+  - Is **single line by default**, but can wrap into multiple lines.  
+  - Lets items grow/shrink based on available space.  
+  - Provides alignment and space distribution along both axes.[1]
+
+***
+
+## Main Axis vs Cross Axis
+
+- **Main axis** is defined by `flex-direction`:
+  - `row`/`row-reverse`: main axis is horizontal.  
+  - `column`/`column-reverse`: main axis is vertical.[1]
+- **Cross axis** is perpendicular to main axis; many alignment properties act on this axis.[1]
+- Because of writing modes (LTR/RTL/vertical), Flexbox uses **start/end** (`main-start`, `main-end`, `cross-start`, `cross-end`) rather than left/right/top/bottom.[1]
+
+***
+
+## Creating a Flex Container
+
+- Turn a box into a flex container:
+  ```css
+  .container {
+    display: flex;      /* block flex container */
+  }
+  ```
+  Children become **flex items** and use Flexbox behavior.[1]
+- Initial values (no extra CSS):
+  - `flex-direction: row` (items in a row).  
+  - `flex-wrap: nowrap` (no wrapping; overflow possible).  
+  - Items do not grow (`flex-grow: 0`).  
+  - Items shrink as needed (`flex-shrink: 1`) down to `min-content`.[1]
+
+***
+
+## flex-direction & Writing Modes
+
+- `flex-direction` values:[1]
+  - `row`  
+  - `row-reverse`  
+  - `column`  
+  - `column-reverse`  
+- In RTL or vertical writing modes, a **row** flows according to the script direction:
+  - Arabic (RTL): row aligns on the right, tab order begins at right.  
+  - Vertical writing: row flows vertically.[1]
+
+### Accessibility note on reversing
+
+- `row-reverse` / `column-reverse` change **visual order only**, not DOM order:
+  - Screen readers and keyboard navigation follow DOM order, not visual flow.  
+  - Reordering (via `order` or reverse directions) must be tested to avoid confusing focus/reading order.[1]
+
+***
+
+## Wrapping & flex-flow
+
+- Default `flex-wrap: nowrap` → items overflow if not enough space.[1]
+- Enable wrapping:
+  ```css
+  .container {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  ```
+- When wrapping:
+  - Each **flex line** behaves like its own flex container for space distribution.  
+  - You cannot align items in row 2 with items in row 1 → Flexbox is **one‑dimensional** (Grid is for two‑dimensional alignment).[1]
+- Shorthand:
+  ```css
+  .container {
+    display: flex;
+    flex-flow: column wrap; /* direction + wrap */
+  }
+  ```
+
+
+***
+
+## flex, flex-grow, flex-shrink, flex-basis
+
+Applied **on flex items** (children), control how they size relative to each other.[1]
+
+### Initial values
+
+- Equivalent to:
+  ```css
+  flex: 0 1 auto;   /* flex-grow:0; flex-shrink:1; flex-basis:auto; */
+  ```
+  - No growth, can shrink, base size from content/width.[1]
+
+### `flex: auto`
+
+- Behaves as:
+  ```css
+  flex: auto;  /* 1 1 auto */
+  ```
+  - Items grow and shrink, base size from content.  
+  - **Larger items remain visually larger**, since distribution happens after laying out at max‑content size.[1]
+
+### `flex: 1`
+
+- Equivalent:
+  ```css
+  flex: 1;  /* 1 1 0 */
+  ```
+  - All items start from zero (`flex-basis: 0`) and share available space **equally**.  
+  - Ideal for equal‑width items like nav buttons, card grid tiles etc.[1]
+
+### Different growth rates
+
+- Example:
+  ```css
+  .item1 { flex: 1; }
+  .item2 { flex: 2; }
+  .item3 { flex: 3; }
+  ```
+  - Total flex portions = 1+2+3=6; items receive 1/6, 2/6, 3/6 of available space.[1]
+- With explicit longhand:
+  ```css
+  .item1 { flex: 1 1 auto; }
+  .item2 { flex: 2 1 auto; }
+  ```
+  useful if you want content‑aware base size but slight bias for some items.[1]
+
+***
+
+## Reordering with order
+
+- Adjust visual order:
+  ```css
+  .item-a { order: 1; }
+  .item-b { order: 2; }
+  ```
+  - Items sorted by `order` within `flex-direction`. Lowest first; same values keep DOM ordering.[1]
+- As with reverse directions, **visual vs DOM order divergence** impacts accessibility; avoid large changes in reading order.[1]
+
+***
+
+## Alignment & Space Distribution
+
+### Properties overview
+
+- **Space distribution**:  
+  - `justify-content`: along **main axis**.  
+  - `align-content`: distribution **between flex lines** on cross axis.  
+  - `place-content`: shorthand (`align-content` / `justify-content`).[1]
+- **Item alignment** on cross axis:  
+  - `align-items`: all items on cross axis.  
+  - `align-self`: per‑item override.[1]
+
+> Guideline: `justify-*` on main axis, `align-*` on cross axis.[1]
+
+### `justify-content` – main axis
+
+- Initial value: `flex-start` (items at start, remaining space at end).[1]
+- Examples:
+  ```css
+  .container { justify-content: flex-end; }        /* pack at end */
+  .container { justify-content: center; }         /* center */
+  .container { justify-content: space-between; }  /* full spread, no outer gaps */
+  .container { justify-content: space-around; }
+  .container { justify-content: space-evenly; }
+  ```
+- When `flex-direction: column`, this runs vertically; ensure container has explicit height/block‑size to have distributable space.[1]
+
+### `align-content` – between wrapped lines
+
+- Only relevant when there are **multiple flex lines** (wrapping).[1]
+- Initial value: `stretch` (lines stretch to fill cross‑axis).[1]
+- Example:
+  ```css
+  .container {
+    flex-wrap: wrap;
+    block-size: 400px;
+    align-content: center;
+  }
+  ```
+
+### `place-content` shorthand
+
+- One value:
+  ```css
+  .container { place-content: space-between; }
+  /* both align-content & justify-content = space-between */
+  ```
+- Two values:
+  ```css
+  .container { place-content: center flex-end; }
+  /* align-content:center; justify-content:flex-end */
+  ```
+
+
+***
+
+## Aligning Items on Cross Axis
+
+- Initial `align-items` / `align-self` is `stretch`, so in a row items stretch to the tallest item’s height.[1]
+- Per‑item:
+  ```css
+  .item1 { align-self: flex-start; }
+  ```
+- All items:
+  ```css
+  .container {
+    display: flex;
+    align-items: flex-start;  /* or center, flex-end, stretch, baseline */
+  }
+  ```
+
+
+### No `justify-self` in flexbox
+
+- On **main axis**, flex items act as a **group**, so there’s no per‑item `justify-self`.[1]
+- To “split off” an item, use **auto margins**:
+  ```css
+  .item-last { margin-left: auto; }
+  ```
+  - Auto margin absorbs free space, pushing last item to the far side → common pattern for right‑aligned button or nav item.[1]
+
+### Centering both vertically & horizontally
+
+- Classic center pattern:
+  ```css
+  .container {
+    width: 400px;
+    height: 300px;
+    display: flex;
+    justify-content: center; /* horizontal (main) */
+    align-items: center;     /* vertical (cross) */
+  }
+  ```
+
+
+***
+
+## Design Patterns & Best Practices
+
+- Use Flexbox for:
+  - **One‑dimensional** flows: toolbars, nav bars, form rows, card strips, sidebar+content where stacking is acceptable on small screens.[1]
+  - Content that should **distribute space proportionally** or equally as viewport changes.  
+- Prefer Grid when:
+  - You need **two‑dimensional** alignment (rows and columns aligning across both dimensions).[1]
+- Accessibility:
+  - Minimize reordering (`row-reverse`, `column-reverse`, `order`). If needed, ensure DOM order still makes sense and test keyboard + screen reader flows.[1]
+- Sizing:
+  - Use `flex: 1` for equal distribution.  
+  - Use `flex: auto` when you want intrinsic content size respected but with flexible growth/shrink.[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What is Flexbox best suited for?**  
+A: Flexbox is designed for **one‑dimensional layouts**—laying out items along a single axis (row or column) with flexible sizing, wrapping, and alignment; ideal for nav bars, toolbars, cards, and sidebars that stack gracefully.[1]
+
+**Q2: Explain main axis vs cross axis in Flexbox.**  
+A: The **main axis** is defined by `flex-direction` (`row`/`column`), and items move as a group along it; the **cross axis** is perpendicular, and alignment on this axis is controlled by `align-*` properties.[1]
+
+**Q3: What does `flex: 1` actually mean?**  
+A: It’s shorthand for `flex: 1 1 0`—items can grow and shrink, with base size 0, so all free space is shared equally among items, giving equal‑width columns.[1]
+
+**Q4: How can you make flex items wrap and why is Flexbox still one‑dimensional?**  
+A: Use `flex-wrap: wrap` (or `flex-flow: row wrap`), which creates multiple flex lines, but each line is laid out independently, so horizontal and vertical alignment across lines is not coordinated as in Grid—hence still one‑dimensional.[1]
+
+**Q5: Why is using `row-reverse` or `order` risky for accessibility?**  
+A: They change the **visual order** only; screen readers and keyboard navigation follow the DOM order, so users may tab in a sequence that doesn’t match what they see, causing confusion.[1]
+
+**Q6: How do you vertically and horizontally center an element using Flexbox?**  
+A: Make the parent a flex container and use:
+  ```css
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  ```
+to center the child on both axes.[1]
+
+**Q7: Why is there no `justify-self` in Flexbox? How do you approximate its effect?**  
+A: Flex items act as a group on the main axis, so individual main‑axis alignment isn’t supported; instead, auto margins (e.g., `margin-left:auto`) can push one item away from others to create separation.[1]
+
+***
+
+## Important Terms & Keywords
+
+- `display: flex`, flex container, flex items  
+- Main axis, cross axis, `flex-direction` (`row`, `row-reverse`, `column`, `column-reverse`)  
+- Writing modes, `main-start`, `main-end`, `cross-start`, `cross-end`  
+- `flex-wrap`, flex lines, `flex-flow`  
+- `flex`, `flex-grow`, `flex-shrink`, `flex-basis`, `flex: auto`, `flex: 1`  
+- `order` (visual reordering)  
+- `justify-content`, `align-content`, `place-content`  
+- `align-items`, `align-self`  
+- Auto margins (`margin-left: auto`) in flex context  
+- Vertical + horizontal centering via Flexbox
+
+[1](https://web.dev/learn/css/flexbox)

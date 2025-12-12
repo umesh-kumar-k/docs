@@ -1,0 +1,108 @@
+Angular Router guide covers SPA navigation fundamentals: `provideRouter(ROUTES)` setup, route matching (first-match-wins, `pathMatch: 'full'`, wildcards `**`), lazy loading (`loadComponent/loadChildren`), guards (CanActivate/Match/DeactivateChild/Load), resolvers, custom matchers, component input binding, preloading strategies, title strategies, and router features like `withComponentInputBinding()`, `withPreloading()`, scrolling restoration, and view transitions.
+
+## Core Concepts
+
+**Route Definition**
+```
+provideRouter([
+  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
+  { path: 'products/:id', loadComponent: () => import('./Product') },
+  { path: '**', component: NotFound }
+]);
+```
+- Order matters: specific → params → wildcards
+- `pathMatch: 'prefix'` (default) vs `'full'`
+- `children[]` for nested routing
+
+**Lazy Loading**
+```
+loadComponent: () => import('./UserCmp').then(c => c.UserCmp)
+loadChildren: () => import('./user.routes').then(r => r.USER_ROUTES)
+```
+- Reduces initial bundle; async chunks
+- `loadChildren` for feature modules/routes
+
+## Guards & Protection
+
+```
+CanActivate: Pre-activation auth checks
+CanMatch: Skip matching (perf)  
+CanDeactivate: Unsaved changes confirmation
+CanActivateChild: Parent-level child protection
+```
+```
+{ path: 'admin', canMatch: [isAdmin], component: AdminCmp }
+{ path: '', canActivateChild: [authGuard], children: [...] } // middleware
+```
+
+**Resolvers**
+```
+resolve: { user: userResolver }
+userResolver: ResolveFn<User> = (route) => userSvc.get(route.params.id)
+```
+- Pre-fetch data; blocking until resolved
+- Error → `RedirectCommand(router.createUrlTree(['/404']))`
+
+## Advanced Features
+
+**Custom Matchers**
+```
+nameMatcher: UrlMatcher = (segments) => ({
+  consumed: [segments[0]],
+  posParams: { username: new UrlSegment(segments[0].path.slice(1)) }
+})
+```
+- `@username` → `{username: 'user'}` param extraction
+
+**Component Input Binding (v16+)**
+```
+customerId = input.required<string>({alias: 'id'});
+customer = input<Customer>({transform: validateCustomer});
+```
+
+**Preloading & Config**
+```
+provideRouter(ROUTES, withPreloading(FlagPreloadStrategy))
+```
+- `NoPreloading` | `PreloadAllModules` | Custom flag-based
+
+**Title Strategy**
+```
+class AppTitleStrategy extends TitleStrategy {
+  updateTitle(snapshot) {
+    Title.setTitle(`App | ${this.buildTitle(snapshot)}`);
+  }
+}
+```
+
+## Router Features API
+
+```
+provideRouter(ROUTES, [
+  withComponentInputBinding(),
+  withPreloading(CustomStrategy),
+  withInMemoryScrolling({ anchorScrolling: 'enabled' }),
+  withViewTransitions()
+])
+```
+- `canceledNavigationResolution`, `urlUpdateStrategy`, `onSameUrlNavigation`
+- `scrollPositionRestoration: 'enabled'`
+
+## Key Highlights
+
+- **Lazy-first**: Always `loadComponent()` for perf
+- **Guard chaining**: `canActivate: [g1, g2]` sequential
+- **Matcher power**: Custom param extraction (`@user` → `username`)
+- **Resolver errors**: Return `RedirectCommand` not throw
+- **Component-less routes**: Middleware pattern `{path:'', canActivateChild: [...], children: [...]}`
+- **Input binding**: Replaces manual `ActivatedRoute` boilerplate
+
+**Enterprise Value**: Reduces bundle size 40-60%, enables role-based dashboards, pre-fetches critical data, supports complex URL schemes.
+
+## Essential Terms
+
+- provideRouter, Routes, pathMatch, loadComponent/loadChildren
+- CanActivate/CanMatch/CanDeactivateChild, ResolveFn
+- UrlMatcher/UrlMatchResult, ActivatedRouteSnapshot
+- withComponentInputBinding, withPreloading, TitleStrategy
+- RedirectCommand, NavigationErrorHandler

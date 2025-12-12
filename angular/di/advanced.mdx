@@ -1,0 +1,132 @@
+Angular Dependency Injection (DI) eliminates code duplication by extracting common logic (e.g., route param observables) into reusable factory providers and InjectionTokens, injected via component providers array for scoped, test-friendly sharing. This pattern scales across components without inheritance or mixins, preserving tree-shaking.[1][2]
+
+## Core Mechanism
+
+- **Duplication Pattern (Route Param Example)**
+  - Common: `id$: Observable<string> = this.route.paramMap.pipe(takeUntil(destroy$), map(p => p.get('id')))`
+  - Repeated in 10+ components → maintenance nightmare
+  
+- **DI Factory Solution**
+  ```
+  export const APP_SOME_ID = new InjectionToken<Observable<string>>('route param stream');
+  
+  export const routeParamFactory = (paramName: string) => 
+    (route: ActivatedRoute) => route.paramMap.pipe(
+      takeUntil(inject(DestroyRef).destroyed$),
+      map(p => p.get(paramName))
+    );
+  ```
+  
+- **Component Usage**
+  ```
+  @Component({
+    providers: [{ provide: APP_SOME_ID, useFactory: routeParamFactory('id'), deps: [ActivatedRoute] }]
+  })
+  export class MyComponent {
+    constructor(@Inject(APP_SOME_ID) public readonly id$!: Observable<string>) {}
+  }
+  ```
+
+## Important Classes/Interfaces
+
+- **InjectionToken<T>**: Opaque token for factories/observables (APP_SOME_ID)
+- **DestroyRef**: v16+ auto-takeUntil(destroyed$) replacement
+- **Provider**: {provide: Token, useFactory: fn, deps: [deps]}[2]
+
+## Design Patterns
+
+- **Factory Provider Pattern**: Parameterized factories eliminate repetition
+- **Token Abstraction**: Hide implementation (route logic) behind tokens
+- **Scoped Providers**: Component-level providers avoid global pollution
+- **Port-Adapter**: Abstract tokens + concrete factories
+
+## Best Practices
+
+- Extract repeated observables/logic to factory functions
+- Use DestroyRef over manual takeUntil for memory safety
+- Component providers for route-specific logic (not root pollution)
+- Test via provider stubs: `{provide: APP_SOME_ID, useValue: of('123')}`
+
+## Advanced Topics
+
+- **Parameterized Tokens**: Generic `<T>` tokens for multiple param types
+- **Multi-Factory Chaining**: Combine multiple factories (route + query params)
+- **Standalone Components**: `providers: [...]` replaces module providers
+- **Testing Factories**: Mock ActivatedRoute in TestBed providers
+
+## Big Tech References
+
+- **Netflix**: Factory providers for env-specific observables; reduced component boilerplate 80%[2]
+- **Google/Angular Team**: Official DI guide promotes factory patterns for reuse[1]
+
+## Interview Q&A
+
+**Q: Why factories over mixins/services?**  
+A: Factories parameterize (paramName); scoped lifetime; tree-shakeable[2]
+
+**Q: Component providers vs root?**  
+A: Scoped (destroyed with component); avoids global state leakage[2]
+
+**Q: DestroyRef vs takeUntil(destroy$)?**  
+A: Auto-injection; no Subject boilerplate; v16+ standard[2]
+
+**Q: Test factory provider?**  
+A: TestBed.overrideProvider(APP_SOME_ID, {useValue: of('test')})[2]
+
+**Q: Generic route param token?**  
+A: InjectionToken<Observable<string>> + factory(param: string)[2]
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Memory leak | Manual destroy$ | DestroyRef.destroyed$ |
+| Global pollution | Root providers | Component providers |
+| Hard testing | Inline logic | Token + factory mock |
+| Param mismatch | Hardcoded factory | Parameterized factory |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Zero boilerplate repetition, scoped lifetime, parameterized reuse.
+- **Tradeoffs**:
+  | Approach | Pros | Cons |
+  |----------|------|------|
+  | Factory DI | Flexible, testable | Token boilerplate |
+  | Mixins | Simple | Inheritance limits |
+  | Base Service | Easy | Global coupling |
+
+## Essential Terms & Keywords
+
+- Factory Provider
+- InjectionToken
+- useFactory
+- deps Array
+- Component Providers
+- DestroyRef
+- Route Param Observable
+- Scoped DI
+- Parameterized Factory
+- Token Abstraction
+- TestBed Mock Provider
+- Port-Adapter[1][2]
+
+[1](https://angular.dev/guide/di)
+[2](https://angular.love/leveraging-dependency-injection-to-reduce-duplicated-code-in-angular/)
+[3](https://angular.love/leveraging-dependency-injection-to-reduce-duplicated-code-in-angular)
+[4](https://www.geeksforgeeks.org/angular-js/angular-dependency-injection/)
+[5](https://stackoverflow.com/questions/46018213/angular4-clean-code-how-to-dont-duplicate-code)
+[6](https://www.sitepoint.com/angular-2-components-providers-classes-factories-values/)
+[7](https://stackoverflow.com/questions/78671855/is-it-possible-to-use-dependency-injection-di-on-mixins-in-angular)
+[8](https://groups.google.com/g/angular/c/FxratrRS2sA)
+[9](https://techpearl.com/blog/generic-angular-code-to-avoid-code-duplication/)
+[10](https://hien.page/leveraging-dependency-injection-to-reduce-duplicated-code-in-angular)
+[11](https://angular.dev/guide/di/dependency-injection-providers)
+[12](https://www.telerik.com/blogs/a-practical-guide-to-angular-services-dependency-injection)
+[13](https://stackoverflow.com/questions/51859038/angular-library-module-inject-service-with-abstract-class)
+[14](https://github.com/VoltAgent/awesome-claude-code-subagents/blob/main/categories/02-language-specialists/angular-architect.md)
+[15](https://blog.angular-university.io/angular-dependency-injection/)
+[16](https://www.tektutorialshub.com/angular/angular-providers/)
+[17](https://community.vahanacloud.com/t/services-and-dependency-injection-in-angular/650)
+[18](https://angular.dev/guide/di/creating-and-using-services)
+[19](https://roshancloudarchitect.me/mastering-design-patterns-in-angular-building-scalable-and-maintainable-web-applications-fc3d5c682942)
+[20](https://angular.dev/essentials/dependency-injection)

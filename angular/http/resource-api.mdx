@@ -1,0 +1,112 @@
+Angular’s `httpResource` (v19.2, experimental) is a signal-native wrapper around `HttpClient` and `resource()` that turns HTTP requests into eagerly loaded, reactive signals with built‑in status/error/metadata and optional schema validation via Zod/Valibot.
+
+## Core API & Usage
+
+- Basic GET with reactive URL:
+  ```ts
+  currentUserId = getCurrentUserId(); // Signal<number>
+  user = httpResource(() => `/api/user/${currentUserId()}`);
+  ```
+  - Whenever `currentUserId()` changes, a new request is fired (switchMap-style).
+  - Requests are **eager**: they start automatically (no manual subscribe).
+
+- Request object form (mirrors `HttpClient`):
+  ```ts
+  user = httpResource(() => ({
+    url: `/api/user/${currentUserId()}`,
+    method: 'GET',
+    headers: { 'X-Special': 'true' },
+    params: { fast: 'yes' },
+    reportProgress: true,
+    withCredentials: true,
+    transferCache: true,
+  }));
+  ```
+
+- Non‑JSON helpers:
+  - `httpResource.text(() => ({ ... }))` → `value()` is `string`.  
+  - `httpResource.blob(() => ({ ... }))` → `Blob`.  
+  - `httpResource.arrayBuffer(() => ({ ... }))` → `ArrayBuffer`.
+
+## Shape of an httpResource
+
+Exposed signals (read via function calls):
+
+- `value()` – parsed response body, programmatically overwritable.  
+- `status()` – resource status (idle/loading/error etc).  
+- `error()` – network/parsing error.  
+- `isLoading()` – `true` while in flight.  
+
+HTTP‑specific metadata signals:
+
+- `headers()` – response headers.  
+- `statusCode()` – HTTP status code.  
+- `progress()` – progress events when `reportProgress` is enabled.  
+
+These remove the need to ask `HttpClient` for full `HttpResponse` just to read headers/status.
+
+## Type Safety & Schema Validation
+
+- Built‑in `parse` hook for schema validation with Zod/Valibot:
+  ```ts
+  id = signal(1);
+
+  const starWarsPersonSchema = z.object({
+    name: z.string(),
+    height: z.number({ coerce: true }),
+    edited: z.string().datetime(),
+    films: z.array(z.string()),
+  });
+
+  swPersonResource = httpResource(
+    () => `https://swapi.dev/api/people/${id()}`,
+    { parse: starWarsPersonSchema.parse }
+  );
+  ```
+  - Response is validated and **typed** as the schema’s output type.  
+  - Invalid responses surface through `error()` while keeping type safety.
+
+## Design & Best Practices
+
+- Built on `resource()` and `HttpClient`:
+  - Uses the same HTTP stack, interceptors, and testing tools (e.g. `HttpTestingController`).
+- Request methods:
+  - API *allows* any HTTP method (GET/POST/PUT/DELETE), but guidance is to **use it primarily for retrieval**; for mutations like form submits, prefer plain `HttpClient` methods.
+- Reactive parameters:
+  - Always pass a **reactive function** `() => ...` so any signal used inside (URL, headers, params) will retrigger the request on change.
+
+## Status & Maturity
+
+- Available in Angular **v19.2** as an **experimental** API; shape may change before it becomes stable.  
+- Intended for early adopters to test and give feedback via the Resource RFC on GitHub.
+
+## Interview Cheat Sheet (Q&A)
+
+- **Q: What problem does `httpResource` solve compared to `HttpClient`?**  
+  A: It exposes HTTP calls as signals with eager execution, automatic re‑fetch on reactive param changes, and built‑in status/error/metadata, avoiding manual `subscribe`/state wiring.
+
+- **Q: How do you configure advanced requests (headers, params, progress)?**  
+  A: Pass a request object function `() => ({ url, method, headers, params, reportProgress, withCredentials, transferCache })` into `httpResource`.
+
+- **Q: How does `httpResource` integrate with schema validators like Zod?**  
+  A: Use the `parse` option: `httpResource(() => url, { parse: schema.parse })`; the resource’s `value()` is then typed to the parser’s return type and validated at runtime.
+
+- **Q: What signals does an `httpResource` expose beyond `value()`?**  
+  A: `status()`, `error()`, `isLoading()`, `headers()`, `statusCode()`, and `progress()`.
+
+- **Q: Should `httpResource` be used for POSTing form data?**  
+  A: While any method is allowed, guidance is to still use `HttpClient` methods for mutations like form submits; `httpResource` is optimized for fetching/reading data.
+
+## Key Terms & Keywords (scan list)
+
+- `httpResource()` (experimental, v19.2)  
+- Built on `resource()` + `HttpClient`  
+- Eager requests (no manual subscribe)  
+- Reactive request function `() => ...`  
+- `value()`, `status()`, `error()`, `isLoading()`  
+- `headers()`, `statusCode()`, `progress()`  
+- Request object: `url`, `method`, `headers`, `params`, `withCredentials`, `transferCache`, `reportProgress`  
+- `httpResource.text / blob / arrayBuffer`  
+- `parse` option (Zod, Valibot)  
+- Schema validation → typed `value()`  
+- Experimental API, subject to change

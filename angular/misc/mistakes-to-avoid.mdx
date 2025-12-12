@@ -1,0 +1,116 @@
+The article lists recurring *architectural* mistakes in Angular apps and argues that modern features (signals, standalone, control flow, `@defer`, zoneless) do not change the core need for clear boundaries, a clean dependency graph, and automated validation.[1][2]
+
+***
+
+## Core “big picture” ideas
+
+- Architecture decisions (eager vs lazy, feature isolation, dependency graph) have stayed relevant since Angular 4 router + lazy routes and still matter with standalone components and signals.[3][1]
+- New syntax mostly changes *how* you wire things (modules vs standalone vs routes), not *where* boundaries should be.[1]
+
+***
+
+## Key mistakes and how to avoid them
+
+- **No architecture/plan:**  
+  - Symptom: “ball of mud” dependency graph, every change breaks everything.  
+  - Fix: explicitly plan core vs feature structure, one‑way dependencies, and isolation so you “break small isolated things” instead of the whole app.[1]
+
+- **Ignoring eager vs lazy split:**  
+  - Mistake: importing lazy *feature* services into eager *core*, pulling whole feature graphs into the initial bundle and breaking boundaries.[4][1]
+  - Rule: core → feature (disallowed), feature → core (allowed); respect bundle responsibilities.
+
+- **Not lazy‑loading all features (esp. the first one):**  
+  - Common offenders: login/signup, error/404, first “home/dashboard” feature implemented eagerly and never refactored.[1]
+  - Recommendation: even a single‑page app should implement its first page as a lazy feature route, e.g. `path: 'dashboard', loadChildren: () => import('./features/dashboard/dashboard.routes')`.[1]
+
+- **Multiple ways to do the same thing:**  
+  - Example: mixing `component`, `loadComponent`, module `loadChildren`, and route‑config `loadChildren` for features.[1]
+  - Recommendation: standardize on “routes‑based lazy feature via `loadChildren` + `loadComponent` for subroutes” and use it consistently to reduce cognitive load and future migrations.[1]
+
+- **Over‑optimizing DRY, under‑valuing isolation:**  
+  - In frontends it is often 3–10x more valuable to keep features isolated than to deduplicate all code.[1]
+  - Small, local duplication across lazy features allows them to evolve independently as ad‑hoc business rules diverge.
+
+- **Manual architecture analysis instead of tooling:**  
+  - Manually searching for cross‑feature imports is error‑prone.  
+  - Use **Madge** to visualize the TS dependency graph and spot tangles/cycles with a single command like `npx madge src/main.ts --ts-config tsconfig.json --image deps.webp`.[4][1]
+
+- **No automated boundary enforcement:**  
+  - Use `eslint-plugin-boundaries` (or Nx enforce‑module‑boundaries) to encode rules like:
+    - `core` can only depend on `core`.  
+    - `feature` can depend on `core` but not on other `feature`s.[5][1]
+  - This prevents cross‑feature imports and core→feature imports, enforcing eager/lazy and isolation at CI time.
+
+- **Not thinking in terms of the dependency graph:**  
+  - Goals:
+    - Preserve **one‑way** graph (root/core → features → sub‑features).  
+    - Preserve isolation between independent branches (sibling lazy features do not depend on each other).  
+    - Avoid **cycles** altogether, which make extraction and reuse painful.[1]
+
+- **No clear concept for shared components/logic:**  
+  - Mistake: importing a component from Feature A into Feature C directly, creating invisible coupling between features.[1]
+  - Pattern: introduce a `ui`/`shared` layer for generic components; extract from Feature A into `ui`, make it feature‑agnostic, then use from A and C without cross‑feature deps.[6][1]
+
+- **Ignoring the two fundamental Angular systems:**  
+  - **Template context** – what is visible in which template.  
+  - **Injector hierarchy** – which injector provides which service instance.  
+  - Example: scope feature‑specific services by removing `providedIn: 'root'` and providing them in the lazy route’s `providers` so they cannot be accidentally consumed from other features.[6][1]
+
+- **Not using standalone components:**  
+  - Standalone components (since v14) give finer‑grained dependency graphs and let features cherry‑pick only the UI pieces they need, instead of monolithic `SharedModule`s.[1]
+  - This improves tree‑shaking and makes architectural issues easier to see.
+
+***
+
+## Interview cheat sheet (Q & A)
+
+- **Q: Why is “no architecture” an architectural mistake in Angular?**  
+  A: Without an explicit plan for core vs features, eager vs lazy, and dependency direction, you quickly get a tangled graph where small changes have global blast radius and team velocity collapses.[7][1]
+
+- **Q: How do you avoid breaking the eager/lazy boundary in Angular?**  
+  A: Treat core as eager and features as lazy; allow features to depend on core, but never let core import feature code or services, and lazy‑load *all* features (including the first dashboard, auth, and error pages).[1]
+
+- **Q: When is duplication preferable to abstraction in Angular frontends?**  
+  A: When abstraction would couple otherwise independent lazy features; duplicating small pieces within each feature preserves isolation and makes it easier to adapt divergent business rules.[1]
+
+- **Q: What tooling do you recommend to keep Angular architecture clean over time?**  
+  A: Use Madge to visualize the dependency graph and `eslint-plugin-boundaries` (or Nx’s enforce‑module‑boundaries) to encode allowed dependencies (e.g., core vs feature vs shared) and fail CI on violations.[5][7][1]
+
+- **Q: How do you scope feature services correctly with the injector hierarchy?**  
+  A: Remove `providedIn: 'root'` and provide the service in the lazy route’s `providers` array so only that feature’s components can inject it, preventing accidental cross‑feature usage.[6][1]
+
+***
+
+## Key terms & keywords (scan list)
+
+- Core vs feature (eager vs lazy)  
+- Lazy routes, `loadChildren`, `loadComponent`  
+- One‑way dependency graph, isolation, no cycles  
+- DRY vs isolation trade‑off (frontend bias toward isolation)  
+- Madge dependency graph visualization  
+- `eslint-plugin-boundaries`, Nx `enforce-module-boundaries`  
+- `core`, `feature`, `ui`/`shared` architectural types  
+- Template context, injector hierarchy, route‑scoped providers  
+- `providedIn: 'root'` vs route `providers`  
+- Standalone components instead of shared NgModules
+
+[1](https://angularexperts.io/blog/top-10-angular-architecture-mistakes/)
+[2](https://www.reddit.com/r/angular/comments/1fddt3z/blog_top_10_angular_architecture_mistakes_you/)
+[3](https://angularexperts.io/products/ebook-angular-enterprise-architecture/)
+[4](https://angularexperts.ch/blog/top-10-angular-architecture-mistakes/)
+[5](https://github.com/nrwl/nx/issues/18552)
+[6](https://www.youtube.com/watch?v=FDBFQxftVxA)
+[7](https://www.reddit.com/r/javascript/comments/1fdducb/top_10_angular_architecture_mistakes_you_really/)
+[8](https://www.angularminds.com/blog/top-10-common-angular-mistakes-avoid)
+[9](https://www.linkedin.com/posts/kubiak-pawel_top-10-angular-architecture-mistakes-you-activity-7239621754887823361-Iy46)
+[10](https://angularexperts.io/blog/)
+[11](https://www.youtube.com/watch?v=40D9-mAJHS0)
+[12](https://dev.to/tomastrajan)
+[13](https://www.scribd.com/document/803750205/eBook-Angular-Enterprise-Architecture-Tomas-Trajan-Angular-Experts-v2)
+[14](https://angularexperts.ch/blog/)
+[15](https://github.com/eslint/eslint/issues/17359)
+[16](https://dzone.com/articles/top-10-angular-architecture-mistakes-you-really-wa)
+[17](https://github.com/EmmanuelDemey/eslint-plugin-angular)
+[18](https://www.rx-angular.io/docs/eslint-plugin)
+[19](https://www.angulararchitects.io/en/blog/best-practices-prettier-eslint/)
+[20](https://github.com/MarsBased/handbook/blob/master/guides/development/angular-guidelines.md)

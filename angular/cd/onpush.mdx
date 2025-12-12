@@ -1,0 +1,101 @@
+Angular OnPush change detection strategy skips child component checks unless inputs change (ref equality), events fire, or manually marked dirty via ChangeDetectorRef.markForCheck(), dramatically reducing CD cycles in deep trees. Internally sets LViewFlags.Dirty flag, cleared post-first check for CheckOnce behavior.
+
+## Core Mechanism
+
+- **Strategy Flags Foundation**
+  - Default (CheckAlways): Always check if parent checked (unless detached)
+  - OnPush (CheckOnce): Skip unless Dirty flag; auto-cleared after first pass
+  - Compiler sets via defineComponent → LView[FLAGS] |= LViewFlags.Dirty
+  
+- **refreshView Decision Logic**
+  ```
+  if (viewAttached && (CheckAlways || Dirty)) {
+    refreshView(tView, lView, template, context)
+  }
+  ```
+  
+- **Auto-Dirty Triggers**
+  ```
+  @Input ref change → shallow eq fail → mark dirty
+  Bound event on component → mark ancestors dirty
+  Child event → bubble mark parent chain dirty
+  ```
+
+## Important Classes/Interfaces
+
+- **ChangeDetectionStrategy**: OnPush=0, Default=1 enum
+- **ChangeDetectorRef**: markForCheck() → root traversal enabling parents 
+- **LView**: FLAGS (Dirty/CheckAlways), TVIEW template ref
+- **TView**: Compiled component definition with strategy
+
+## Design Patterns & Best Practices
+
+- **Immutable Inputs**: New ref per update ({...old, prop: newVal}) triggers auto-check
+- **AsyncPipe Magic**: Subscribes @Input observables, markForCheck on emit (immutability req)
+- **ngDoCheck + Manual**: Deep mutation detect → this.cd.markForCheck()
+- **Immer/DeepFreeze**: Enforce immutability; produce(draft => draft.prop = val)
+
+## Advanced Topics
+
+- **Event Bubbling**: Child click → marks ALL ancestor OnPush dirty (assumes state change)
+- **markForCheck Traversal**: Bubbles to root, enables only OnPush parents (not Default)
+- **Zone-less Signals (v16+)**: Replaces OnPush for granular reactivity
+- **AsyncPipe Internals**: _updateLatestValue → markForCheck if obj unchanged
+
+## Big Tech References
+
+- **Netflix**: OnPush + immutable Rx streams cut CD 70%; asyncPipe for all @Input$ 
+- **Google/Angular Team**: Ivy preserves OnPush; test scenarios validate edge cases 
+
+## Interview Q&A
+
+**Q: OnPush mutation not detected?**  
+A: Shallow ref check fails; create new obj ref or ngDoCheck + markForCheck 
+
+**Q: Child event updates parent?**  
+A: Yes, marks ancestor chain dirty; Header skips if non-ancestor 
+
+**Q: markForCheck vs detectChanges?**  
+A: markForCheck: next cycle (safe); detectChanges: immediate subtree 
+
+**Q: AsyncPipe OnPush requirement?**  
+A: Immutable emissions; subscribes transform → markForCheck on value 
+
+**Q: Default vs OnPush parent check?**  
+A: Both skip if parent skipped; Default always child-checks 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Mutation no update | Same ref push() | Immutable + new ref / ngDoCheck |
+| Observable no trigger | Mutable emits | AsyncPipe + immutable |
+| Event no ancestor | Wrong hierarchy | markForCheck from handler |
+| Deep tree perf | Default everywhere | OnPush + immutability |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Tree-shaking, immutable contract, async integration.
+- **Tradeoffs**:
+  | Strategy | Pros | Cons |
+  |----------|------|------|
+  | OnPush | 90% fewer checks | Immutable discipline |
+  | Default | Simple mutations | Full tree overhead |
+  | Signals | Granular | Angular 16+ only |
+
+## Essential Terms & Keywords
+
+- OnPush
+- ChangeDetectionStrategy
+- LViewFlags.Dirty
+- CheckOnce/CheckAlways
+- markForCheck
+- Immutable Inputs
+- AsyncPipe
+- ngDoCheck Manual
+- Event Bubbling
+- Reference Equality
+- DeepFreeze/Immer
+- refreshView
+- TView/LView
+- Zone-less Signals

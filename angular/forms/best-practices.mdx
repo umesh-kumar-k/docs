@@ -1,0 +1,117 @@
+Angular reactive forms best practices emphasize FormBuilder for DRY construction, typed getters for template access, patchValue/setValue over direct mutation, async pipe for observables, and resetForm() for cleanup, ensuring maintainable, performant, testable forms with explicit model-driven control.[1]
+
+## Core Mechanism
+
+- **FormBuilder Pattern**
+  ```
+  fb = inject(FormBuilder);
+  form = fb.group({
+    name: ['', Validators.required],
+    email: fb.control('', {validators: [Validators.email], updateOn: 'blur'})
+  });
+  ```
+  
+- **Getter Access**
+  ```
+  get name() { return this.form.get('name') as FormControl; }
+  // Template: name.invalid && (name.dirty || name.touched)
+  ```
+  
+- **Value Updates**
+  ```
+  setValue({all: true});     // Strict full structure
+  patchValue({partial: true}); // Partial safe updates
+  ```
+
+## Important Classes/Interfaces
+
+- **FormBuilder**: Fluent group/control/array factories
+- **FormControl**: Typed single field with validators
+- **FormGroup**: Named control container
+- **FormArray**: Dynamic indexed controls (push/remove)
+
+## Design Patterns
+
+- **Builder**: FormBuilder.group() fluent API
+- **Accessor**: Typed getters for template ergonomics
+- **Immutable Updates**: patchValue preserves validators
+- **Reactive**: valueChanges + async pipe (no manual subs)
+
+## Best Practices
+
+- FormBuilder over manual new FormGroup (DRY/readable)
+- Typed getters: `get email() { return this.form.get('email') as FormControl; }`
+- patchValue() for partial updates (safer than setValue)
+- Async pipe: `form.valueChanges | async` (auto sub/unsub)
+- Show errors: `control.invalid && (control.dirty || control.touched)`
+- resetForm({}) post-submit (restore initial state)
+- Standalone: `imports: [ReactiveFormsModule]` (no NgModule)
+
+## Advanced Topics
+
+```
+Dynamic FormArray:
+get skills() { return this.form.get('skills') as FormArray; }
+addSkill() { this.skills.push(fb.control('')); }
+
+Template-Driven Hybrid:
+<input [(ngModel)]="model" [formControl]="control"> // Both directives
+```
+
+- Custom validators via factory functions
+- RxJS integration (debounceTime, switchMap for API)
+
+## Big Tech References
+
+- **Netflix**: FormBuilder schemas + typed getters across design system; patchValue for partial API updates 
+- **Google/Angular Team**: Official docs promote FormBuilder + async pipe patterns
+
+## Interview Q&A
+
+**Q: FormBuilder vs manual FormGroup?**  
+A: Builder: DRY, fluent, readable; manual verbose for complex forms 
+
+**Q: setValue vs patchValue?**  
+A: setValue: full strict structure; patchValue: partial safe 
+
+**Q: Getter benefits?**  
+A: Template autocomplete, type safety, testable accessors 
+
+**Q: Memory leak prevention?**  
+A: Async pipe auto-sub; no manual valueChanges.subscribe() 
+
+**Q: Error display timing?**  
+A: `invalid && (dirty || touched)` prevents premature errors 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Verbose forms | Manual new FormControl | FormBuilder.group/control |
+| Manual subs | valueChanges.subscribe() | Async pipe |
+| Direct mutation | this.control.setValue() | patchValue/setValue |
+| No type safety | form.get('field') | Typed getters as FormControl |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: DRY builder, type-safe access, auto lifecycle, testable.
+- **Tradeoffs**:
+  | Practice | Pros | Cons |
+  |----------|------|------|
+  | FormBuilder | Readable | Slight DI overhead |
+  | Getters | Template DX | Boilerplate |
+
+## Essential Terms & Keywords
+
+- FormBuilder
+- Typed Getters
+- patchValue/setValue
+- Async Pipe
+- resetForm()
+- formControlName
+- dirty/touched
+- FormArray.push
+- ReactiveFormsModule
+- Standalone imports
+
+[1](https://www.angularminds.com/blog/angular-reactive-forms-best-practices)

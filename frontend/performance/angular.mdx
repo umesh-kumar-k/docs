@@ -1,0 +1,184 @@
+# Angular Performance Optimization (6-Part Series)
+
+Angular performance series covers **Initial Load metrics** (FCP/LCP/CLS), **SSR/Hydration setup**, **Deferrable Views** (`@defer`), **large 3rd-party deferral**, and **complete SSR guide** with Hybrid Rendering/Incremental Hydration (v19). Focus: **FCP/LCP reduction**, **CLS elimination**, **bundle optimization** via SSR+esbuild+Vite. [-6]
+
+## 1. Why Initial Load Matters[1]
+**Business Impact**:
+- **User retention**: 0.1s delay = conversion drop[1]
+- **SEO**: Google ranks fast sites higher[1]
+- **Mobile**: 2/3 traffic on slow networks[1]
+**SSR Benefits**: Server HTML → faster FCP/LCP[1]
+**Hydration**: Client interactivity without re-render (no CLS flash)[1]
+
+## 2. Measuring Initial Load[2]
+**Core Metrics**:
+| Metric | What | Target |
+|--------|------|--------|
+| **FCP** | First paint | <1.8s |
+| **LCP** | Largest content | <2.5s |
+| **TBT** | Responsiveness | <200ms |
+| **CLS** | Layout shift | <0.1 |
+| **SI** | Speed Index | Lower better |
+
+**Tools** (Top 3):
+- **Lighthouse** (DevTools/CI): Scores + recommendations[2]
+- **PageSpeed Insights**: Real-user + lab data[2]
+- **WebPageTest**: Global locations, detailed waterfalls[2]
+
+**DevTools**: DOMContentLoaded/Load/Finish lines[2]
+
+## 3. SSR + Hydration Setup[3]
+**Flight App Baseline** (CSR/nginx): FCP 2.2s, LCP 3.8s[3]
+
+**Step 1: SSR** (`ng add @angular/ssr`):
+```dockerfile
+# Node.js Dockerfile
+RUN ng build && ng run app:server
+CMD ["node", "dist/app/server/main.js"]
+```
+- **Results**: FCP 2.0s (-0.2s), LCP 2.2s (-1.6s), CLS 0.165[3]
+
+**Step 2: Prerender** (`ng run app:prerender`):
+```json
+// angular.json
+"prerender": { "routes": ["/", "/home", "/flight-booking"] }
+```
+- **Results**: FCP 1.7s, LCP 2.4s (static cache)[3]
+
+**Step 3: Non-Destructive Hydration** (v16+):
+```ts
+// app.config.ts
+provideClientHydration()
+```
+- **Results**: FCP 1.5s (-0.7s), LCP 1.5s (-2.3s), **CLS 0**[3]
+
+## 4. Deferrable Views (`@defer`)[4]
+**Angular 17+**: Native lazy-loading syntax replaces `ViewContainerRef`[4]
+
+**Syntax**:
+```html
+@defer (on viewport) { <heavy-chart /> }
+@placeholder (min 500ms) { <img width="420" height="420" src="placeholder.avif" /> }
+@loading (after 500ms) { <spinner /> }
+@error { <p>Error loading chart</p> }
+```
+
+**Triggers** (`on`):
+- `idle` (default), `viewport`, `interaction`, `hover`, `immediate`, `timer(2s)`[4]
+- Custom: `@defer (when showChart) { ... }`[4]
+
+**Prefetch**: `@defer (on viewport; prefetch on idle)`[4]
+
+## 5. Defer Large 3rd-Party Deps[5]
+**Case Study**: AnyChart (charts) + Flexmonster (pivot) → **4.81MB vendor**[5]
+
+**Before** (eager): Vendor 4.81MB, poor Lighthouse[5]
+
+**After `@defer`**:
+```
+@defer (on viewport) { <app-chart /> }  // AnyChart → chunk 498
+@defer (on immediate) { <app-pivot /> } // Flexmonster → chunk 595
+```
+- **Vendor**: 4.81MB → **0.27MB** (-4.54MB)[5]
+- **Lighthouse**: Mobile score improved dramatically[5]
+
+**Key**: Standalone components + `vendor: true` flag[5]
+
+## 6. Complete SSR Guide (v19)[6]
+**New v19 Features**:
+- **Hybrid Rendering**: Per-route `SSR/SSG/CSR` (`serverRoutes: ServerRoute[]`)[6]
+- **Incremental Hydration**: `@defer (hydrate on hover)`[6]
+- **Event Replay**: Auto-enabled, captures clicks during load[6]
+
+**App Builder** (`ng b`): esbuild+Vite, SSR/SSG automatic[6]
+
+**TransferState**: Server data → client cache[6]
+
+## Key APIs & Classes
+```ts
+// Hydration
+provideClientHydration(withIncrementalHydration(), withEventReplay())
+
+// SSR Config (v19)
+provideServerRendering(), provideServerRoutesConfig(serverRoutes)
+ServerRoute { path, renderMode: RenderMode.Server | Prerender | Client }
+
+// Defer triggers
+@defer (on viewport; prefetch on idle; hydrate when loggedIn)
+```
+
+## Design Patterns & Best Practices
+**Progressive Enhancement**:
+```
+1. SSR/SSG → Fast FCP/LCP
+2. Hydration → Interactivity (no CLS)
+3. @defer → Below-fold + user content
+4. Incremental Hydration → Prioritize critical paths
+```
+
+**Build Strategy**:
+```
+App Builder (esbuild+Vite) > Webpack
+Prerender static > On-demand SSR
+gzip + nginx/CDN compression
+```
+
+**Measurement**:
+```
+Dev: Lighthouse DevTools
+CI: PageSpeed Insights + WebPageTest
+Real-user: PageSpeed field data
+```
+
+## Advanced Topics
+**v19 Hybrid Rendering**:
+```ts
+serverRoutes = [
+  { path: "ssr", renderMode: RenderMode.Server },
+  { path: "ssg", renderMode: RenderMode.Prerender },
+  { path: "csr", renderMode: RenderMode.Client }
+]
+```
+
+**Incremental Hydration**:
+```html
+@defer (on viewport; hydrate on hover) { <user-chart /> }
+```
+
+**Fetch API**: `provideHttpClient(withFetch())`[6]
+
+## Interview Cheat Sheet
+**Q: Angular perf progression?**  
+A: SSR (FCP/LCP) → Hydration (no CLS) → @defer (bundle) → Incremental Hydration (critical path) [-6]
+
+**Q: SSR setup (1 command)?**  
+A: `ng add @angular/ssr` → `ng b` (App Builder auto-SSR/SSG)[6]
+
+**Q: Defer syntax + triggers?**  
+A: `@defer (on viewport; prefetch on idle) { <heavy /> }`[4]
+
+**Q: Vendor bundle 5MB → 0.3MB?**  
+A: Standalone components + `@defer` heavy charts/pivot → separate lazy chunks[5]
+
+**Q: Lighthouse targets?**  
+A: FCP <1.8s, LCP <2.5s, TBT <200ms, CLS <0.1[2]
+
+**Q: v19 Hybrid Rendering?**  
+A: Per-route SSR/SSG/CSR via `serverRoutes: ServerRoute[]`[6]
+
+## Key Terms & Keywords
+- **Core Metrics**: FCP, LCP, TBT, CLS, Speed Index (SI)
+- **Tools**: Lighthouse, PageSpeed Insights, WebPageTest
+- **SSR**: `ng add @angular/ssr`, App Builder (`ng b`)
+- **Hydration**: `provideClientHydration()`, Non-Destructive (v16+)
+- **@defer**: `on viewport/idle/interaction`, `@placeholder/@loading/@error`
+- **Incremental Hydration** (v19): `hydrate on/when/never`
+- **Hybrid Rendering** (v19): `RenderMode.Server/Prerender/Client`
+- **Event Replay**: Auto-interactivity during hydration [-6]
+
+[1](https://angularexperts.io/blog/the-most-impactful-rx-js-best-practice-of-all-time)
+[2](https://angular.dev/guide/testing/component-harnesses-overview)
+[3](https://v12.material.angular.io/cdk/test-harnesses)
+[4](https://material.angular.dev)
+[5](https://material.angular.dev/guide/using-component-harnesses)
+[6](https://angularexperts.io/blog/angular-material-component-harness/)

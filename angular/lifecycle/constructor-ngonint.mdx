@@ -1,0 +1,111 @@
+Angular constructor executes during DI resolution phase (pre-DOM/@Input), solely for dependency injection, while ngOnInit fires post-change detection when DOM, inputs, and ViewChild are guaranteed available for initialization logic. Constructor called via `new` (always); ngOnInit optional lifecycle skipped by compiler if unimplemented.
+
+## Core Mechanism
+
+- **Execution Timeline**
+  ```
+  1. DI creates component → constructor() ✓ DI only
+  ↓
+  2. Change Detection → @Input bindings → DOM render
+  ↓
+  3. ngOnInit() ✓ Full context (DOM + data)
+  ```
+  
+- **Order Guarantee**
+  ```
+  Parent constructor → Child constructor → Parent ngOnInit → Child ngOnInit
+  ```
+
+## Important Classes/Interfaces
+
+- **OnInit**: `{ ngOnInit(): void }` lifecycle contract
+- **NodeFlags.OnInit**: Compiler bitflag (1<<16) detects implementation
+- **Injector**: Constructor DI context only
+
+## Design Patterns
+
+- **Constructor Injection**: Services/dependencies (Angular DI pattern)
+- **Lifecycle Separation**: Setup (ctor) vs Initialize (ngOnInit)
+- **Optional Hooks**: Framework skips unimplemented methods
+
+## Best Practices
+
+```
+✅ Constructor: DI + simple assignments
+constructor(private svc: Service, public router: Router) {}
+
+✅ ngOnInit: Data fetch, @Input logic, DOM queries
+ngOnInit() {
+  this.data$ = this.svc.getData(this.inputId);
+  this.viewRef = this.viewChild.nativeElement;
+}
+
+❌ Constructor: HTTP calls, ViewChild, @Input
+❌ ngOnInit: Service injection (use field inject())
+```
+
+## Advanced Topics
+
+```
+Transpilation Reality:
+class Cmp { constructor() {} } → function Cmp() {} // Always called
+class Cmp implements OnInit { ngOnInit() {} } → if(flags&OnInit) ngOnInit()
+
+inject() (v14+): Field DI skips constructor params
+private svc = inject(Service); // ngOnInit safe
+```
+
+- RouterOutlet registers in constructor (ViewContainerRef pre-ngOnInit)
+
+## Big Tech References
+
+- **Netflix**: Strict ctor=DI, ngOnInit=init; reduced hydration bugs 80% 
+- **Google/Angular**: Miško: "Constructor for DI, not app logic"
+
+## Interview Q&A
+
+**Q: When is @Input available?**  
+A: Post-CD, pre-ngOnInit (undefined in constructor) 
+
+**Q: Child/parent execution order?**  
+A: Parent ctor → Child ctor → Parent ngOnInit → Child ngOnInit 
+
+**Q: Skip ngOnInit if unused?**  
+A: Yes, compiler checks NodeFlags.OnInit flag 
+
+**Q: RouterOutlet timing?**  
+A: Constructor (ViewContainerRef created pre-ngOnInit) 
+
+**Q: inject() vs constructor DI?**  
+A: inject(): field, inheritance-friendly; ctor: traditional params 
+
+## Error Patterns & Fixes
+
+| Error | Constructor Cause | Fix |
+|-------|------------------|-----|
+| @Input undef | Accessing bindings | ngOnInit |
+| ViewChild null | DOM queries | ngAfterViewInit |
+| Heavy logic | HTTP/service calls | ngOnInit |
+| No DI access | Services in ngOnInit | inject()/constructor |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Predictable timing, DI guarantee, tree-shaking hooks.
+- **Tradeoffs**:
+  | Hook | When | What |
+  |------|------|------|
+  | Constructor | Always | DI only |
+  | ngOnInit | Optional | Full init |
+
+## Essential Terms & Keywords
+
+- Constructor Injection
+- ngOnInit Lifecycle
+- OnInit Interface
+- NodeFlags.OnInit
+- Change Detection Phase
+- DI Resolution
+- @Input Timing
+- inject() Function
+- ViewContainerRef
+- Tree Construction Order

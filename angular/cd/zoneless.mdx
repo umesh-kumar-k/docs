@@ -1,0 +1,111 @@
+Zoneless change detection removes Zone.js and makes Angular update views only when explicitly notified (DOM events, signal updates, async pipe emissions, `setInput`, `markForCheck`, component create/destroy), relying on signals and OnPush for precise, high‑performance rendering.[1][2]
+
+## Core concepts & triggers
+
+- Zone.js (legacy): monkey‑patches `setTimeout`, `Promise`, events to run change detection “whenever something async might have changed”, often over‑triggering and impacting performance.[1]
+- Zoneless: no Zone.js; CD runs when:
+  - Template DOM event fires (`(click)`, `(input)`, etc).  
+  - A signal updates.  
+  - `async` pipe emits.  
+  - `ComponentRef.setInput()` or template input binding updates input.  
+  - `ChangeDetectorRef.markForCheck()` is called.  
+  - A component is created/destroyed.[4][1]
+
+Enable via:
+```ts
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideZonelessChangeDetection(),
+    provideBrowserGlobalErrorListeners(), // client
+  ]
+});
+```
+Remove Zone.js polyfill; CLI can scaffold new apps zoneless from Angular 20.[4][1]
+
+## Scenarios (Zone.js vs zoneless)
+
+- Click handler (`(click)="count = count + 1"`): works in both; better to refactor `count` to `signal(0)` for future‑proof reactivity.[1]
+- HTTP with manual `subscribe` and field assignment: works with Zone.js; in zoneless, does **not** trigger CD unless you:
+  - Convert to signal via `toSignal(http.get(...))`, or  
+  - Use `posts$ | async`, or  
+  - Manually call `markForCheck()` after updating.[1]
+- HTTP + `async` pipe: works in both; `async` internally calls `markForCheck`, but signals via `toSignal()` are preferred for fine‑grained reactivity.[5][1]
+- `setInterval` updating plain field: triggers CD with Zone.js; in zoneless, no update unless you mark or update a signal (recommended: `count = signal(0)` and `count.update(c => c + 1)`).[1]
+- Signal update: triggers CD in both, and is the “gold path” for zoneless Angular.[1]
+
+## Angular.love zoneless scheduler notes
+
+- New zoneless scheduler (17.1+) moves from “maybe something changed” to “data definitely changed” by letting signals and framework APIs explicitly notify the scheduler.[5]
+- Combined with OnPush and upcoming signal components, Angular can update only affected subtrees, reducing unnecessary checks.[6]
+
+## Error handling & SSR
+
+- Zone.js previously caught many global errors and controlled SSR flush timing; zoneless replaces this with:
+  - Node: default handlers for `unhandledRejection` and `uncaughtException`.  
+  - Browser: `provideBrowserGlobalErrorListeners()` to catch global errors.[1]
+- Zoneless is Developer Preview in Angular 20; stable path is being validated in real apps.[8][1]
+
+## Hybrid scheduling (Angular 18+)
+
+- Signals now schedule CD even when updated outside Angular’s zone (`runOutsideAngular`, raw `setTimeout`), removing many brittle workarounds.[3][1]
+- `ignoreChangesOutsideZone` was a temporary opt‑out flag and is now deprecated; you rarely need it.[1]
+
+## Best practices (for senior‑level answers)
+
+- Go all‑in on **OnPush**: apps that already work under OnPush are close to zoneless‑ready.[1]
+- **Use signals for all dynamic state**; treat Observables as async sources and convert with `toSignal()`, keeping templates and components signal‑first.[5][1]
+- Avoid manual `subscribe` + property mutation; prefer:
+  - `toSignal(http.get(...))`,  
+  - Resource/httpResource APIs, or  
+  - `async` pipe as a fallback.[1]
+- Use `markForCheck()` sparingly as an escape hatch when integrating with non‑Angular APIs that cannot directly update signals.[1]
+
+## Interview cheat sheet (Q & A)
+
+- **Q: What does zoneless change detection remove, and what replaces it?**  
+  A: It removes Zone.js monkey‑patching; CD is now triggered only by explicit framework events like DOM events, signal updates, async pipe, input updates, `markForCheck`, and component lifecycle.[3][1]
+
+- **Q: How do HTTP calls usually look in zoneless Angular?**  
+  A: Use `toSignal(http.get(...))` or Resource/httpResource, so the resulting signal drives the template; raw `subscribe` to a field will not re‑render unless you update a signal or call `markForCheck()`.[5][1]
+
+- **Q: Why are signals considered the “cheat code” for zoneless?**  
+  A: They natively notify the zoneless scheduler, give fine‑grained updates, integrate with upcoming signal components, and remove the need for Zone.js to guess when something changed.[6][1]
+
+- **Q: How does zoneless improve performance compared to Zone.js?**  
+  A: It avoids global CD on every async operation, updates only when explicitly notified, and can limit checks to affected components/subtrees instead of the entire tree.[5][1]
+
+- **Q: What do you need to migrate an OnPush app to zoneless?**  
+  A: Enable `provideZonelessChangeDetection()`, remove Zone.js, ensure async flows use signals/async pipe or call `markForCheck`, and keep state updates signal‑driven.[4][1]
+
+## Important terms & keywords
+
+- Zone.js, monkey‑patching  
+- Zoneless scheduler, `provideZonelessChangeDetection()`  
+- Triggers: DOM events, signals, async pipe, `setInput`, `markForCheck`, create/destroy  
+- OnPush + signals  
+- `toSignal()`, `toObservable()`  
+- Hybrid scheduling, `runOutsideAngular`  
+- `provideBrowserGlobalErrorListeners()`  
+- Developer Preview in Angular 20
+
+[1](https://angularexperts.io/blog/zoneless-angular)
+[2](https://angularexperts.io/blog/zoneless-angular/)
+[3](https://angular.dev/guide/zoneless)
+[4](https://www.youtube.com/watch?v=ar-xd_dsaVE)
+[5](https://www.angular.love/the-latest-in-angular-change-detection-zoneless-signals/)
+[6](https://dev.to/danywalls/angular-19-and-zoneless-1of9)
+[7](https://www.kellton.com/kellton-tech-blog/angular-20-new-features-guide)
+[8](https://www.youtube.com/watch?v=R2wjayCaw30)
+[9](https://blog.logrocket.com/zoneless-change-detection-angular-18/)
+[10](https://dev.to/soumayaerradi/angular-change-detection-with-zoneless-413f)
+[11](https://angularexperts.io/blog/)
+[12](https://www.reddit.com/r/Angular2/comments/1c7q3qp/navigating_the_new_era_of_angular_zoneless_change/)
+[13](https://www.telerik.com/blogs/explore-new-zoneless-change-detection-angular-18)
+[14](https://justangular.com/blog/a-change-detection-zone-js-zoneless-local-change-detection-and-signals-story/)
+[15](https://www.reddit.com/r/angular/comments/1mr8lm1/zoneless_is_stable_megathread/)
+[16](https://justangular.com/blog/a-new-era-for-angular-zoneless-change-detection/)
+[17](https://www.youtube.com/watch?v=MZ6s5EL7hKk)
+[18](https://www.youtube.com/watch?v=eIzM_VDjdxw)
+[19](https://www.reddit.com/r/Angular2/comments/1gzh6yn/zoneless_change_detection_in_angular_18_boost/)
+[20](https://www.youtube.com/watch?v=vHNeAqgNM4o)
+[21](https://dev.to/dipakahirav/exploring-angular-v18-zoneless-change-detection-and-more-565)

@@ -1,0 +1,249 @@
+Angular’s experimental Resource API (`resource` / `rxResource`) is a Signal-native abstraction for async data loading with built-in switchMap‑style race handling, loading/error signals, manual reload, debouncing, and integration with services/stores, acting as the “missing link” between signals and HTTP for CRUD-style flows.
+
+## Core Building Blocks
+
+- `resource({ params, loader, defaultValue })`
+  - `params`: Signal driving reloads (changes → new load).
+  - `loader(loaderParams)`: Returns `Promise<T>`; receives `{params, abortSignal}`.
+  - `defaultValue`: Initial `value` before first load (otherwise `undefined`).
+- Exposed Signals:
+  - `value`: Loaded data (Signal).
+  - `isLoading`: Boolean Signal.
+  - `error`: Error Signal; `value` unusable while error present.
+
+```ts
+originalName = signal('');
+englishName = signal('');
+
+criteria = computed(() => ({ originalName: this.originalName(), englishName: this.englishName() }));
+
+dessertsResource = resource({
+  params: this.criteria,
+  loader: ({ params, abortSignal }) =>
+    this.svc.findPromise(params, abortSignal),
+  defaultValue: []
+});
+
+desserts = dessertsResource.value;
+loading = dessertsResource.isLoading;
+error = dessertsResource.error;
+ratedDesserts = computed(() => toRated(desserts(), ratings()));
+```
+
+## Loader Semantics & Race Conditions
+
+- **Params tracked; loader untracked**:
+  - Changes in `params` trigger loader.
+  - Signals inside loader body are *not* tracked.
+- **SwitchMap semantics**:
+  - New `params` → ignore older results (“latest wins”).
+  - To *cancel* prior HTTP, use `loaderParams.abortSignal` with `fetch`/custom `toPromise`.
+- `reload()`:
+  - Explicit reload without params change.
+  - Uses **exhaustMap semantics** (ignore if already loading).
+
+## Debouncing Strategies
+
+- Recommendation: Debounce **event/params**, not loader itself.
+- Helper `debounceSignal` using RxJS interop:
+
+```ts
+function debounceSignal<T>(src: Signal<T>, ms: number): Signal<T> {
+  return toSignal(toObservable(src).pipe(debounceTime(ms)), {
+    initialValue: src()
+  });
+}
+
+debouncedCriteria = debounceSignal(criteria, 300);
+
+dessertsResource = resource({
+  params: debouncedCriteria,
+  loader: ({ params, abortSignal }) => svc.findPromise(params, abortSignal),
+  defaultValue: []
+});
+```
+
+- `params === undefined` → loader not triggered (useful to postpone initial load).
+
+## Manual Loading, Reload & Flags
+
+- Disable auto-load by initializing `params` as `undefined`:
+
+```ts
+type Requested = undefined | true;
+ratingsRequested = signal<Requested>(undefined);
+
+ratingsResource = resource({
+  params: ratingsRequested,
+  loader: () => ratingSvc.loadExpertRatingsPromise(),
+  defaultValue: {}
+});
+
+// First call & subsequent reloads
+loadRatings() {
+  ratingsRequested.set(true);
+  ratingsResource.reload();  // exhaustMap: no overlap
+}
+```
+
+
+
+## linkedSignal & Editable Views
+
+- **Problem**: `resource.value` is readonly; forms need writable fields.
+- `linkedSignal(() => resource.value() ?? default)`:
+  - Read‑write signal derived from another, recomputed when source changes; local writes allowed, later overwritten on next recompute.
+- Pattern for detail form:
+
+```ts
+loadedDessert = dessertResource.value; // readonly
+dessert = {
+  originalName: linkedSignal(() => loadedDessert().originalName),
+  englishName: linkedSignal(() => loadedDessert().englishName),
+  kcal: linkedSignal(() => loadedDessert().kcal),
+};
+
+save() {
+  const dto = { ...loadedDessert(), originalName: dessert.originalName(), ... };
+  store.save(dto);                   // store updates resource.set()
+}
+```
+
+
+
+## Error Handling
+
+- Loader reject/throw → resource enters `error` state:
+  - `error()` contains error; `value()` access forbidden until recovery.
+- Recovery:
+  - Next successful load (`reload` or `params` change) clears `error` and updates `value`.
+- Template pattern:
+
+```html
+@if (!error()) {
+  @for (d of ratedDesserts(); track d.id) {
+    <app-dessert-card [dessert]="d" (ratingChange)="updateRating(d.id, $event)"/>
+  }
+} @else {
+  <b>Error loading desserts!</b>
+}
+```
+
+
+
+## rxResource (Observable-Based)
+
+- `rxResource({ params, stream, defaultValue })`:
+  - `stream({params})` returns `Observable<T>` (streaming, multi-emits).
+  - No `AbortSignal` needed; unsubscribe handles cancellation.
+- Example:
+
+```ts
+dessertsResource = rxResource({
+  params: criteria,
+  stream: ({ params }) =>
+    timer(300).pipe(switchMap(() => svc.find(params))),
+  defaultValue: []
+});
+```
+
+
+
+## Resources in Stores/Services (Unidirectional Flow)
+
+- Move resources into a store to:
+  - Persist state across routes.
+  - Enforce **unidirectional data flow**: component → intent (method) → store/resource → signals → template.
+
+```ts
+@Injectable({providedIn: 'root'})
+export class DessertStore {
+  originalName = signal('');
+  englishName = signal('');
+
+  private criteria = computed(() => ({ originalName: this.originalName(), englishName: this.englishName() }));
+
+  private dessertsResource = resource({ params: criteria, loader: debounce(loaderFn), defaultValue: [] });
+  private ratingsResource = resource({ params: ratingsRequested, loader: loadRatings, defaultValue: {} });
+
+  loading = computed(() => dessertsResource.isLoading() || ratingsResource.isLoading());
+  desserts = dessertsResource.value;
+  ratings = ratingsResource.value;
+  ratedDesserts = computed(() => toRated(desserts(), ratings()));
+  error = computed(() => getErrorMessage(dessertsResource.error() || ratingsResource.error()));
+}
+```
+
+
+
+- Component:
+
+```ts
+store = inject(DessertStore);
+originalName = store.originalName;
+ratedDesserts = store.ratedDesserts;
+loadRatings() { store.loadRatings(); }
+```
+
+
+
+## Updating Resources Locally
+
+- `resource.set(newValue)`:
+  - Replace current `value` (e.g., after save); aborts in‑flight load.
+- `resource.update(fn)`:
+  - Project current `value` to new (e.g., update rating in a map).
+- Expose as readonly with `asReadonly()` from service:
+
+```ts
+readonly dessert = dessertResource.asReadonly();
+```
+
+
+
+## Key Types & APIs
+
+- `resource<T>({ params, loader, defaultValue })`
+- `rxResource<T>({ params, stream, defaultValue })`
+- Signals on resource:
+  - `.value`, `.isLoading`, `.error`, `.reload()`, `.set()`, `.update()`, `.asReadonly()`.
+- Utility:
+  - `linkedSignal(computation)`
+  - `debounceSignal(signal, ms)`
+  - `deepLink(objSignal)` (helper, converts object props → linkedSignals).
+
+## Design Patterns & Best Practices
+
+- **SwitchMap by default**: Latest search wins; no flashing stale results.
+- **ExhaustMap on reload**: Ignore reload while loading; simplifies `loadX()` methods.
+- **Debounce params, not loader**: Cleaner loading state and reusable stores.
+- **Use services/stores**: Resource in store, components as thin views.
+- **Use linkedSignal for forms**: Editable, locally mutable projections of readonly resource data.
+
+## Interview Cheat Sheet (Q&A)
+
+- **Q: How does Resource API handle race conditions?**  
+  A: Uses switchMap semantics: new params → ignore older results; can also pass AbortSignal to cancel HTTP.
+
+- **Q: How to prevent auto-loading on init?**  
+  A: Make `params` Signal initially `undefined`; set to real value later, then use `reload()` for subsequent loads.
+
+- **Q: When to use `rxResource` instead of `resource`?**  
+  A: When datasource is an Observable or multi-emit stream; `rxResource` expects `stream()` that returns Observable.
+
+- **Q: How to debounce user-driven loads?**  
+  A: Debounce the params Signal (e.g., `debounceSignal(criteria, 300)`) rather than adding delay inside loader.
+
+- **Q: Difference between `set` and `update` on resource?**  
+  A: `set(v)` replaces `value`; `update(fn)` derives new value from current (e.g., patch a map/array).
+
+## Important Terms & Keywords (for quick review)
+
+- `resource`, `rxResource`
+- `params`, `loader`, `stream`
+- `value`, `isLoading`, `error`
+- `AbortSignal` (fetch cancellation)
+- switchMap semantics, exhaustMap semantics (`reload`)
+- `debounceSignal`, `linkedSignal`, `deepLink`
+- unidirectional data flow with stores
+- `asReadonly`, `set()`, `update()`

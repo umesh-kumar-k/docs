@@ -1,0 +1,137 @@
+Angular’s new control flow introduces `@if`, `@switch`, and `@for` as compiler‑built template constructs that replace `*ngIf`, `*ngSwitch`, and `*ngFor`, improving readability, performance, and aligning template logic with plain JavaScript, plus a migration schematic to convert existing code automatically.[1][2][3]
+
+***
+
+## @if and @else
+
+- Old: `*ngIf` (and `else` via `<ng-template>` plus importing `NgIf`).  
+- New:
+  ```html
+  @if (condition) {
+    <div>Content</div>
+  } @else {
+    <div>Fallback</div>
+  }
+  ```
+  closely mirrors JS `if/else`, with `@`‑prefixed keywords and no extra templates or imports.[2][1]
+- Benefit: more readable, easier to teach, and less template noise compared to `*ngIf="...; else tmpl"` + `ng-template` blocks.[1]
+
+***
+
+## @switch, @case, @default
+
+- Old: `[ngSwitch]`, `*ngSwitchCase`, `*ngSwitchDefault` with `NgSwitch*` directives.  
+- New:
+  ```html
+  @switch (streamingService) {
+    @case ('Disney+') { <div>Mandalorian</div> }
+    @case ('AppleTV') { <div>Ted Lasso</div> }
+    @default         { <div>Peaky Blinders</div> }
+  }
+  ```
+  using curly blocks instead of `:`; again, very close to JS but template‑friendly.[2][1]
+
+***
+
+## @for, track, implicit vars, @empty
+
+- Old: `*ngFor="let item of items; trackBy: trackByFn"` with optional trackBy and implicit vars via `let i = index`, etc.  
+- New:
+  ```html
+  <ul>
+    @for (service of streamingServices; track service) {
+      <li>{{ service }}</li>
+    }
+  </ul>
+  ```
+  - `track` replaces `trackBy`, now **required** to avoid perf issues seen with `NgFor` on immutable lists without trackBy.[1][2]
+  - Can be an inline expression (`track product.id`) or call a trackBy function for migration (`track productId($index, product)`).[1]
+
+- Implicit/context variables:
+  ```html
+  @for (service of streamingServices; track service;
+        let i = $index; let first = $first; let last = $last;
+        let even = $even; let odd = $odd) {
+    <li>{{ i }} {{ first }} {{ last }} {{ even }} {{ odd }}</li>
+  }
+  ```
+  provide the same metadata as old `ngFor` ($index, $first, etc.).[2][1]
+
+- `@empty` block:
+  ```html
+  @for (service of streamingServices; track service) {
+    <div>{{ service }}</div>
+  } @empty {
+    <div>No streaming services available</div>
+  }
+  ```
+  renders fallback content when the collection is empty, replacing manual `*ngIf="list.length === 0"` patterns.[2][1]
+
+***
+
+## Migration and tooling
+
+- Control flow is compiler‑built from Angular 17+, no need to import `CommonModule` / `NgIf` / `NgFor` / `NgSwitch` for these cases.[3][2]
+- Official migration schematic:
+  ```bash
+  ng generate @angular/core:control-flow
+  ```
+  automatically rewrites existing `*ngIf`, `*ngFor`, and `*ngSwitch` usages to the new syntax.[3][1]
+- Third‑party guides and tools (e.g. HeroDevs article) recommend using this schematic for large codebases to standardize templates and unlock compiler optimizations.[4]
+
+***
+
+## Design themes & best practices
+
+- Treat control flow as **language‑level** template syntax, not structural directives; this simplifies mental model and enables better tree‑shaking and type‑safety.[5][6]
+- Always provide a robust `track` expression for `@for` to avoid list re‑rendering and performance regressions; prefer stable IDs over indexes.[1][2]
+- Use `@empty` instead of sprinkling additional `@if` checks for empty lists to keep templates linear and intention‑revealing.  
+
+***
+
+## Interview cheat sheet (Q & A)
+
+- **Q: What problem does Angular’s new control flow solve?**  
+  A: It replaces directive‑based template control (`*ngIf`, `*ngFor`, `*ngSwitch`) with built‑in `@if`, `@for`, and `@switch` blocks, improving readability, performance, and enabling compiler‑level optimizations without extra imports.[2][1]
+
+- **Q: How does `@for` differ from `*ngFor`?**  
+  A: `@for` uses `track` (required) instead of optional trackBy, supports inline tracking expressions, exposes the same implicit vars via `let ... = $index/$first/...`, and can define an `@empty` fallback.[1][2]
+
+- **Q: How do you migrate a large app to the new control flow syntax?**  
+  A: Run `ng generate @angular/core:control-flow` to apply the official schematic, which rewrites `*ngIf/*ngFor/*ngSwitch` and removes the need for CommonModule‑based directives.[4][3][1]
+
+- **Q: Why is `track` mandatory in `@for`, and what should it use?**  
+  A: Angular telemetry showed missing `trackBy` on immutable lists as a major perf issue; `track` forces you to provide a stable identifier (ideally `item.id` or similar) so Angular can diff lists efficiently instead of recreating DOM nodes.[2][1]
+
+***
+
+## Key terms & keywords (scan list)
+
+- `@if`, `@else`  
+- `@switch`, `@case`, `@default`  
+- `@for` loop, `track` expression (required)  
+- Implicit variables: `$index`, `$first`, `$last`, `$even`, `$odd`  
+- `@empty` fallback for loops  
+- Control flow built into compiler (no `NgIf`/`NgFor`/`NgSwitch` imports)  
+- Migration schematic: `ng g @angular/core:control-flow`
+
+[1](https://angularexperts.io/blog/angular-control-flow/)
+[2](https://angular.dev/guide/templates/control-flow)
+[3](https://angular.dev/reference/migrations/control-flow)
+[4](https://www.herodevs.com/blog-posts/new-in-angular----control-flow-migration-schematic)
+[5](https://www.youtube.com/watch?v=GTjTpyZUhuE)
+[6](https://www.youtube.com/watch?v=hAzUaTIkX5M)
+[7](https://www.youtube.com/watch?v=aecWYl9lNKw)
+[8](https://www.fradev.io/articles/angular/migrate-to-angular-new-control-flow-syntax/)
+[9](https://www.youtube.com/watch?v=l0QlgYqwQZk)
+[10](https://angularexperts.ch/products/ebook-signals/)
+[11](https://blog.angular-university.io/angular-if/)
+[12](https://angularexperts.io/blog/)
+[13](https://blog.angular-university.io/angular-switch/)
+[14](https://www.youtube.com/watch?v=TZbpyIOrRrU)
+[15](https://www.youtube.com/watch?v=O_CNDTywTqY)
+[16](https://angularexperts.ch/blog/)
+[17](https://i-am-kevin.ch)
+[18](https://creators.spotify.com/pod/profile/angularexperts-podcast/episodes/Angular-Standalone-Components-with-Tomas-Trajan--Kevin-Kreuzer-e1vrvbr)
+[19](https://www.angularspace.com/angular-space-is-getting-advisor/)
+[20](https://justangular.com)

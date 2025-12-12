@@ -1,0 +1,121 @@
+Angular advanced form validation uses custom ValidatorFn/AsyncValidatorFn functions returning ValidationErrors|null, registered via NG_VALIDATORS multi-provider for template-driven or direct FormControl config for reactive forms. Cross-field validators operate at FormGroup level; async validators (HTTP calls) run post-sync with pending state + updateOn: 'blur' for perf.[1][2]
+
+## Core Mechanism
+
+- **Validator Function Signature**
+  ```
+  ValidatorFn: (control: AbstractControl) => ValidationErrors|null
+  AsyncValidatorFn: (control: AbstractControl) => Observable<Promise<ValidationErrors|null>
+  ↓
+  null = valid; {errorKey: true|details} = invalid
+  ```
+  
+- **Reactive Registration**
+  ```
+  fb.group({
+    name: ['', [Validators.required, forbiddenNameValidator]],
+    {validators: [crossFieldValidator], asyncValidators: [apiValidator]}
+  })
+  ```
+  
+- **Template-Driven DI**
+  ```
+  @Directive({providers: [{provide: NG_VALIDATORS, useExisting: forwardRef(MyDir), multi: true}]})
+  ```
+
+## Important Classes/Interfaces
+
+- **ValidatorFn/AsyncValidatorFn**: Sync/async validation signatures
+- **NG_VALIDATORS/NG_ASYNC_VALIDATORS**: Multi-provider tokens
+- **ValidationErrors**: {key: true|details} error object
+- **AbstractControl**: Control passed to validators (value/errors/status)
+
+## Design Patterns
+
+- **Factory Pattern**: createValidator(params): ValidatorFn for config
+- **Composite**: Multiple validators array per control
+- **Bridge**: Directive wraps ValidatorFn for template-driven
+- **Observer**: valueChanges → dynamic setValidators()
+
+## Best Practices
+
+- Show errors only on dirty|touched: `*ngIf="control.invalid && (control.dirty || control.touched)"`
+- updateOn: 'blur' for async/UX (avoid keystroke HTTP)
+- Cross-field at FormGroup level, not controls
+- CSS classes: .ng-valid/.ng-invalid/.ng-pending for styling
+- ARIA-describedby links errors to inputs
+
+## Advanced Topics
+
+```
+Cross-field (FormGroup):
+unambiguousRoleValidator(form: FormGroup) {
+  const name = form.get('name')?.value;
+  return name === form.get('role')?.value ? {unambiguousRole: true} : null;
+}
+
+Dynamic:
+control.valueChanges.subscribe(v => {
+  if (v) control.setValidators([Validators.required]);
+  control.updateValueAndValidity();
+});
+```
+
+- Async pending spinner: `*ngIf="control.pending"`
+- Custom error details: `{forbiddenName: {value: control.value}}`
+
+## Big Tech References
+
+- **Netflix**: Custom async validators + debounce reduced API calls 90%; cross-field for business rules 
+- **Google/Angular Team**: Official docs emphasize updateOn perf + proper DI registration
+
+## Interview Q&A
+
+**Q: ValidatorFn vs directive?**  
+A: Reactive: direct function; Template: NG_VALIDATORS multi-provider directive 
+
+**Q: Cross-field where?**  
+A: FormGroup validators: `{validators: [crossValidator]}` not controls 
+
+**Q: Async perf issue?**  
+A: updateOn: 'blur', debounceTime(400); runs post-sync only 
+
+**Q: useExisting vs useClass?**  
+A: useExisting: *this* instance (bound inputs); useClass: new instance 
+
+**Q: Dynamic validators?**  
+A: setValidators([new]), updateValueAndValidity(), valueChanges subscribe[2]
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| No validation trigger | Missing multi:true | NG_VALIDATORS: {multi: true} |
+| Keystroke HTTP spam | Default updateOn | updateOn: 'blur'/debounceTime |
+| Wrong instance | useClass directive | useExisting: forwardRef(MyDir) |
+| Pending forever | Infinite observable | take(1)/first() on async |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Field/form-level, sync/async, type-safe errors, pending feedback.
+- **Tradeoffs**:
+  | Type | Pros | Cons |
+  |------|------|------|
+  | Sync | Immediate | No API calls |
+  | Async | Backend validation | Latency/pending UX |
+
+## Essential Terms & Keywords
+
+- ValidatorFn/AsyncValidatorFn
+- NG_VALIDATORS/NG_ASYNC_VALIDATORS
+- ValidationErrors
+- updateOn: 'blur'
+- cross-field/FormGroup validators
+- useExisting/multi: true
+- control.pending
+- .ng-valid/.ng-invalid/.ng-pending
+- setValidators/updateValueAndValidity
+- forbiddenNameValidator factory[2]
+
+[1](https://angular.dev/guide/forms/form-validation)
+[2](https://blog.angular-university.io/angular-custom-validators/)

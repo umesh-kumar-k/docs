@@ -1,0 +1,90 @@
+Angular’s “new coding style” centers on standalone components, signals everywhere, zoneless readiness, minimal traditional lifecycle/constructors, `inject()` over ctor DI, signals instead of `async` pipe, and `#` private fields for runtime encapsulation.[1][2]
+
+## Standalone & strict standalone
+
+- Standalone components are the default from Angular 19; `standalone: true` flag is no longer needed.[2]
+- Enable compiler enforcement with `"strictStandalone": true` in `angularCompilerOptions` to block non‑standalone declarations.[2]
+
+## All‑in on signals
+
+- Treat signals as the primary reactive primitive: plain signals, `computed`, signal inputs, and signal queries.[3][1]
+- This style assumes a signals‑first design, aligning with zoneless and future signal components.
+
+## Zoneless & OnPush
+
+- Goal: be zoneless‑ready by using OnPush + signals so CD is explicitly driven by state changes.[4][1]
+- Apps already built with signals + OnPush in a Zone‑based setup should migrate to zoneless with minimal friction.
+
+## Fewer traditional lifecycle hooks
+
+- Prefer signals + `computed`/`effect` over `ngOnInit`/`ngOnChanges`/`ngAfterViewInit` for most cases.[1][2]
+- Example: `isEven` component uses `counter = input.required<number>(); isEven = computed(() => counter() % 2 === 0);` instead of `@Input` + `ngOnChanges`.[1]
+- New hooks `afterRender`/`afterNextRender` are kept for genuine post‑render needs.
+
+## `inject()` over constructor DI & constructor‑free style
+
+- Prefer `inject(Service)` fields over ctor parameters:
+  - Better with injection tokens and inheritance.  
+  - Loosens dependence on `useDefineForClassFields: false`.[2][1]
+- Move towards constructor‑free components:
+  - Initialize state at field declaration (signals always have an initial value).  
+  - Store `effect`, `afterRender`, `afterNextRender` handles as private fields instead of creating them in the constructor.[1]
+
+## No more `async` pipe (signals instead)
+
+- Recommended style: convert Observables to signals using `toSignal(someStream$)` and bind `{{ someValue() }}` instead of `{{ some$ | async }}`.[1][3]  
+- RxJS remains for composition; templates become signal‑only for consistency and zoneless friendliness.
+
+## `#` private fields instead of `private`
+
+- Prefer ECMAScript `#field` over TypeScript’s `private` keyword:
+  - `#` is enforced at runtime; `private` is compile‑time only.[1]
+  - Example: `#userService = inject(UserService);` for true encapsulation.
+
+## Interview cheat sheet (Q&A)
+
+- **Q: What are the core pillars of this new Angular coding style?**  
+  A: Standalone by default, all‑in on signals (including inputs/queries), zoneless readiness via OnPush, reduced traditional hooks, `inject()` instead of constructor DI, signals instead of `async` pipe, and `#` private fields.[2][1]
+
+- **Q: How do signals change lifecycle usage?**  
+  A: Many `ngOnInit`/`ngOnChanges` use cases become `computed` or signal inputs; hooks are reserved for true post‑render or edge cases.[1]
+
+- **Q: Why de‑emphasize the `async` pipe?**  
+  A: To keep templates signal‑centric; Observables are converted with `toSignal` so CD is driven explicitly by signals and works naturally with zoneless mode.[3][1]
+
+- **Q: What’s the rationale for preferring `inject()` and `#` fields?**  
+  A: `inject()` simplifies DI (especially with inheritance and tokens), and `#` gives real runtime privacy, improving encapsulation over TypeScript’s `private`.[2][1]
+
+## Key terms & keywords (scan list)
+
+- Standalone components, `"strictStandalone": true`  
+- Signals, `computed`, signal inputs, signal queries  
+- Zoneless, OnPush, signals‑first  
+- No `ngOnInit`/`ngOnChanges` for derived state  
+- `inject()` DI, constructor‑free components  
+- `afterRender`, `afterNextRender`  
+- `toSignal()` vs `async` pipe  
+- `#` private fields for runtime privacy
+
+[1](https://angularexperts.io/blog/new-angular-coding-style)
+[2](https://angularexperts.io/blog/new-angular-coding-style/)
+[3](https://angular.dev/guide/signals)
+[4](https://angular.dev/guide/zoneless)
+[5](https://angularexperts.io/blog/angular-signal-inputs/)
+[6](https://angularexperts.ch/blog/new-angular-coding-style/?trk=public_post-text)
+[7](https://blog.angular-university.io/angular-signals/)
+[8](https://www.freecodecamp.org/news/angular-signals/)
+[9](https://kitemetric.com/blogs/revolutionizing-angular-development-standalone-components-and-signals)
+[10](https://www.linkedin.com/posts/siddappahedaginal_angular-webdevelopment-signals-activity-7343594115755929602-lzXd)
+[11](https://angularexperts.ch/blog/)
+[12](https://angularexperts.ch/blog/new-angular-coding-style/)
+[13](https://www.angulararchitects.io/blog/angular-signals/)
+[14](https://creators.spotify.com/pod/profile/angularexperts-podcast/episodes/Angular-Standalone-Components-with-Tomas-Trajan--Kevin-Kreuzer-e1vrvbr)
+[15](https://www.youtube.com/watch?v=1ScVsouQ7CI)
+[16](https://dev.to/this-is-angular/angular-addicts-33-ngrx-19-using-the-page-object-model-in-tests-micro-frontends-using-vite--4230)
+[17](https://www.reddit.com/r/Angular2/comments/1got0uj/suggestions_for_angular_signals_architecture/)
+[18](https://kreuzercode.gumroad.com/l/angular-signals-masterclass)
+[19](https://www.linkedin.com/posts/kevin-kreuzer-a63b39121_angular-signals-ebook-by-nivek-angular-activity-7351162952546193408-0vsC)
+[20](https://www.youtube.com/watch?v=KGgZqGLNhpA)
+[21](https://www.youtube.com/watch?v=9SgXk7Iw8AQ)
+[22](https://www.linkedin.com/posts/kevin-kreuzer-a63b39121_angular-activity-7269604154476576768-R9DB)

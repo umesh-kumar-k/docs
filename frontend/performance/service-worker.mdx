@@ -1,0 +1,214 @@
+Service workers provide an **offline‑capable, cache‑aware proxy layer** between page and network; combined with the Cache Storage API, HTTP cache, and robust lifecycle control, they enable fast, resilient PWAs but require careful strategies (precaching, runtime caching, updates, messaging).[1][2][3][4][5][6][7]
+
+***
+
+## 1) Learn PWA – Service Workers (scope, lifecycle, capabilities)[1]
+
+**Scope & Registration**  
+- Register once per origin/scope; then SW intercepts all fetches under that path.  
+  ```js
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/serviceworker.js');
+  }
+  ```
+- Scope = folder path of SW (e.g., `/my-pwa/sw.js` controls `/my-pwa/**`). One SW per scope; Safari has additional partitioning rules for cross‑domain iframes.  
+
+**Lifecycle (install → activate → running → terminated)**  
+- Browser downloads SW, fires `install` once; then `activate` when ready to control clients.  
+  ```js
+  self.addEventListener('install',  e => { /* precache */ });
+  self.addEventListener('activate', e => { /* cleanup, migrations */ });
+  ```
+- New SW goes to **waiting** until old one releases all clients; users must close all tabs or you opt into `skipWaiting()`/`clients.claim()` in lifecycle article.  
+- SW starts when a matching network request/event occurs; is terminated when idle or long‑running; persistent state must live in IndexedDB, not in‑memory.  
+
+**Capabilities**  
+- Acts as programmable network proxy: decide **cache vs network vs custom response** per request.  
+- Underpins push notifications, background sync, periodic sync, payments, etc.  
+
+***
+
+## 2) Workbox – Service Worker Overview (capabilities, caching, precache/runtime)[2][8]
+
+**What SWs Provide**  
+- Progressive enhancement: non‑supporting browsers still work.  
+- App‑like lifecycle: install, update, run, offline.  
+
+**Cache Interface**  
+- `Cache` API: programmable cache separate from HTTP cache; available in SW and window.  
+- You define **caching strategies**:
+  - Cache‑first, network‑first, stale‑while‑revalidate, etc.  
+  - E.g., static assets always from cache; markup only from cache when offline.  
+
+**Async, Event‑Driven API**  
+- SW reacts to events: `install`, `activate`, `fetch`, `push`, etc., via `addEventListener`.  
+- Uses Promises / `async`/`await`.  
+- Two core patterns:
+  - **Precaching**: load assets during `install` → guaranteed offline & fast repeat visits.  
+  - **Runtime caching**: decide on first request how to cache and serve later.  
+
+**Isolation**  
+- Runs off the main thread like a Worker, so SW logic doesn’t block UI.  
+
+***
+
+## 3) Service Worker Mindset (mental models)[3]
+
+**New Layer**  
+- Think of SW as a **browser extension installed by your site**; sits between page and network, intercepts requests.  
+
+**Powerful but Limited**  
+- No DOM, no synchronous APIs; only async APIs (fetch, Cache, IndexedDB), no blocking UI.  
+
+**Long‑lived but Short‑lived**  
+- “Immortal”: can respond even when page closed (push, background sync).  
+- “Ephemeral”: can be stopped any time; must restart on each event; no reliance on global in‑memory state.  
+
+***
+
+## 4) Lifecycle Deep‑Dive (separate article)[9][10]
+
+Key extra concepts (beyond Learn PWA):  
+- `waiting` → `activate` update flow; using `self.skipWaiting()` + `clients.claim()` for aggressive updates (trade‑off: can disrupt in‑flight sessions).  
+- Versioning and safe rollouts: show “new version available” toast, then reload only on user action.  
+
+***
+
+## 5) Caching & HTTP Caching (SW vs HTTP cache)[11][5][6]
+
+**Layers**  
+- HTTP cache: automatic, header‑driven, limited control.  
+- SW cache: explicit, programmable (Cache Storage API, IndexedDB).  
+
+**Strategies (conceptual)**  
+- Long‑term cache‑first: return SW cache if fresh; fall back to network if expired/missing.  
+- Short‑term network‑first: try network, fall back to cache when offline.  
+- Stale‑while‑revalidate: respond from cache, update in background.  
+
+**Trade‑offs**  
+- Over‑aggressive SW cache can **hide backend changes**; require cache‑busting or versioning.  
+- Align or intentionally differ SW expiry and HTTP cache TTL depending on consistency vs speed requirements.  
+
+***
+
+## 6) Two‑Way Communication with SW[4]
+
+**Use Cases**  
+- Page asks SW to **download/cache** large assets.  
+- SW reports **progress or status** (e.g., offline downloads, update ready).  
+
+**APIs / Patterns**  
+- `postMessage()` + `message` event (simple, requires explicit reference).  
+- **MessageChannel**:
+  ```js
+  const channel = new MessageChannel();
+  navigator.serviceWorker.controller.postMessage({type:'INIT_PORT'}, [channel.port2]);
+  channel.port1.onmessage = (event) => { /* handle */ };
+  ```
+- Other options (not all details here): BroadcastChannel, Workbox helpers for updates/broadcast.  
+
+**Design Notes**  
+- Some APIs identify the peer directly (controller/client), others via proxy objects; browser support differs.  
+
+***
+
+## 7) Service Worker Codelab (practical patterns)[6]
+
+**Typical exercise structure**  
+- Register SW, implement `install` for precache shell, `fetch` handler for:
+  - Cache‑first for static assets.  
+  - Network‑first or stale‑while‑revalidate for data/API.  
+- Demonstrates offline page, “cache falling back to network”, and cache versioning.  
+
+***
+
+## 8) Workers Overview (Service vs Web Workers)[12][7]
+
+**Web Workers**  
+- Background threads created per page (`new Worker('worker.js')`), no network interception; used for CPU‑heavy tasks.  
+
+**Service Workers**  
+- Installed per scope, shared across tabs, can intercept network (`fetch`), support offline, push, background sync.  
+
+**Commonality**  
+- Both communicate via `postMessage`, use event handlers, run off main thread.  
+
+***
+
+## Design Patterns, Best Practices & Trade‑offs
+
+- **App‑shell + precache**:
+  - Precache minimal shell (HTML, CSS, core JS); runtime cache data and media.  
+- **Route‑based strategies**:
+  - Static assets: cache‑first + long TTL.  
+  - HTML/navigation: network‑first (or network‑only) to avoid staleness, maybe offline fallback.  
+  - APIs: network‑first with offline cache fallback or stale‑while‑revalidate.  
+- **Update model**:
+  - Conservative: let new SW wait; notify user when update ready.  
+  - Aggressive: `skipWaiting()` + `clients.claim()`, but beware user disruption.  
+- **State & observability**:
+  - Keep shared state in IndexedDB; log and monitor SW failures (e.g., error reporting) to avoid “broken offline” silently.  
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What problems do service workers solve for performance and reliability?**  
+A: They act as a programmable proxy layer between page and network, enabling offline support, faster repeat visits via precaching and runtime caching, control over caching strategies beyond HTTP headers, and background capabilities (push, sync) without breaking non‑supporting browsers.[2][1]
+
+**Q2: Explain service worker scope and lifecycle.**  
+A: Scope is path‑based (e.g., `/app/sw.js` controls `/app/**`), one SW per scope. Lifecycle: browser registers → `install` (often precache) → `waiting` (if an older SW exists) → `activate` (cleanup/migrations) → running on demand (fetch/push/sync) with the browser starting/stopping it as needed; updates occur when a byte‑changed SW file is detected.[1][2]
+
+**Q3: What’s the difference between HTTP caching and service worker caching?**  
+A: HTTP cache is automatic and header‑driven; SW caching uses the Cache Storage API with fully programmable strategies (cache‑first, network‑first, stale‑while‑revalidate, offline fallbacks), giving finer control over freshness vs speed, and enabling offline behavior.[5][2]
+
+**Q4: What are precaching and runtime caching, and when would you use each?**  
+A: Precaching downloads known assets (shell, core CSS/JS/icons) at install time to guarantee offline/fast loads; runtime caching applies strategies to resources as they’re requested (APIs, images, pages), improving perceived speed and resilience for visited content.[6][2]
+
+**Q5: How can a page and a service worker communicate bi‑directionally?**  
+A: Use `postMessage` with `message` handlers, or set up a `MessageChannel` and pass one port to the SW; the SW responds back through the port, enabling progress updates (e.g., offline download status) to update the UI.[4]
+
+**Q6: Compare service workers to web workers.**  
+A: Web workers are per‑page background threads for CPU‑heavy work, no network interception; service workers are per‑scope background proxies that intercept `fetch`, manage caching, and receive push/sync events, shared across tabs and surviving page close.[7][2]
+
+**Q7: What are key pitfalls or trade‑offs in SW caching strategies?**  
+A: Over‑caching risks stale content and complex invalidation; aggressive `skipWaiting()` can surprise users; mixing HTTP and SW caching without clear rules can cause confusing freshness behavior; SW failures can silently break offline unless instrumented.[3][5]
+
+***
+
+## Important Terms & Keywords
+
+1. Service Worker API, `navigator.serviceWorker.register`, scope  
+2. Lifecycle: `install`, `activate`, `waiting`, `skipWaiting`, `clients.claim`  
+3. Cache Storage API (`caches.open`, `cache.put`, `cache.match`)  
+4. Precaching vs runtime caching  
+5. Caching strategies: cache‑first, network‑first, stale‑while‑revalidate, offline fallback  
+6. HTTP cache vs SW cache  
+7. `fetch` event interception  
+8. Push notifications, Background Sync, periodic sync  
+9. `postMessage`, `message` event, `MessageChannel`, BroadcastChannel  
+10. Web Workers vs Service Workers (workers overview)  
+
+This structure is optimized for quick re‑reading and pre‑interview skimming.
+
+[1](https://web.dev/learn/pwa/service-workers)
+[2](https://developer.chrome.com/docs/workbox/service-worker-overview)
+[3](https://web.dev/articles/service-worker-mindset)
+[4](https://web.dev/articles/two-way-communication-guide)
+[5](https://web.dev/articles/service-worker-caching-and-http-caching)
+[6](https://web.dev/learn/pwa/caching)
+[7](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
+[8](https://developer.chrome.com/docs/workbox/caching-strategies-overview)
+[9](https://www.w3.org/TR/service-workers/)
+[10](https://www.youtube.com/watch?v=JYXXGNFJjwc)
+[11](https://dev.to/pahanperera/service-worker-caching-strategies-1dib)
+[12](https://www.youtube.com/watch?v=cmRqQJBIp_A)
+[13](https://web.dev/articles/service-worker-mindset?hl=th)
+[14](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+[15](https://www.thecodeship.com/web-development/guide-service-worker-pitfalls-best-practices/)
+[16](https://dev.to/jonchen/service-worker-caching-and-http-caching-p82)
+[17](https://love2dev.com/serviceworker/development-best-practices/)
+[18](http://pcanella.github.io/blog/2015/service-workers/)
+[19](https://www.webhek.com/post/two-way-communication-guide/)
+[20](https://web.dev/articles/two-way-communication-guide?hl=zh-tw)
+[21](https://blog.pixelfreestudio.com/the-role-of-service-workers-in-web-performance/)

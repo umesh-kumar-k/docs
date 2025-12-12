@@ -1,0 +1,62 @@
+Angular CoreModule migration to standalone APIs streamlines enterprise Angular libraries for `--standalone` apps by replacing modules with provider functions and self-contained components. This format maintains the structured, skimmable layout for your Senior Architect interview prep with key points, patterns, and cheat sheet.[1]
+
+## CoreModule Responsibilities
+CoreModule addresses three core concerns:
+- **Providers**: Root injector services like custom `ErrorHandler`, `HTTP_INTERCEPTORS` (e.g., `ApiKeyInterceptor`)[1]
+- **Template Context**: Component/directive imports (e.g., `NgIf`, `RouterLink`, `MatToolbarModule`) for layouts[1]
+- **Setup/Processes**: Constructor-initiated tasks (e.g., `ReloadAppService` polling, logging)[1]
+
+## Key Classes/Interfaces
+- **CoreModule** (legacy `@NgModule`): Manages `declarations: [MainLayout]`, `providers`, `imports`[1]
+- **MainLayoutComponent**: Becomes `standalone: true` with self-managed `imports`[1]
+- **CoreOptions** (interface): `{ routes: Routes; reloadServicePollInterval?: number; }` for customization[1]
+- **CORE_GUARD**: `InjectionToken<string>('CORE_GUARD')` prevents duplicate provisions[1]
+
+## Migration Steps
+Transform `CoreModule` into `provideCore(): Provider[]`:
+- Explicit `Provider[]` return type avoids TS issues in libraries[1]
+- Providers: `{ provide: ErrorHandler, useClass: BackendErrorHandler }`, multi-token interceptors[1]
+- Integrate via `app.config.ts`: `providers: [provideCore()]`[1]
+- `ENVIRONMENT_INITIALIZER` (multi: true) for init: `inject(ReloadAppService).startPoll()`[1]
+- Standalone `MainLayoutComponent` owns template `imports`[1]
+
+## Design Patterns & Best Practices
+- **Singleton Guard**: Module uses `@SkipSelf() @Optional()`; standalone via `CORE_GUARD` in initializer[1]
+- **Parametrization**: `provideCore(CoreOptions)` for consumer flexibility (routes, intervals)[1]
+- **Dual API Support**: `@NgModule({ providers: [provideCore()] })` bridges migration[1]
+- Provider ordering: Initializers last to depend on prior services[1]
+- Avoid `importProvidersFrom` alone—misses non-provider logic[1]
+
+## Advanced Topics
+- **ENVIRONMENT_INITIALIZER**: Injector-init hook replaces constructors for app-wide processes[1]
+- Lazy context protection: Guards prevent duplicate pollers/interceptors[1]
+- Library compatibility: Enables standalone consumers without full module rewrite[1]
+
+## Interview Cheat Sheet
+**Q: CoreModule migration rationale?**  
+A: Supports `app.config.ts` in `--standalone` apps; modules incompatible, `importProvidersFrom` incomplete[1]
+
+**Q: Setup without module constructor?**  
+A: `ENVIRONMENT_INITIALIZER` multi-provider: `useValue: () => { inject(Service).init() }`[1]
+
+**Q: Duplicate provision prevention?**  
+A: `inject(CORE_GUARD, {skipSelf: true, optional: true})` throws if exists[1]
+
+**Q: Template context migration?**  
+A: `standalone: true` + `imports: [...]` on affected components[1]
+
+**Q: Transition strategy for libraries?**  
+A: Reuse `provideCore()` in `@NgModule.providers`; single guard execution[1]
+
+## Key Terms & Keywords
+- Standalone APIs, `provideCore(): Provider[]`
+- `ENVIRONMENT_INITIALIZER`, multi-provider
+- `CORE_GUARD` InjectionToken
+- `@SkipSelf()`, `@Optional()`, multiple imports guard
+- `CoreOptions` interface, parametrization
+- `ErrorHandler`, `HTTP_INTERCEPTORS`, `BackendErrorHandler`, `ApiKeyInterceptor`
+- `MainLayoutComponent`, `standalone: true`
+- `app.config.ts`, `ApplicationConfig`, `importProvidersFrom`
+- Root/lazy injectors, template context[1]
+
+[1](https://angularexperts.io/blog/angular-core-module-standalone-migration)

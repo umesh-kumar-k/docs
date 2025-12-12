@@ -1,0 +1,172 @@
+Angular NgRx best practices from enterprise experience emphasize **schematics for generation, perfect view selectors, lightweight effects, event-named actions, and RouterStore usage** to create scalable, maintainable state management. These 10 time-tested patterns enable clean one-way data flow and team productivity in large codebases.[1][2]
+
+## NgRx General Tips Section
+**Use schematics to generate whole NgRx state features**:
+- Generate complete feature slices (actions, reducer, effects, selectors) with `ng g @ngrx/schematics:feature`[1]
+- Ensures consistent structure across teams and projects[1]
+
+**Recognize NgRx 80/20 Rule**:
+- 80% of state management covered by standard patterns (CRUD, loading states)
+- Focus custom logic on the remaining 20%[1]
+
+**Pull logic one level up**:
+- Move logic from components/effects to services/selectors to preserve unidirectional flow[1]
+
+## View Model & Selector Patterns
+**Create perfect view selector `view$` (or `viewModel$`) for container components**:
+```ts
+// BAD: Multiple selectors in template
+<h1>{{ (todos$ | async)?.length }}</h1>
+<todo-list [todos]="(todos$ | async) || []"></todo-list>
+
+// GOOD: Single composed selector
+view$ = this.store.select(selectViewModel); // { todos: Todo[], loading: boolean }
+
+@Component({
+  template: `<todo-list [todos]="(view$ | async)?.todos" [loading]="(view$ | async)?.loading">`
+})
+```
+- Single `async` pipe subscription, optimal change detection[1]
+
+**Always use RouterStore selectors for router state**:
+```ts
+// Instead of ActivatedRoute
+routeData$ = this.store.select(selectRouterStateData);
+
+// Access params, queryParams, data via selectRouterParams(), selectQueryParams()
+```
+- Centralized, type-safe router state in store[1]
+
+## Action & Effect Patterns
+**Name actions as "events" not "commands"**:
+```ts
+// BAD (commands)
+loadTodos, loadTodosSuccess, loadTodosFailure
+
+// GOOD (events)  
+todosLoaded, todosLoading, todosLoadError
+```
+- Reflects reality: events happen, reducers react[1]
+- Better Redux DevTools history readability[1]
+
+**Embrace local selectors/actions per container/feature**:
+- Feature-specific selectors/actions scoped to their context
+- Avoid global action pollution, easier refactoring[1]
+
+## Effects Best Practices
+**Effects are for orchestration only**:
+```ts
+// BAD: Complex HTTP + validation logic in effect
+@Effect() loadTodos$ = this.actions$.pipe(
+  ofType(todosLoad),
+  switchMap(() => this.http.get('/todos').pipe(
+    map(todos => todosLoadSuccess({ todos })),
+    catchError(err => of(todosLoadError({ error: err })))
+  ))
+);
+
+// GOOD: Thin effect, business logic in service
+@Effect() loadTodos$ = this.actions$.pipe(
+  ofType(todosLoad),
+  switchMap(() => this.todoService.loadTodos().pipe(
+    map(todos => todosLoaded({ todos }))
+  ))
+);
+```
+- Services handle HTTP, validation, business rules[1]
+- Split complex orchestration into multiple effects triggered by success actions[1]
+
+**Effects triggered by ANY RxJS stream**:
+```ts
+// Not just actions$
+this.someStream$.pipe(
+  withLatestFrom(this.store.select(selectUser)),
+  switchMap(([_, user]) => this.store.dispatch(loadUserTodos()))
+).subscribe();
+```
+- Full reactive power beyond action-based triggers[1]
+
+## Key Classes/Interfaces
+- **Store.select(selectViewModel)**: Composed selector for container view state[1]
+- **RouterStore.selectors**: `selectRouterStateData`, `selectRouteParams`, `selectQueryParams`[1]
+- **Effect<T>()**: Lightweight orchestration effects[1]
+- **Actions$**: Stream of dispatched actions[1]
+
+## Design Patterns & Best Practices Summary
+| Pattern | Why | Implementation |
+|---------|-----|----------------|
+| Schematics | Consistency | `ng g @ngrx/schematics:feature` |
+| Perfect View Selector | Optimal perf | Single `view$ \| async` |
+| Event Actions | Reality modeling | `todosLoaded` vs `loadTodosSuccess` |
+| RouterStore | Centralized routing | `selectRouteParams()` |
+| Local Actions | Scoped concerns | Feature-specific actions |
+| Thin Effects | Separation | Orchestration → service logic |
+| RxJS Triggers | Reactive power | Any stream → dispatch |
+
+## Advanced Topics
+**NgRx 80/20 Rule application**:
+- Standardize 80% CRUD patterns with `@ngrx/data` or schematics
+- Custom 20% gets architectural attention[3][1]
+
+**Multi-effect orchestration**:
+```
+loadTodos → todosLoading → apiCall → todosLoaded → 
+showSidebar → loadSidebarData → sidebarLoaded
+```
+- Each step explicit, debuggable, cancellable[1]
+
+**Redux DevTools optimization**:
+- Event-named actions make time-travel debugging intuitive[1]
+
+## Interview Cheat Sheet
+**Q: What are the top 3 NgRx best practices?**  
+A: 1) Use schematics for consistent feature generation, 2) Single perfect `view$` selector per container, 3) Thin effects with business logic in services[1]
+
+**Q: Why event-named actions over command-named?**  
+A: Events reflect reality ("todos loaded" happened) vs commands ("load todos" intent); better DevTools history[1]
+
+**Q: How to access route data in NgRx?**  
+A: `RouterStore.selectors.selectRouteData(state)` instead of `ActivatedRoute`; centralized, type-safe[1]
+
+**Q: What's a "perfect view selector"?**  
+A: Single composed selector (`view$`) containing all data needed by container + children; single `async` pipe[1]
+
+**Q: Effects role?**  
+A: Orchestration only—coordinate actions/services; business/HTTP logic belongs in injectable services[1]
+
+**Q: NgRx 80/20 Rule?**  
+A: 80% standard CRUD patterns automated (schematics, @ngrx/data); 20% custom logic gets architectural focus[1]
+
+## Key Terms & Keywords
+- NgRx schematics (`ng g @ngrx/schematics:feature`)
+- Perfect view selector (`view$`, `viewModel$`)
+- RouterStore selectors (`selectRouteParams`)
+- Event-named actions (`todosLoaded`)
+- Local selectors/actions
+- Thin effects (orchestration only)
+- RxJS stream triggers for effects
+- NgRx 80/20 Rule
+- One-way dependency graph
+- Redux DevTools optimization[1]
+
+[1](https://angularexperts.io/blog/level-up-your-ng-rx-skills-with-10-time-tested-best-practices/)
+[2](https://angularexperts.io/blog/the-most-impactful-rx-js-best-practice-of-all-time)
+[3](https://www.reddit.com/r/Angular2/comments/ui3hq4/level_up_your_ngrx_skills_with_10_timetested_best/)
+[4](https://www.youtube.com/watch?v=2QnCNR5nzhg)
+[5](https://angularexperts.io/blog/)
+[6](https://open.spotify.com/episode/3YWoWwMZ6sb6DzfAzObhYG?go=1)
+[7](https://angular.love/ngrx-best-practices/)
+[8](https://medium.angularaddicts.com/angular-addicts-issue-6-ng-conf-2022-ngrx-best-practices-application-architecture-tips-more-feabd4406a29?gi=4b0ee7399f1c)
+[9](https://christianlydemann.com/ngrx-industry-best-practices/)
+[10](https://dev.to/michael-gokey/advanced-ngrx-patterns-for-enterprise-angular-applications-5ki)
+[11](https://dev.to/tomastrajan)
+[12](https://www.youtube.com/watch?v=nuEfbgzh5_M)
+[13](https://dev.to/this-is-angular/ngrx-tips-i-needed-in-the-beginning-4hno)
+[14](https://dev.to/this-is-angular/ngrx-tips-i-needed-in-the-beginning-4hno/comments)
+[15](https://www.facebook.com/groups/angular.developers.community/posts/3159297721011245/)
+[16](https://wesleygrimes.com/angular/2018/05/30/ngrx-best-practices-for-enterprise-angular-applications)
+[17](https://x.com/tomastrajan)
+[18](https://dev.to/angularshow/s4-e6-level-up-your-ngrx-skills-with-10-time-tested-best-practices-with-tomas-trajan)
+[19](https://www.youtube.com/watch?v=IXOFVJzQGdk&vl=en-IN)
+[20](https://javascript.plainenglish.io/the-best-of-angular-a-collection-of-my-favorite-articles-of-2022-8015cb63fbc2?gi=69011597ead0)
+[21](https://angularexperts.io/podcasts/)

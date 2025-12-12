@@ -1,0 +1,162 @@
+Angular Signal Inputs replace `@Input` with a reactive `input()` API so inputs themselves are signals, making derived state via `computed()` and effects trivial while keeping all familiar options (required, alias, transform) and integrating cleanly with router params and RxJS for async data flows.[1][2]
+
+## Key Topics & Section Notes
+
+### From imperative @Input to signal inputs
+
+- Traditional patterns use `@Input` with setters or `ngOnChanges` to derive `isEven`, which is imperative and lifecycle-heavy.[1]
+- Signal inputs declare `counter = input.required<number>();` and derive `isEven = computed(() => counter() % 2 === 0);`, fully declarative and OnPush‑friendly.[1]
+
+### Input signals + computed vs transform
+
+- Input signal declaration: `myInput = input<T>()` (optional) or `input.required<T>()` (required).[1]
+- Using `computed` lets one input feed multiple derived signals; using `transform` on the input (e.g. `transform: isCounterEven`) should be reserved for light coercion, not core domain transformation.[2][1]
+
+### Required/optional, defaults, aliasing
+
+- Optional: `counter = input<number>();` (initial `undefined`) or `counter = input(0);` (default value).[1]
+- Required: `counter = input.required<number>();` has no default and must be bound by the parent.[2][1]
+- Aliasing: `customer = input<Customer>({ alias: 'user' });` → parent binds `[user]="..."` while child uses `customer()`.[1]
+
+### Route params as signal inputs
+
+- `withComponentInputBinding()` on router turns route params into signal inputs automatically.[1]
+- Example: `id = input.required<number>();` in `TodoItemComponent` receives `:id` from route as a signal, usable with `computed`/`effect`.[3][1]
+
+### Using effects and RxJS with input signals
+
+- Simple side-effect: `effect(() => console.log(this.id()));` reacts to route param changes.[1]
+- Imperative fetch example: effect subscribes to `todoService.getTodo(id())` and sets a local `todo` signal; works but is imperative.[1]
+- Recommended: convert `id` to Observable with `toObservable(this.id)`, use `switchMap` to backend call, then `toSignal(...)` for a purely reactive data flow.[2][1]
+- Alternative: `computedAsync(() => todoService.getTodo(id()))` from ngxtension gives concise async derivation, at the cost of third‑party dependency.[1]
+
+## Important APIs & Types
+
+- `input<T>()` → `InputSignal<T | undefined>` (optional).  
+- `input(value)` → `InputSignal<T>` with default.  
+- `input.required<T>()` → required `InputSignal<T>` (no default).[4][1]
+- Options object: `{ alias, transform }` where `transform` maps bound value → internal value (e.g. `booleanAttribute`, `numberAttribute`).[5][1]
+- `computed()` and `effect()` consume these inputs like any other signal.[1]
+
+## Design Patterns & Best Practices
+
+- Prefer `computed` over transforms for domain logic and multiple derived values; use transforms only for coercion/parsing.[6][1]
+- Use required signal inputs for critical configuration and keep them free of defaults to avoid misuse.[1]
+- Combine signal inputs with `withComponentInputBinding` to remove manual `ActivatedRoute` plumbing; treat route params as first‑class signals.[3][1]
+- For async fetches based on an input signal, use `toObservable` + `switchMap` + `toSignal` (or Resource API / computedAsync) instead of subscribing inside an effect.[2][1]
+
+## Interview Cheat Sheet (Q & A)
+
+- **Q: How do signal inputs differ from `@Input`?**  
+  A: They behave like `@Input` but are signals, so they plug directly into `computed` and `effect` and still support `required`, `alias`, and `transform` options.[2][1]
+
+- **Q: When would you use `computed` vs `transform` on an input?**  
+  A: Use `computed` for core derived state and multiple projections; use `transform` only for small tweaks like coercing booleans/numbers from templates.[4][1]
+
+- **Q: How do you model required vs optional signal inputs with defaults?**  
+  A: Optional: `input<T>()` or `input(defaultValue)`; required: `input.required<T>()` with no default and must be provided by the parent.[1]
+
+- **Q: How can route params be exposed as signal inputs?**  
+  A: Enable `withComponentInputBinding()` in router config, then declare `id = input.required<string>();` in the component to receive `:id` as a signal.[3][1]
+
+- **Q: What is the recommended pattern for fetching data based on a signal input?**  
+  A: Convert the input signal to an Observable with `toObservable`, use `switchMap` to call the service, and wrap with `toSignal` (or use `computedAsync`) to keep the component declarative.[2][1]
+
+
+Signal Inputs and traditional `@Input` both pass data from parent to child, but Signal Inputs make the input itself a signal, so you can plug it directly into `computed()`/`effect()`, remove a lot of `ngOnChanges`/setter boilerplate, and align with the rest of the signals ecosystem.[1][2]
+
+## Concept & API
+
+| Aspect | `@Input` (traditional) | Signal Inputs (`input()`) |
+|--------|------------------------|---------------------------|
+| Core type | Plain field | `InputSignal<T>` (callable signal) |
+| Declaration | `@Input() counter!: number;` | `counter = input<number>();` or `input.required<number>();`[1] |
+| Consumption | `counter` | `counter()` (reads current value)[1] |
+| Reacting to changes | Setters / `ngOnChanges` | `computed(() => ...)` / `effect(() => ...)`[1] |
+
+## Reactivity & Lifecycle
+
+- `@Input`  
+  - Imperative: need setters or `ngOnChanges(SimpleChanges)` to respond to input changes.  
+  - Extra lifecycle plumbing and branching logic in `ngOnChanges`.[1]
+
+- Signal Inputs  
+  - Declarative: `derived = computed(() => fn(counter()))` re-runs automatically when the parent updates `counter`.[1]
+  - Many `ngOnChanges` use cases become `computed` + `effect`; less lifecycle code and more testable pure logic.[1]
+
+## Required/Optional, Defaults, Aliasing, Transform
+
+| Feature | `@Input` | Signal Inputs |
+|---------|----------|---------------|
+| Required flag | `@Input({required: true})` | `input.required<T>()` (no default)[1] |
+| Optional + default | Field default (`counter = 0`) | `input(0)` or `input<T>()` (undefined)[1] |
+| Alias | `@Input('user') customer!: Customer;` | `customer = input<Customer>({ alias: 'user' });`[1] |
+| Transform | Input value coercion via custom logic or built-in transformers in newer Angular | `transform` option: e.g. `input.required<boolean, unknown>({ transform: booleanAttribute })` (best for coercion, not core domain transforms)[1][3] |
+
+## Integration with Signals & Router
+
+- With `@Input`, to use signals you typically wrap inputs into signals yourself or rely on Observables.  
+- With Signal Inputs:
+  - Inputs are already signals, usable in `computed/effect` without adapters.[1]
+  - With `withComponentInputBinding()`, route params are exposed as signal inputs, so `id = input.required<string>();` receives `:id` directly as a signal instead of going through `ActivatedRoute`.[2][1]
+
+## Async Flows & Patterns
+
+- `@Input` + async:
+  - Common pattern: read input, call service in `ngOnChanges`, subscribe and set fields; highly imperative and easy to leak or race.
+
+- Signal Inputs:
+  - Recommended: `toObservable(inputSignal)` → RxJS (`switchMap`, `debounceTime`) → `toSignal()` for a purely declarative chain.[4][1]
+  - Pairs naturally with Resource API / `computedAsync` style utilities for request-per-input-change scenarios.[1]
+
+## When to Prefer Which (Architectural View)
+
+- Prefer **Signal Inputs** when:
+  - New components in a signals-based app.  
+  - You want to replace most `ngOnChanges`/setter logic with `computed`/`effect`.  
+  - You are already using signals, Resource API, signal-based router bindings.[5][1]
+
+- Keep **`@Input`** when:
+  - Maintaining legacy code where everything else is decorator-based.  
+  - You cannot yet migrate to Standalone / modern Angular APIs (older Angular versions).
+
+Overall: Signal Inputs give you the same capabilities as `@Input` (required/alias/transform) but in a fully reactive form that composes naturally with the rest of the signal APIs, making them the better long‑term choice for new Angular architectures.[5][1]
+
+[1](https://angularexperts.io/blog/angular-signal-inputs/)
+[2](https://angular.dev/guide/components/inputs)
+[3](https://www.thecodecampus.de/blog/what-advantages-have-angular-signal-inputs/)
+[4](https://blog.angular-university.io/angular-signal-inputs/)
+[5](https://angular.dev/reference/migrations/signal-inputs)
+
+## Important Terms & Keywords (for quick scan)
+
+- `input()`, `input.required()`  
+- InputSignal, required vs optional  
+- `alias`, `transform` (value coercion)  
+- `computed()` instead of `ngOnChanges`  
+- `effect()` reacting to input changes  
+- `withComponentInputBinding()` (route params → inputs)  
+- `toObservable`, `toSignal`, `switchMap`  
+- `computedAsync` (ngxtension)  
+- Declarative vs imperative input handling
+
+[1](https://angularexperts.io/blog/angular-signal-inputs/)
+[2](https://blog.angular-university.io/angular-signal-inputs/)
+[3](https://angular.dev/guide/components/inputs)
+[4](https://www.thecodecampus.de/blog/what-advantages-have-angular-signal-inputs/)
+[5](https://angular.dev/reference/migrations/signal-inputs)
+[6](https://www.telerik.com/blogs/why-move-input-signals-bye-input)
+[7](https://angularexperts.io/blog/)
+[8](https://angularexperts.ch/products/ebook-signals/)
+[9](https://www.youtube.com/watch?v=JzmxuWViD7I)
+[10](https://www.youtube.com/watch?v=yjCeaiWXC0U)
+[11](https://www.reddit.com/r/angular/comments/1dvgxon/should_i_use_signal_inputs_vs_regular_inputs_for/)
+[12](https://angularexperts.ch/blog/)
+[13](https://angular.de/artikel/angular-signal-inputs/)
+[14](https://www.angulararchitects.io/blog/component-communication-with-signals-inputs-two-way-bindings-and-content-view-queries/)
+[15](https://www.youtube.com/watch?v=1ScVsouQ7CI)
+[16](https://www.reddit.com/r/Angular2/comments/1kljitn/best_practices_for_passing_signals_as_inputs_in/)
+[17](https://creators.spotify.com/pod/profile/angularexperts-podcast/episodes/Angular-Standalone-Components-with-Tomas-Trajan--Kevin-Kreuzer-e1vrvbr)
+[18](https://www.youtube.com/watch?v=U8YXaWwyd9k)
+[19](https://www.angulararchitects.io/blog/successful-with-signals-in-angular-3-effective-rules-for-your-architecture/)
+[20](https://angularexperts.ch/blog/angular-signals-push-pull/)

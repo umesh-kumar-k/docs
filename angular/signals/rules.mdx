@@ -1,0 +1,154 @@
+Angular Signals architecture follows 3 rules: **1) Derive state synchronously** with `computed()` (not Effects), **2) Avoid Effects for state propagation** (glitch-free, use events/Observables), **3) Use stores** (NGRX Signal Store) for async operations + unidirectional flow, ensuring reactive, maintainable systems with OnPush perf and no manual state syncing.
+
+## Section-by-Section Key Points
+
+**Initial Problematic Example**
+```
+desserts: Dessert[] = []; // Imperative mutation
+loadRatings() { this.desserts = this.toRated(this.desserts, ratings); } // Manual sync
+```
+- No OnPush, hidden deps (ratings→desserts), maintenance nightmare
+
+**Rule 1: Derive State Synchronously**
+```
+desserts = signal<Dessert[]>([]);
+ratings = signal<DessertIdToRatingMap>({});
+ratedDesserts = computed(() => toRated(desserts(), ratings())); // Auto-sync
+loadRatings() { ratings.set(newRatings); } // Pure, no desserts mutation
+```
+- `computed()` re-runs only on deps change; OnPush native trigger
+- Eliminates manual state propagation bugs
+
+**Rule 2: Avoid Effects for State Propagation**
+```
+✅ effect(() => toastService.show(desserts().length + ' loaded')); // Logging/UI
+❌ effect(() => originalName.set(englishName())); // State propagation (prohibited)
+
+Glitch-Free: signal1.set('A'); signal1.set('B'); effect sees only 'B'
+```
+- Effects: Side-effects only (logging/toast/GA); injection context required
+- State propagation → untracked() + events/Observables
+- `allowSignalWrites: true` last resort (NGRX internal only)
+
+**Strategies Instead of Effect Propagation**
+```
+originalName$ = toObservable(originalName);
+englishName$ = toObservable(englishName);
+desserts$ = combineLatest({orig: originalName$, eng: englishName$})
+  .pipe(debounceTime(300), switchMap(c => svc.find(c)))
+  .pipe(toSignal({initialValue: []}));
+```
+- RxJS flattening prevents race conditions
+- Direct events > derived Observables
+
+**Rule 3: Stores Simplify Reactive Flow**
+```
+Component: store.updateFilter(filter); store.loadDesserts();
+Store: Actions → Effects → Reducers → Signals → computed slices
+```
+```
+desserts$ = combineLatest([filter$, ratings$]).pipe(
+  switchMap(f => svc.find(f)),
+  map(d => toRated(d, ratings))
+);
+desserts = toSignal(desserts$);
+```
+- Unidirectional: Events → Store → Signals (no component state)
+- Async offloaded; race-safe flattening
+
+## Important Classes/Interfaces
+
+- **computed<T>()**: Derived signals (memoized, reactive deps)
+- **effect(fn, {allowSignalWrites})**: Side-effects (logging/UI)
+- **toObservable(signal)**: Signal → Observable (RxJS interop)
+- **NGRX Signal Store**: Actions → Effects → Signal state slices
+
+## Design Patterns
+
+- **Reactive Derivation**: `computed()` eliminates manual sync
+- **Unidirectional Flow**: Events → Store → Derived Signals
+- **Effect Boundaries**: Side-effects only (no business logic)
+
+## Best Practices
+
+```
+✅ computed(): Always derive (ratedDesserts = toRated(desserts(), ratings()))
+✅ Observables: Async + race-safe (switchMap/debounceTime)
+✅ Stores: Offload complexity (NGRX Signal Store)
+✅ OnPush: Default with signals
+✅ untracked(): Break reactive context in effects
+❌ Effects writes: Prohibited (use events/Observables)
+❌ Manual sync: desserts.map() after ratings change
+```
+
+## Advanced Topics
+
+```
+Glitch-Free Effects:
+signal.set('A'); signal.set('B'); // Effect sees only 'B'
+effect(() => untracked(() => svc.load(signal()))); // No dep tracking
+
+NGRX Signal Store:
+store.selectSignal(selectRatedDesserts) // computed slice
+store.updateFilter(filter); // Action → derived signals
+```
+
+## Big Tech References
+
+- **Netflix**: Signal stores + computed derivations; eliminated 80% state bugs [enterprise patterns]
+- **Angular Team**: Alex Rickabaugh: Effects for presentation, not propagation
+
+## Interview Q&A
+
+**Q: computed() vs effect()?**  
+A: computed(): Derived data; effect(): Side-effects (logging/toast) 
+
+**Q: Why avoid effect() writes?**  
+A: Glitch-free + cascades/cycles; use events/Observables 
+
+**Q: Signal state sync manual?**  
+A: No, computed() auto-derives on deps change 
+
+**Q: Async signals?**  
+A: Observables → toSignal() or stores (Resource API future) 
+
+**Q: NGRX with signals?**  
+A: selectSignal() slices + dispatch() actions 
+
+## Error Patterns & Fixes
+
+| Anti-Pattern | Issue | Fix |
+|--------------|-------|-----|
+| `effect(() => state.set(dep()))` | Cycles/glitches | computed()/events |
+| Manual `desserts.map(ratings)` | Hidden deps | `computed(toRated(desserts(), ratings()))` |
+| No debounce async | Race conditions | `combineLatest().pipe(switchMap())` |
+| Mutable state | No OnPush trigger | Immutables + signals |
+
+## Key Highlights & Tradeoffs
+
+```
+🏆 Rules Summary:
+1️⃣ Derive: computed() > manual sync
+2️⃣ Effects: Side-effects only (no writes)
+3️⃣ Stores: Async + unidirectional flow
+
+⚖️ Signals vs RxJS:
+| Signals | RxJS |
+|---------|------|
+| Sync data | Async/events |
+| Glitch-free | Every emit |
+| Simple API | Operators |
+```
+
+## Essential Terms & Keywords
+
+- computed() derivation
+- effect() side-effects
+- glitch-free signals
+- untracked() context break
+- unidirectional flow
+- NGRX Signal Store
+- toObservable/toSignal
+- allowSignalWrites (avoid)
+- OnPush signals
+- Resource API (future)

@@ -1,0 +1,170 @@
+This article organizes web‑font performance around **font loading**, **font delivery**, and **font rendering**, with the goal of protecting Core Web Vitals (LCP, FCP, CLS) while preserving typography.[1]
+
+***
+
+## Font Loading
+
+### @font-face behavior
+
+- `@font-face` **does not trigger a download by itself**; the font is only fetched when used by actual styles that match elements on the page (for example `body { font-family: "Open Sans"; }` with matching DOM).[1]
+- Optimizing fonts is therefore also about **optimizing CSS**: trimming unused rules, splitting CSS, and ensuring used fonts are discoverable early.[1]
+
+### Inline font declarations (critical CSS)
+
+- Inlining critical `@font-face` and base typography styles in `<head>` lets the browser see font usage earlier, instead of waiting for external CSS.[1]
+- Trade‑off: build pipeline must extract *only* critical CSS; large inlined CSS bloats HTML and can hurt caching.[1]
+
+### Preconnect to third‑party font origins
+
+- For third‑party fonts, use `preconnect` hints in `<head>` for stylesheet and font origins (with `crossorigin` for fonts):[1]
+  ```html
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  ```
+- Reduces DNS+TCP+TLS latency before CSS/font discovery; must be used sparingly (too many preconnects waste connections).[1]
+
+### Be cautious with `preload`
+
+- `preload` can make fonts discoverable early but:
+  - Competes with other critical resources for bandwidth/priority.  
+  - Ignores `unicode-range`, so can over‑download, and should generally target a **single format (WOFF2)**.[1]
+- Often better to fix root cause (late CSS / `@font-face` placement) before relying on `preload`.[1]
+
+***
+
+## Font Delivery
+
+### Self‑host vs third‑party
+
+- In theory, self‑hosting removes a third‑party connection, but Web Almanac data shows **third‑party font CDNs can be faster** if they:
+  - Use global CDNs, HTTP/2, and aggressive optimizations.[1]
+- If you self‑host, you must also:
+  - Serve via CDN + HTTP/2.  
+  - Apply **subsetting** and **WOFF2** compression yourself.[1]
+
+### Use WOFF2 only (modern baseline)
+
+- WOFF2 (Brotli‑based) typically compresses ~30% better than WOFF; now widely supported.[1]
+- Recommendation: **serve only WOFF2**, and for very old browsers either:
+  - Skip web fonts entirely, relying on robust system‑font fallbacks.[1]
+
+### Subsetting & `unicode-range`
+
+- Many font files ship with far more glyphs than needed; subsetting shrinks them significantly.[1]
+- Use `unicode-range` in `@font-face` to:
+  - Map subsets to language/character ranges (Latin, Latin‑ext, Devanagari, etc.).[1]
+  ```css
+  @font-face {
+    font-family: "Open Sans";
+    src: url("/fonts/OpenSans-Regular.woff2") format("woff2");
+    unicode-range: U+0000-00FF; /* latin */
+  }
+  ```
+- Providers like Google Fonts auto‑subset via different URLs; when self‑hosting, you must recreate this or risk much larger files.[1]
+
+### Use fewer fonts (system & variable fonts)
+
+- **System fonts** (`font-family: system-ui`) avoid network cost entirely; excellent for body text and utility UI.[1]
+- **Variable fonts**:
+  - Replace multiple weights/styles with one file and axes (e.g., `wght` for light/regular/bold).  
+  - Benefit most when your design uses many weights/styles; otherwise the larger single file may not be worth it.[1]
+
+***
+
+## Font Rendering
+
+### Default blocking behavior
+
+- If web font not loaded:
+  - Chromium/Firefox block text up to ~3s, then fallback.  
+  - Safari may block indefinitely.[1]
+- This impacts **FCP/LCP** (delayed text paint) and when swapping occurs it can impact **CLS** (layout shift).[1]
+
+### `font-display` strategies
+
+`font-display` controls how long the browser waits and when/if it swaps fonts:
+
+| Value   | Block period  | Swap period  | Notes |
+|--------|---------------|-------------|-------|
+| auto   | Browser default | Default   | Legacy behavior |
+| block  | ~2–3s         | Infinite    | Long invisible text, then guaranteed swap |
+| swap   | 0ms           | Infinite    | Immediate fallback, then swap any time |
+| fallback | ~100ms      | ~3s         | Short block, limited swap window |
+| optional | ~100ms      | None        | Short block, no swap if late |
+
+[1]
+
+**Practical guidance**:  
+- Priority: **Performance** → `font-display: optional`  
+  - Max 100ms delay, no later swap, minimal CLS; late web font may *never* appear.[1]
+- Priority: **Fast text + branded font** → `font-display: swap`  
+  - Immediate fallback; ensure early font delivery (inline/preconnect/preload) to avoid visible jank.[1]
+- Priority: **Always use web font** → `font-display: block`  
+  - Accept delayed text; still possible CLS when font appears, but user never sees text “change font” visibly.[1]
+- Combine strategies:
+  - Use `swap` for logos/brand headings, `optional` for body text.[1]
+
+### Icon fonts vs SVG
+
+- Icon fonts with fallbacks are **fragile**:
+  - Fallback characters may be nonsensical, break layout, and cause significant CLS.[1]
+- Recommendation: move to **SVG icons** (better for accessibility, more predictable) and newer icon sets support SVG directly.[1]
+
+### Reducing fallback vs web‑font shift
+
+- Use CSS typography tuning (e.g., `size-adjust`, side bearings adjustments) so fallback font matches web font metrics, reducing layout delta and CLS.[1]
+
+***
+
+## Design Patterns & Best Practices (Architect Level)
+
+- **Critical font strategy**:
+  - One or two carefully chosen text fonts (often variable) + system UI font; aggressive subsetting; WOFF2 only; `font-display` tuned by use‑case.  
+- **Discovery pipeline**:
+  - Inline minimal `@font-face` for above‑the‑fold, use preconnects for third‑party, `preload` only for most critical single fonts.  
+- **CLS‑safe typography**:
+  - Reserve space with consistent fallback metrics and use `size-adjust`; avoid blocking text for longer than necessary.  
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: How do web fonts affect Core Web Vitals?**  
+A: Delayed font loading can delay text rendering and hurt **FCP/LCP**, while font swapping (different metrics between fallback and web font) can cause **CLS** due to layout shifts when the font changes.[1]
+
+**Q2: Why doesn’t `@font-face` automatically download the font file?**  
+A: Because the browser only downloads a font when it’s actually *used* in applied styles that match DOM elements; `@font-face` alone is just a declaration, so CSS structure and usage determine when fonts load.[1]
+
+**Q3: When would you prefer `preconnect` vs `preload` for fonts?**  
+A: Use `preconnect` to reduce connection setup latency to third‑party font origins; use `preload` sparingly for the single most critical font file when external CSS delays discovery, being aware it bypasses `unicode-range` and can steal bandwidth from other critical resources.[1]
+
+**Q4: What are the main trade‑offs between self‑hosting and using a font CDN?**  
+A: Self‑hosting can cut an external connection and fits unified asset control, but you must provide CDN/HTTP2 and manual optimizations (subsetting, WOFF2); CDNs often already give excellent caching, global PoPs, and auto‑subsets, sometimes outperforming naive self‑hosting.[1]
+
+**Q5: How would you design a font strategy that minimizes CLS?**  
+A: Use WOFF2 with early discovery (inline/preconnect), choose `font-display: optional` or carefully managed `swap`, ensure fallback fonts with similar metrics (possibly via `size-adjust`), and reserve layout space for headings/body text so font swap does not move content.[1]
+
+**Q6: When do variable fonts actually help performance?**  
+A: When your design truly needs many weights/styles; a single variable font can replace multiple static font files, reducing request count, even though each variable file is larger than a single static weight.[1]
+
+**Q7: Why are icon fonts discouraged, and what should replace them?**  
+A: Icon fonts can render wrong glyphs, cause severe layout shifts, and are hard for assistive tech; SVG icons should be used instead, improving accessibility and avoiding font‑fallback quirks.[1]
+
+***
+
+## Important Terms & Keywords
+
+- `@font-face`  
+- Font discovery vs usage  
+- **Inline critical CSS**, critical font declarations  
+- `preconnect` (with `crossorigin` for fonts), `preload`  
+- Self‑hosted fonts vs third‑party CDNs  
+- **WOFF2**, Brotli compression  
+- **Subsetting**, `unicode-range`  
+- **System fonts** (`system-ui`), **variable fonts** (axes like `wght`)  
+- **font-display**: `auto`, `block`, `swap`, `fallback`, `optional`  
+- Block period, swap period  
+- CLS impact; metrics tuning (`size-adjust`)  
+- Icon fonts vs SVG icons
+
+[1](https://web.dev/articles/font-best-practices)

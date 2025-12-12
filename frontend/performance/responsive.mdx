@@ -1,0 +1,260 @@
+Responsive Design in this course = **fluid layouts + media queries + content‑driven breakpoints + accessibility & internationalization**, using modern CSS (flex/grid, logical properties, media features, container‑style thinking) to support all devices, inputs, languages, and preferences.[1][2][3][4][5][6]
+
+***
+
+## 1) Course Welcome & Introduction[2][1]
+
+- Course covers: media queries, internationalization, macro/micro layouts, typography, responsive images/picture/icons, theming, accessibility, interaction, UI patterns, media features, and multi‑screen setups.[1]
+- History:
+  - Fixed‑width → liquid/fluid → separate m‑sites → adaptive (few fixed breakpoints) → **responsive** (fluid grids + fluid media + media queries).[2]
+- Key enabling pieces:
+  - `meta viewport`:
+    ```html
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    ```
+    so mobile browsers stop pretending pages are 980px wide.[2]
+- Modern responsive:
+  - Beyond viewport: media features for preferences, container‑style thinking, better images (`<picture>`).[2]
+
+***
+
+## 2) Media Queries[3]
+
+**Media types & outputs**  
+- Types: `screen`, `print`, `speech`, `all`. Default is `all`.[3]
+- Apply per stylesheet:
+  ```html
+  <link rel="stylesheet" href="print.css" media="print">
+  ```
+  or inline with `@media print { ... }`.[3]
+
+**Media features & syntax**  
+- Basic pattern:
+  ```css
+  @media (feature) { ... }
+  @media type and (feature) { ... }
+  ```
+- Orientation:
+  ```css
+  @media (orientation: landscape) { ... }
+  @media (orientation: portrait)  { ... }
+  ```
+- Viewport sizes:
+  ```css
+  @media (min-width: 400px) { ... }    /* ≥ 400px */
+  @media (max-width: 400px) { ... }    /* ≤ 400px */
+  @media (width <= 400px)   { ... }    /* range syntax */
+  ```
+- Use `em`/`ch` for text‑driven breakpoints (content‑based), px for image‑heavy layouts.[3]
+- Combine conditions:
+  ```css
+  @media (min-width: 50em) and (max-width: 60em) { ... }
+  @media (50em <= width <= 60em) { ... }
+  ```
+- Logical `and`, `or`, `not` for more complex rules; test carefully.[3]
+
+**Breakpoint strategy**  
+- Choose **breakpoints based on content** (e.g., lines too long → add columns), not device models; devices change, content shape doesn’t.[3]
+
+***
+
+## 3) Internationalization (i18n)[4]
+
+**Core ideas**  
+- Web is global; responsive design should also be **language & writing‑mode responsive**.[4]
+- Use:
+  - `lang` and `hreflang` attributes in HTML.  
+  - CSS **logical properties** instead of physical (`top/left/right/bottom`).[4]
+
+**Logical properties**  
+- Think in `block-start`, `block-end`, `inline-start`, `inline-end` so layouts work in LTR/RTL/vertical writing modes **without separate stylesheets**.[4]
+
+***
+
+## 4) Macro Layouts (page‑level)[5][7]
+
+**Concept**  
+- Macro layout = page‑wide structure (`header`, `main`, `aside`, `footer`). Start with sensible single‑column source order (good for small screens and accessibility).[5]
+
+**Techniques**  
+- Use **CSS Grid** or **Flexbox** for two‑dimensional layouts:
+  - Grid for page regions; Flex for flowing content like card decks.[5]
+- Example card grid:
+  ```css
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+  }
+  .cards .card {
+    flex-basis: 15em;
+    flex-grow: 1;
+  }
+  ```
+- Many modern layouts can be fully fluid **without media queries** using min/max/clamp and auto‑fill patterns (see 1linelayouts.com).[5]
+
+***
+
+## 5) Micro Layouts (components)[8][9]
+
+*(From course structure & related MDN; web.dev micro‑layouts focuses on component‑level patterns.)*  
+
+- Micro layouts = flexible **component** designs that adapt within any macro layout.[8]
+- Use:
+  - Flexbox for alignment, wrapping, spacing of items inside a card, toolbar, nav.  
+  - Grid for more complex component internals.  
+- Use `min()`, `max()`, `clamp()` for responsive sizing with bounds:
+  ```css
+  .card {
+    width: clamp(16rem, 50vw, 28rem);
+  }
+  ```
+
+***
+
+## 6) Typography[9][1]
+
+*(Referenced module: responsive type scaling & legibility.)*  
+
+- Aim: legible, beautiful text on all screens.  
+- Techniques:
+  - Relative units (`rem`, `em`) for font sizes, line heights, spacing.  
+  - Content‑based breakpoints (e.g., when line length > optimal range, change columns or font size).  
+
+***
+
+## 7) Responsive Images & `<picture>`[9][1]
+
+**Responsive images**  
+- Provide multiple sizes & resolutions via `srcset`/`sizes`; browser picks best.  
+
+**`<picture>` for art direction**  
+- Change cropping/asset per viewport or media condition:
+  ```html
+  <picture>
+    <source srcset="hero-wide.avif" media="(min-width: 60em)">
+    <source srcset="hero-mobile.avif" media="(max-width: 59.99em)">
+    <img src="hero-default.jpg" alt="...">
+  </picture>
+  ```
+- Enables creative control (different aspect ratios) while still performance‑aware.  
+
+***
+
+## 8) Icons (SVG)[1]
+
+- Use **SVG** for responsive, scalable icons; CSS‑styleable, resolution‑independent.  
+- Prefer SVG over icon fonts (accessibility, clarity, less font‑loading issues).  
+
+***
+
+## 9) Theming & Media Features[6][10][1]
+
+**Theming**  
+- Respect user preferences (dark mode, contrast, reduced motion, etc.) via CSS media features.[10][6]
+
+**Key media features**  
+- `prefers-color-scheme` (light/dark):
+  ```css
+  @media (prefers-color-scheme: dark) { ... }
+  ```
+- `prefers-reduced-motion`, `prefers-reduced-transparency`, `prefers-contrast`, `forced-colors`.[10]
+- `display-mode` (`standalone`, `fullscreen`):
+  ```css
+  @media (display-mode: standalone) {
+    button.back { display: inline; }
+  }
+  ```
+- `color-scheme` meta + CSS:
+  ```html
+  <meta name="color-scheme" content="dark light">
+  ```
+  ```css
+  :root { color-scheme: light dark; }
+  ```
+
+
+***
+
+## 10) Accessibility & UI Patterns[10][1]
+
+- Responsive design must be **accessible**:
+  - Support keyboard and touch, readable contrast, proper landmarks, semantics.  
+- Common UI patterns:
+  - Nav that collapses/expands with viewport width.  
+  - Lists/cards that reflow from single to multi‑column.  
+- Patterns should degrade gracefully; avoid hiding essential features behind hover only, or device‑specific assumptions.  
+
+***
+
+## 11) Screen Configurations (multi‑screen, foldables)[6][1]
+
+- Prepare for devices with multiple screens/folds:
+  - Use media features to detect fold/hinge regions and adapt macro layouts.  
+  - Ensure critical content isn’t split across a hinge or cutout.  
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What are the three original criteria for responsive web design?**  
+A: Fluid grids, fluid media, and media queries, as defined by Ethan Marcotte.[2]
+
+**Q2: Why is `meta viewport` required for responsive designs on mobile?**  
+A: Mobile browsers historically assumed a fixed layout width (~980px) and scaled down; `meta viewport` tells them to treat the page width as the device width and not auto‑scale, allowing CSS to control layout responsively.[2]
+
+**Q3: How should you choose breakpoints in a responsive design?**  
+A: Base them on **content** (e.g., when line lengths become too long, or layout starts to break), not on specific device sizes, since devices and resolutions change while content constraints remain relatively stable.[3]
+
+**Q4: What role do CSS logical properties play in internationalized responsive design?**  
+A: They abstract away physical directions (left/right/top/bottom) into flow‑relative properties (`inline-start`, `block-end`), allowing one stylesheet to support LTR, RTL, and vertical writing modes without duplication.[4]
+
+**Q5: When would you use Grid vs Flexbox for responsive layouts?**  
+A: Use Grid for macro, two‑dimensional page layouts (defining rows/columns and placing major regions), and Flexbox for micro layouts and one‑dimensional flows (navigation bars, cards, toolbars).[5]
+
+**Q6: What is the purpose of media features like `prefers-color-scheme` and `prefers-reduced-motion`?**  
+A: They allow CSS to adapt to user system preferences (dark mode, reduced motion, high contrast), making designs responsive not just to screen size but also to accessibility and comfort needs.[6][10]
+
+**Q7: How do `<picture>` and `srcset` improve responsive images beyond simple scaling?**  
+A: `srcset`/`sizes` let browsers pick appropriately sized images for device/viewport; `<picture>` additionally enables art direction—serving different crops or formats based on media conditions (orientation, width, DPR).[1]
+
+***
+
+## Important Terms & Keywords
+
+1. Responsive Web Design (RWD)  
+2. Fixed‑width, liquid/fluid/flexible layouts, adaptive vs responsive  
+3. `meta viewport` (`width=device-width, initial-scale=1`)  
+4. Media queries: `@media`, media types (`all`, `screen`, `print`), media features (`min-width`, `max-width`, `orientation`, `prefers-color-scheme`, `display-mode`)  
+5. Content‑driven breakpoints  
+6. Internationalization (i18n), `lang`, `hreflang`, CSS logical properties  
+7. Macro layouts (page‑level), micro layouts (component‑level)  
+8. Flexbox, CSS Grid, `min`/`max`/`clamp`  
+9. Typography with relative units and content‑driven layout changes  
+10. Responsive images: `srcset`, `sizes`, `<picture>` (art direction)  
+11. SVG icons, theming, dark mode, reduced motion, accessibility  
+12. Multi‑screen / foldable device considerations
+
+[1](https://web.dev/learn/design/welcome)
+[2](https://web.dev/learn/design/intro)
+[3](https://web.dev/learn/design/media-queries)
+[4](https://web.dev/learn/design/internationalization)
+[5](https://web.dev/learn/design/macro-layouts)
+[6](https://web.dev/learn/design/media-features)
+[7](https://web.dev/learn/design/macro-layouts/)
+[8](https://www.youtube.com/watch?v=sdjT0K4sR4k)
+[9](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout)
+[10](https://a11y-blog.dev/en/articles/css-media-features-for-a11y/)
+[11](https://web.dev/learn/)
+[12](https://web.dev/learn/design/internationalization?hl=it)
+[13](https://learn.microsoft.com/en-us/globalization/methodology/software-internationalization)
+[14](https://www.w3.org/International/i18n-drafts/nav/learn)
+[15](https://www.telerik.com/blogs/internationalization-web-development-designing-apps-global-audiences)
+[16](https://web.developers.google.cn/learn/design/)
+[17](https://www.w3.org/International/quicktips/)
+[18](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Media_queries)
+[19](https://developer.mozilla.org/en-US/docs/Glossary/Internationalization)
+[20](https://web.developers.google.cn/learn/design/macro-layouts?hl=zh-cn)
+[21](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Responsive_Design)
+[22](https://www.youtube.com/watch?v=ds2yMKnIjGI)
+[23](https://techa.churchofjesuschrist.org/wiki/Design_(Internationalization_best_practices))

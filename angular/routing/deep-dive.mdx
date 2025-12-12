@@ -1,0 +1,189 @@
+# Angular Router Deep Dive - Section-by-Section Notes
+
+Angular Router complete guide covering setup, matching, lazy loading, guards, resolvers, advanced patterns, and v17+ features for enterprise SPAs.
+
+## 1. Router Setup & Configuration
+
+```
+provideRouter(ROUTES, withEnabledBlockingInitialNavigation())
+```
+- **Standalone-first**: No `RouterModule.forRoot/forChild`
+- **Functional guards/resolvers**: `inject(Router)` → `router.createUrlTree(['/login'])`
+- **Features array**: `withComponentInputBinding(), withPreloading(), withViewTransitions()`
+
+**Key**: `pathMatch: 'full'` for exact root match; default `'prefix'`
+
+## 2. Route Matching Rules
+
+```
+Order: Specific → Params → Wildcard (**)
+✅ {path: 'products/top', component: TopCmp}     // Before :id
+✅ {path: 'products/:id', loadComponent: Product}
+❌ Wrong order: :id captures "top" path
+```
+
+- **Wildcard `**`**: Last route only (404 fallback)
+- **Empty path**: `{path: '', redirectTo: '/home', pathMatch: 'full'}`
+- **Matcher precedence**: First-match-wins stops traversal
+
+## 3. Lazy Loading Patterns
+
+```
+Static Component:
+{path: 'user/:id', loadComponent: () => import('./UserCmp').then(m => m.UserCmp)}
+
+Dynamic Module:
+{path: 'admin', loadChildren: () => import('./admin.routes').then(m => m.ADMIN_ROUTES)}
+```
+
+**Preloading Strategies**:
+```
+NoPreloading          // Default
+PreloadAllModules     // All lazy chunks
+Custom: data: {preload: boolean}
+```
+
+## 4. Guards Deep Dive
+
+```
+CanActivate:     Post-match, pre-component init
+CanMatch:        Skip matching phase (perf)
+CanDeactivate:   Leave confirmation (unsaved changes)
+CanActivateChild: Parent middleware for children
+```
+
+**Component-less Middleware**:
+```
+{path: '', canActivateChild: [authGuard], children: [
+  {path: 'dashboard', component: Dashboard},
+  {path: 'profile', component: Profile}
+]}
+```
+
+## 5. Resolvers & Data Pre-fetching
+
+```
+resolve: {
+  user: userResolverFn,
+  title: titleResolverFn
+}
+```
+```typescript
+userResolver: ResolveFn<User> = (route: ActivatedRouteSnapshot) => 
+  userService.get(route.params['id']);
+```
+
+**Error Handling**:
+```typescript
+if (!user) return router.createUrlTree(['/404']);
+```
+
+## 6. Custom UrlMatchers
+
+```
+const atMatcher: UrlMatcherFn = (segments, tree, rawUrl) => {
+  const [username] = segments;
+  if (username?.path.startsWith('@')) {
+    return {
+      consumed: segments,
+      posParams: { username: new UrlSegment(username.path.slice(1), {}) }
+    };
+  }
+  return null;
+};
+```
+**URL**: `/profile/@john` → `{username: 'john'}`
+
+## 7. Component Input Binding (v17+)
+
+```
+@Component({
+  inputs: ['customerId']
+})
+export class CustomerCmp {
+  customerId = input.required<string>({alias: 'id'});
+  customer = input<Customer>({transform: validateCustomer});
+}
+```
+**Route**: `{path: 'customer/:id', component: CustomerCmp, data: {customerId: '123'}}`
+
+## 8. Router Features API
+
+```
+provideRouter(ROUTES, [
+  withComponentInputBinding(),           // v17+ inputs
+  withPreloading(CustomStrategy),        // Lazy chunks
+  withInMemoryScrolling({               // Scroll restoration
+    anchorScrolling: 'enabled',
+    scrollPositionRestoration: 'top'
+  }),
+  withViewTransitions()                  // CSS transitions
+]);
+```
+
+## 9. Navigation Extras & State
+
+```
+router.navigate(['/products'], {
+  queryParams: {filter: 'top'},
+  state: {fromSearch: true},
+  replaceUrl: true  // No history back
+});
+```
+
+**Current Navigation**:
+```typescript
+router.getCurrentNavigation()?.extras?.state
+```
+
+## 10. Title & Meta Strategy
+
+```
+class AppTitleStrategy implements TitleStrategy {
+  updateTitle(routerState: RouterStateSnapshot) {
+    const title = this.buildTitle(routerState);
+    Title.setTitle(`App | ${title}`);
+  }
+}
+```
+
+## 11. Advanced Config Options
+
+```
+provideRouter(ROUTES, {
+  urlUpdateStrategy: 'eager',           // Sync URL changes
+  canceledNavigationResolution: 'computed', // Handle cancels
+  onSameUrlNavigation: 'reload',        // Force reload
+  paramsInheritanceStrategy: 'always'   // Nested param inheritance
+});
+```
+
+## Error Patterns & Gotchas
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| "top" matches `:id` | Wrong order | Specific paths first |
+| Chunk 404 | No fallback | `{path: '**', loadComponent: NotFound}` |
+| Guard loop | `next()` in guard | `router.parseUrl('/login')` |
+| Nested params lost | Default inheritance | `paramsInheritanceStrategy: 'always'` |
+
+## Key Highlights
+
+```
+🏆 Enterprise Patterns:
+- Component-less middleware guards
+- Custom `@username` matchers
+- Resolver error → RedirectCommand
+- Input binding replaces ActivatedRoute boilerplate
+- Preload strategies with feature flags
+```
+
+**Interview Gold**: "Router matching is first-match-wins; always put specific routes before params/wildcards. CanMatch skips matching entirely for perf."
+
+## Essential Terms
+
+- provideRouter, withComponentInputBinding, withPreloading
+- pathMatch: 'full', loadComponent/loadChildren
+- CanActivate/CanMatch/CanDeactivateChild/ResolveFn
+- UrlMatcherFn, ActivatedRouteSnapshot, RouterStateSnapshot
+- RedirectCommand, NavigationExtras, TitleStrategy

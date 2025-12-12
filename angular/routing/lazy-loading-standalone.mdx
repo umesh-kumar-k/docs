@@ -1,0 +1,219 @@
+Angular lazy loading with standalone components uses `provideRouter` + `loadChildren` / `loadComponent` and route‑scoped Environment Injectors (via `providers` on routes) to replace NgModule‑based routing, DI scopes, and feature configuration such as NgRx slices.[1]
+
+***
+
+## Routing setup with standalone
+
+- Root bootstrap:
+  ```ts
+  bootstrapApplication(AppComponent, {
+    providers: [
+      importProvidersFrom(HttpClientModule),
+      provideRouter(APP_ROUTES,
+        withPreloading(PreloadAllModules),
+        withDebugTracing(),
+      ),
+      importProvidersFrom(LayoutModule),
+      provideAnimations(),
+    ]
+  });
+  ```  
+- `provideRouter(APP_ROUTES, ...withXyz())` registers routes plus router “features” (preloading, tracing, config) in a tree‑shakable, functional style.
+
+**Key types/APIs:** `provideRouter`, `withPreloading`, `withDebugTracing`, `importProvidersFrom` (bridge for legacy NgModules).
+
+***
+
+## Using router directives with standalone
+
+- Root component imports only needed router directives, not the whole `RouterModule`:
+  ```ts
+  @Component({
+    standalone: true,
+    selector: 'app-root',
+    imports: [
+      RouterOutlet,
+      RouterLinkWithHref, // or RouterLink
+      NavbarComponent,
+      SidebarComponent
+    ],
+    templateUrl: './app.component.html'
+  })
+  export class AppComponent {}
+  ```  
+- Router exports its directives as standalone, enabling granular imports and better tree‑shaking.
+
+***
+
+## Lazy loading standalone: routes and components
+
+```ts
+export const APP_ROUTES: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'home' },
+  { path: 'home', component: HomeComponent },
+
+  // Option 1: lazy routing config
+  {
+    path: 'flight-booking',
+    loadChildren: () =>
+      import('./booking/flight-booking.routes')
+        .then(m => m.FLIGHT_BOOKING_ROUTES)
+  },
+
+  // Option 2: lazy standalone component
+  {
+    path: 'next-flight',
+    loadComponent: () =>
+      import('./next-flight/next-flight.component')
+        .then(m => m.NextFlightComponent)
+  }
+];
+```
+[1]
+
+- `loadChildren`: lazy‑loads a *routes array* (group of routes) – typical for features.  
+- `loadComponent`: lazy‑loads a single standalone component directly for a simple route.
+
+Most teams prefer `loadChildren` to group related routes into one lazy feature chunk.
+
+***
+
+## Environment Injectors: route‑scoped services
+
+- Per‑route `providers` creates an Environment Injector at that route level:
+
+```ts
+export const FLIGHT_BOOKING_ROUTES: Routes = [{
+  path: '',
+  component: FlightBookingComponent,
+  providers: [
+    provideBookingDomain(config)  // feature‑specific services
+  ],
+  children: [
+    { path: '', pathMatch: 'full', redirectTo: 'flight-search' },
+    { path: 'flight-search', component: FlightSearchComponent },
+    { path: 'passenger-search', component: PassengerSearchComponent },
+    { path: 'flight-edit/:id', component: FlightEditComponent }
+  ]
+}];
+```
+[1]
+
+- Replaces lazy‑NgModule injector scope with explicit **route scopes**.  
+- Lazy vs non‑lazy no longer defines scopes; scopes are defined purely by presence of `providers` on routes.
+
+**Guidance:**  
+- Prefer `providedIn: 'root'` for most services; use route `providers` when configuration or feature‑local services are required (e.g., domain config, feature store).
+
+***
+
+## NgRx feature slices in lazy standalone routes
+
+- Root NgRx in bootstrap:
+
+```ts
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideRouter(APP_ROUTES, ...),
+    provideStore(rootReducer),
+    provideEffects([]),
+    provideStoreDevtools(),
+  ]
+});
+```
+
+
+- Feature slices in lazy route config:
+
+```ts
+export const FLIGHT_BOOKING_ROUTES: Routes = [{
+  path: '',
+  component: FlightBookingComponent,
+  providers: [
+    provideState(bookingFeature),
+    provideEffects([BookingEffects])
+  ],
+  children: [
+    { path: 'flight-search', component: FlightSearchComponent },
+    { path: 'passenger-search', component: PassengerSearchComponent },
+    { path: 'flight-edit/:id', component: FlightEditComponent }
+  ]
+}];
+```
+
+
+- `provideStore` → root store; `provideState` → feature branch/slice for that route; `provideEffects` works both at root and feature level for effects.
+
+***
+
+## ENVIRONMENT_INITIALIZER for route‑scope init
+
+- For libraries that used lazy NgModule constructors, use `ENVIRONMENT_INITIALIZER` in route providers:
+
+```ts
+export const FLIGHT_BOOKING_ROUTES: Routes = [{
+  path: '',
+  component: FlightBookingComponent,
+  providers: [
+    importProvidersFrom(StoreModule.forFeature(bookingFeature)),
+    importProvidersFrom(EffectsModule.forFeature([BookingEffects])),
+    {
+      provide: ENVIRONMENT_INITIALIZER,
+      multi: true,
+      useValue: () => inject(InitService).init()
+    }
+  ],
+  children: [ /* ... */ ]
+}];
+```
+
+
+- Each initializer runs when that Environment Injector is created; `multi: true` allows multiple initializers per scope.
+
+***
+
+## Design patterns & best practices
+
+- **Router as DI boundary:** use route `providers` to define DI scopes where necessary (feature config, feature NgRx), but default to `providedIn: 'root'` for common services.  
+- **Two lazy options:**
+  - `loadChildren` for feature route groups.  
+  - `loadComponent` for simple, standalone pages or widgets.  
+- **Migration pattern:**  
+  - Replace `AppModule` with `bootstrapApplication + provideRouter`.  
+  - Swap NgModule‑based NgRx configuration for `provideStore`, `provideState`, `provideEffects`.  
+  - Replace lazy NgModules with route‑level config and environment injectors.[1]
+
+***
+
+## Interview cheat sheet (Q & A)
+
+- **Q: How do you lazy‑load standalone features without NgModules?**  
+  A: Use `loadChildren` to lazy‑load a routes array exported from a `*.routes.ts` file, or `loadComponent` to directly lazy‑load a standalone component for a route.[1]
+
+- **Q: What replaces NgModule injectors for lazy scopes?**  
+  A: Route‑level Environment Injectors created by adding `providers` to route configs; they scope services to that route tree, independent of whether the route is lazy.
+
+- **Q: When would you use route `providers` instead of `providedIn: 'root'`?**  
+  A: When a feature needs its own configuration or isolated services (e.g., domain config, NgRx feature slice) instead of a global singleton.
+
+- **Q: How do you configure NgRx for a lazy standalone feature?**  
+  A: Root: `provideStore` and root `provideEffects`; feature route: `provideState(feature)` and `provideEffects([FeatureEffects])` inside the route’s `providers`.
+
+- **Q: What is `ENVIRONMENT_INITIALIZER` used for in this context?**  
+  A: To run initialization logic when a route’s Environment Injector is created—useful for libraries that used lazy‑NgModule constructors (e.g., feature‑scope setup).
+
+***
+
+## Important terms & keywords (scan list)
+
+- `provideRouter`, `withPreloading`, `withDebugTracing`  
+- `importProvidersFrom` bridge  
+- `RouterOutlet`, `RouterLink`, `RouterLinkWithHref` (standalone directives)  
+- `loadChildren` with `*.routes.ts`  
+- `loadComponent` for standalone component lazy loading  
+- Environment Injector, route `providers`  
+- `providedIn: 'root'` vs route‑scoped providers  
+- `provideStore`, `provideState`, `provideEffects`, `provideStoreDevtools`  
+- `ENVIRONMENT_INITIALIZER`
+
+[1](https://www.angulararchitects.io/en/blog/routing-and-lazy-loading-with-standalone-components/)

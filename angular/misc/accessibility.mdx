@@ -1,0 +1,133 @@
+Angular Accessibility (A11y) in Angular emphasizes **semantic HTML first, ARIA as last resort**, proper keyboard navigation, form labeling/grouping, error handling with `aria-live`, and visible focus indicators. Covers ARIA roles/attributes + accessible forms for WCAG compliance and inclusive UX.[1][2]
+
+## ARIA Fundamentals Section[1]
+**Key Points**:
+- ARIA (Accessible Rich Internet Applications) bridges HTML gaps for screen readers/voice control[1]
+- **Semantic HTML preferred**: `<button>` over `role="button"` on `<div>`[1]
+- **Static ARIA**: `<button aria-label="Close">X</button>`[1]
+- **Dynamic ARIA**: `[attr.aria-label]="label"` (prefix required)[1]
+
+## Common ARIA Roles Section[1]
+| Role | Use Case | Native Alternative |
+|------|----------|-------------------|
+| `button` | Interactive action | `<button>` |
+| `main` | Primary content | `<main>` |
+| `complementary` | Sidebar | `<aside>` |
+| `navigation` | Nav links | `<nav>` |
+| `alert` | Important messages | `<div role="alert">` |
+| `dialog` | Modal | `<dialog>` |
+| `tablist/tab/tabpanel` | Tabs | Custom components |
+
+**Examples**: Dialog with `aria-labelledby`, tabs with `aria-controls/aria-selected`[1]
+
+## Common ARIA Attributes Section[1]
+**Widget States**:
+- `aria-disabled`, `aria-expanded`, `aria-invalid`, `aria-hidden`[1]
+**Live Regions**: `aria-live="assertive"` (errors), `aria-busy` (loading)[1]
+**Relationships**: `aria-label`, `aria-labelledby`, `aria-describedby`, `aria-controls`[1]
+
+## Accessible Forms: Keyboard Navigation[2]
+**Key Points**:
+- **Tab order**: Logical flow, `tabindex="0"` (include), `tabindex="-1"` (exclude)[2]
+- **Visible focus**: 2-3px outlines (no `outline: none` without replacement)[2]
+- **Semantic elements**: `<label for="id">`, `<input type="text">`, `<button type="submit">`[2]
+
+## Accessible Forms: Labels & Grouping[2]
+**Field Labeling**:
+```html
+<label for="from">From (*)</label>
+<input id="from" type="text" name="from" required autocomplete="airport">
+```
+**Radio/Checkbox Groups**:
+```html
+<fieldset>
+  <legend>Flight Class</legend>
+  <label><input type="radio" name="class" value="economy"> Economy</label>
+</fieldset>
+```
+**Autocomplete**: `autocomplete="name|email|tel|off"` [2]
+
+## Accessible Forms: Error Handling[2]
+**Key Points**:
+- **Show after interaction**: `touched` or submit[2]
+- **Inline + first focus**: `focusFirstInvalidControl()` on submit[2]
+- **ARIA links**: `[attr.aria-invalid]="!!errors" [attr.aria-describedby]="errors ? 'errorId' : null"`[2]
+- **Live announcements**: `<div role="alert" aria-live="assertive">Error</div>`[2]
+
+**Focus first invalid**:
+```ts
+focusFirstInvalidControl(form: FormGroup) {
+  for (const key of Object.keys(form.controls)) {
+    const control = form.get(key);
+    if (control?.invalid) {
+      this.document.querySelector(`[name="${key}"]`)?.focus();
+      break;
+    }
+  }
+}
+```
+
+## Key Directives & APIs
+- **Property binding**: `[attr.aria-*]="value"` (dynamic ARIA)[1]
+- **Form validation**: `flightSearchForm.controls['from'].touched && .errors`[2]
+- **CDK**: `cdkFocusTrap` for modals[1]
+- **Template-driven**: `#flightSearchForm="ngForm"`[2]
+
+## Design Patterns & Best Practices
+**ARIA Hierarchy**:
+1. Semantic HTML (`<label>`, `<fieldset>`)
+2. Native attributes (`required`, `autocomplete`)
+3. ARIA as enhancement (`aria-describedby`, `aria-live`)
+
+**Form UX**:
+- Errors **inline + after field**, red + icon (❌)
+- Focus **first invalid** on submit
+- `aria-live="assertive"` for dynamic errors
+- **Unique IDs** across forms
+
+## Advanced Topics
+**Form Submission**:
+```ts
+onSearch() {
+  if (flightSearchForm.invalid) {
+    markFormGroupTouched(form);
+    focusFirstInvalidControl(form);
+    return;
+  }
+}
+```
+**Tab Interfaces**: `role="tablist"`, `aria-controls`, `aria-selected`[1]
+**Dialogs**: `role="dialog" aria-modal="true" aria-labelledby`[1]
+
+## Interview Cheat Sheet
+**Q: ARIA binding syntax?**  
+A: Static: `aria-label="Close"`; Dynamic: `[attr.aria-label]="label"`[1]
+
+**Q: Accessible form labels (2 ways)?**  
+A: `<label for="id">` + `<input id="id">` or `<label>Text <input></label>`[2]
+
+**Q: Radio group semantics?**  
+A: `<fieldset><legend>Group</legend><label><input type="radio" name="group"> Opt</label></fieldset>`[2]
+
+**Q: Error ARIA pattern?**  
+A: `[attr.aria-invalid]="!!errors" [attr.aria-describedby]="errors ? 'errId' : null"`, `<div role="alert" id="errId">`[2][1]
+
+**Q: Keyboard form flow?**  
+A: Tab logical order, visible focus (2px+), Enter submits `<button type="submit">`[2]
+
+**Q: When use ARIA vs HTML?**  
+A: HTML first (`<button>`), ARIA last resort for custom components[1]
+
+## Key Terms & Keywords
+- ARIA roles: `button`, `dialog`, `tablist`, `alert`, `main`
+- ARIA attrs: `aria-label/labelledby/describedby/controls`, `aria-invalid/expanded/live`
+- `[attr.aria-*]` dynamic binding
+- `<label for="id">`, `<fieldset><legend>`
+- `required`, `autocomplete="off|name|tel"`
+- `aria-live="assertive|polite"`, `role="alert"`
+- `tabindex="0|-1"`, visible focus indicators
+- `focusFirstInvalidControl()`, `markFormGroupTouched()`
+- WCAG, EAA 2025 compliance[2][1]
+
+[1](https://angularexperts.io/blog/the-most-impactful-rx-js-best-practice-of-all-time)
+[2](https://angular.dev/guide/testing/component-harnesses-overview)

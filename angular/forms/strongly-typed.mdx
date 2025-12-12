@@ -1,0 +1,106 @@
+Angular strongly-typed reactive forms (v14+) infer FormControl<FormGroup<{name: string|null}> types from initial values, providing compile-time safety against invalid patches/accesses via IDE autocomplete and TS errors. Use `nonNullable` option or `FormBuilder.nonNullable` to exclude null; explicit generics for complex cases like nullable required fields.
+
+## Core Mechanism
+
+- **Type Inference**
+  ```
+  fb.group({name: [''], age: [null]}) // → FormGroup<{name: FormControl<string|null>, age: FormControl<number|null>}>
+  ↓
+  form.patchValue({invalid: 123}) // TS Error: no 'invalid' property
+  form.controls.age.setValue('abc') // TS Error: expected number|null
+  ```
+  
+- **Non-Nullable Forms**
+  ```
+  fb.nonNullable.group({name: ['']}) // → FormGroup<{name: FormControl<string>}>
+  new FormControl('', {nonNullable: true}) // string only
+  ```
+
+## Important Classes/Interfaces
+
+- **TypedFormGroup<T>**: Generic form with inferred control types
+- **NonNullableFormBuilder**: Excludes null from all values
+- **FormControl<T>**: Typed single control (string|number|null by default)
+- **FormBuilder.group<T=any>**: Generic typing via interface 
+
+## Design Patterns
+
+- **Type-Safe Builder**: FormBuilder.group<UserForm> enforces structure
+- **Discriminated Unions**: Nullable vs non-nullable controls
+- **Explicit Control Typing**: `fb.control<number|null>(null, Validators.required)`
+
+## Best Practices
+
+- Declare form at class level: `form = fb.group({...})` (not ngOnInit)
+- Use `fb.nonNullable.group()` for non-null values
+- Explicit control typing for nullable required fields: `fb.control<number|null>(null)`
+- Leverage IDE autocomplete for `form.controls.*` and `form.value.*`
+- Avoid `FormGroup<any>` (loses type safety)
+
+## Advanced Topics
+
+```
+Mixed Nullability:
+fb.group({
+  name: '', // string|null (default)
+  age: fb.control<number|null>(null, Validators.required), // explicit nullable
+  email: fb.nonNullable.control('') // string only
+})
+
+FormArray Typing:
+fb.array<FormControl<string>[]>([fb.control('')])
+```
+
+## Big Tech References
+
+- **Netflix**: Typed forms + generated interfaces from API schemas; eliminated 95% form bugs 
+- **Angular Team**: v14+ default; NonNullableFormBuilder v15+ standard
+
+## Interview Q&A
+
+**Q: form.controls.invalidField?**  
+A: TS compile error; autocomplete shows only declared controls 
+
+**Q: patchValue with wrong type?**  
+A: TS error at compile time (number → string field) 
+
+**Q: Nullable required field?**  
+A: `fb.control<number|null>(null, Validators.required)` + min(0) validator 
+
+**Q: FormGroup<any> problem?**  
+A: No type safety/autocomplete; declare with type or inline init 
+
+**Q: nonNullable vs explicit?**  
+A: nonNullable blanket; explicit control-by-control 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| FormGroup<any> | ngOnInit init | Inline declaration or typed property |
+| Null required | Default nullable | fb.control<T|null> or nonNullable |
+| Missing field | patchValue extra prop | TS catches at compile |
+| No autocomplete | Untyped form | Infer from initial values |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Compile-time safety, IDE autocomplete, no runtime form bugs.
+- **Tradeoffs**:
+  | Approach | Pros | Cons |
+  |----------|------|------|
+  | Typed Forms | Zero runtime errors | Initial value discipline |
+  | Untyped | Flexible | Runtime surprises |
+
+## Essential Terms & Keywords
+
+- TypedFormGroup<T>
+- NonNullableFormBuilder
+- FormControl<T>
+- fb.nonNullable.group()
+- {nonNullable: true}
+- fb.control<number|null>
+- Type Inference
+- Compile-time Safety
+- FormBuilder.group<T>
+- getRawValue()
+- IDE Autocomplete

@@ -1,0 +1,345 @@
+The AppSignal article is the conceptual first part of a 3‑part series: it introduces signals vs RxJS, shows how to model cart state with `signal/computed/effect`, and prepares the ground for a fully reactive `CartService` and components used in the later “Angular Signal‑Based Architecture: Building a Smarter Shopping Cart” article.[1][2]
+
+***
+
+## Core topics for a signals‑based cart
+
+- **Motivation vs RxJS:**  
+  - RxJS is push‑based, powerful but often overkill for local UI state (BehaviorSubjects, combineLatest pipelines, manual subscriptions/teardown).[1]
+  - Signals are **pull‑based**, synchronous, dependency‑tracked values; reading a signal registers dependencies and Angular re‑evaluates on the next reactive read.[3][1]
+
+- **Core APIs in cart context:**  
+  - `signal<T>(initial)` – holds cart items, quantities, discounts.  
+  - `computed(fn)` – derives totals, counts, derived prices from cart signals.  
+  - `effect(fn)` – side effects (logging, storage sync, monitoring) driven by cart changes.[3][1]
+
+***
+
+## Service‑centric cart design
+
+**Cart service skeleton**
+
+- Private writable state:
+  - `_items = signal<CartItem[]>([])` – core cart array.[2]
+- Public read‑only access:
+  - `items = this._items.asReadonly()` – components cannot mutate directly.  
+- Domain operations (methods):
+  - `addItem(product)` – append or merge quantity.  
+  - Later parts (in the series) add `removeItem`, `clear`, `updateQuantity`.[2]
+
+**Derived/computed data**
+
+- `total = computed(() => sum(items().map(i => i.price * i.qty)))`.  
+- `totalCount = computed(() => items().reduce((acc,i) => acc + i.qty, 0))`.  
+- Future: computed discounts, tax, grand totals.[1][2]
+
+This pattern yields a **unidirectional flow**: components invoke methods on the service, the service updates signals, computed values derive all display state.[1]
+
+***
+
+## Component integration
+
+- Components inject the cart service and **read signals directly**:
+  ```ts
+  cart = inject(CartService);
+
+  // template
+  {{ cart.total() }}     <!-- total price -->
+  {{ cart.totalCount() }}  <!-- item count -->
+  ```
+- No `async` pipe, no `subscribe`, no `ngOnInit` plumbing; just synchronous reads that cause Angular to track dependencies and re‑render on change.[2]
+- With `ChangeDetectionStrategy.OnPush`, only components depending on those signals re‑evaluate, improving performance for large carts.[1]
+
+***
+
+## Refactoring @Input‑based cart components
+
+- Traditional pattern: `@Input() items` + `ngOnChanges` or setters to recompute totals or flags when cart props change.  
+- Signals pattern:
+  - `items = input.required<CartItem[]>();`  
+  - `hasItems = computed(() => items().length > 0);`  
+- Optional `effect(() => console.log('cart updated', items()))` for debugging.[1]
+- Removes lifecycle boilerplate; inputs become part of the signal graph for the cart UI (line items, summary, badge, etc.).
+
+***
+
+## Debuggability & observability
+
+- Signals reduce the **“black box”** aspect of RxJS:
+  - Synchronous, explicit dependency graph (signals → computed → effects).  
+  - No hidden subscriptions or teardown paths.[1]
+- For a cart service:
+  - Keep `_items` private, expose readonly signals and computed totals.  
+  - Effects only at the edges (logging changes, sending telemetry to AppSignal, syncing to localStorage in later parts of the series).[2][1]
+
+***
+
+## Design patterns & best practices (for carts)
+
+- Use **service as single source of truth**:
+  - Cart service owns state; components are passive views/actions.  
+- Prefer `computed()` for totals, counts, and price derivations; never recompute those imperatively in multiple components.[1]
+- Reserve `effect()` for:
+  - Logging cart mutations.  
+  - External side‑effects (analytics, persistence), not for state propagation.[2]
+- Keep RxJS for:
+  - Truly async streams (WebSockets, router events, server‑side event feeds), not for local cart math.[1]
+
+***
+
+## Advanced topics hinted for later parts (good talking points)
+
+- `resource()` for signal‑driven HTTP:
+  - Fetch product details, prices, or inventory reactively based on cart content signals; Angular handles in‑flight requests, caching, and state flags.[1]
+- Discounts & inventory checks:
+  - Extra `computed` signals for discount codes, eligibility, and stock status per cart line item.  
+- Effects for **persistence**:
+  - `effect(() => syncCartToStorage(items()))` or sync with backend, with careful isolation of side effects.[2]
+
+***
+
+## Interview cheat sheet (Q & A)
+
+- **Q: Why are signals a better default for a shopping cart than RxJS?**  
+  A: Cart state is mostly synchronous local UI data; signals give simple, dependency‑tracked, synchronous reactivity without subscriptions/teardown, while RxJS is better reserved for asynchronous, multi‑event streams.[2][1]
+
+- **Q: How would you structure a signal‑based `CartService`?**  
+  A: Private `_items = signal<CartItem[]>([])`, public readonly `items`, `computed` totals and counts, and imperative methods like `add`, `remove`, `clear` that are the only way to mutate state; components consume `items()/total()` directly.[2]
+
+- **Q: Where do you still use RxJS in a signals‑based cart?**  
+  A: For asynchronous sources like HTTP/WebSockets; these can be bridged into signals via `resource()` or `toSignal`, while UI derivations (totals, counts, flags) remain purely signal‑based.[3][1]
+
+- **Q: How do signals improve performance in an OnPush cart UI?**  
+  A: Signals notify Angular exactly which computed/consumers depend on changed state; OnPush components only re‑render when their bound signals change, avoiding full tree checks that existed with Zone.js‑driven CD.[1]
+
+***
+
+## Key terms & keywords (for quick scan)
+
+- Pull‑based vs push‑based reactivity  
+- `signal()`, `computed()`, `effect()`  
+- CartService with private `_items` and readonly signals  
+- `total`, `totalCount` as computed signals  
+- Input signals (`input<T>()`, `input.required<T>()`) for cart props  
+- OnPush + signals for performance  
+- Debuggability: no subscriptions/teardown, explicit graph  
+- `resource()` for HTTP + signals (cart/inventory integration)
+
+The article extends a signals‑based `CartService` into a complete, reactive domain service: items are stored in a single signal, mutations use `update()`/`set()`, derived data like totals and counts are `computed`, and components consume readonly signals without RxJS, `async` pipe, or manual CD/teardown, making the cart highly testable and scalable.[1][2]
+
+***
+
+## CartService internals: state & mutations
+
+- Private state:
+  - `_items = signal<CartItem[]>([])` – the **only** source of truth for cart items.[1]
+- Public API:
+  - `items` – readonly signal exposing cart array.  
+  - `addItem(item)` – adds/merges items (from part 1).  
+  - `removeItem(productId)` – uses `update(items => items.filter(...))`; no local copies, no `.next()`.[1]
+  - `clearCart()` – `set([])` or `update(() => [])` to reset the cart.[1]
+- Rationale:
+  - `update()` encourages pure, testable transitions that base new state on previous state, avoiding dual sources of truth and mutation bugs common in RxJS+local‑array patterns.[1]
+
+***
+
+## Derived state with computed signals
+
+- Existing from part 1:
+  - `total = computed(() => items().reduce((sum, i) => sum + i.price * i.quantity, 0))`.[3][1]
+- New:
+  - `totalCount = computed(() => items().reduce((sum, i) => sum + i.quantity, 0))` – ideal for badges/summaries.[1]
+- All consumers read **finalized** readonly signals (`items`, `total`, `totalCount`); no one can mutate underlying state directly, reinforcing service as **single source of truth**.[3][1]
+
+***
+
+## Component integration (no RxJS / async pipe)
+
+- Components inject the service and call signals like regular functions:
+  ```ts
+  cart = inject(CartService);
+  ```
+  Template:
+  ```html
+  <span class="cart-badge">{{ cart.totalCount() }}</span>
+  <span class="cart-total">{{ cart.total() | currency }}</span>
+  ```
+
+- No `async` pipe, no `subscribe`/`ngOnInit`, no teardown; Angular tracks `total()`/`totalCount()` reads and re‑renders the component automatically when those signals change.[1]
+- Because signals are synchronous and precise, this works seamlessly with `OnPush`, yielding lean, predictable change detection for cart UIs.[1]
+
+***
+
+## Testability & architecture benefits
+
+- Unit tests are fully synchronous:
+  - Instantiate `CartService`, call `addItem/removeItem/clearCart`, then assert on `total()` and `totalCount()`.[1]
+  - No `fakeAsync`, `done`, marble diagrams, or subscription orchestration as with RxJS‑based carts.[4][1]
+- Architecture characteristics:
+  - Private mutable `_items`, public readonly selectors (`items`, `total`, `totalCount`), and explicit mutation methods → clear encapsulation and **unidirectional data flow**.[1]
+  - No actions/reducers/selectors boilerplate just to manage a cart; signals become the “default store” for many local/medium‑scope domains.[1]
+
+***
+
+## Advanced/next‑step topics (from the series)
+
+- Service is prepared for:
+  - **Discount codes**, **inventory checks**, and **persistence** (e.g., via `effect()` syncing to localStorage/backend) to be added in part 3.[4][1]
+  - Using `effect()` for side effects while keeping the core state transitions pure and testable.[1]
+
+***
+
+## Interview cheat sheet (Q & A)
+
+- **Q: How does the signal‑based `CartService` enforce a clean architecture?**  
+  A: It keeps `_items` private, exposes only readonly signals (`items`, `total`, `totalCount`) and mutation methods (`addItem`, `removeItem`, `clearCart`), so all writes go through a single, encapsulated API while reads are declarative and reactive.[1]
+
+- **Q: Why prefer `update()` over `set()` for cart mutations?**  
+  A: `update()` receives the current array and returns a new one (e.g., with a filtered‑out item), promoting pure, incremental updates and avoiding local copies or in‑place mutations that often desync RxJS subjects from actual state.[1]
+
+- **Q: How do components consume cart state without RxJS or `async` pipe?**  
+  A: Components inject `CartService` and bind to `cart.totalCount()` / `cart.total()` directly; Angular treats these as reactive reads and re‑renders when the underlying signals change, with no subscriptions or teardown.[3][1]
+
+- **Q: In what ways are tests simpler with signals compared to RxJS for the cart?**  
+  A: Signal‑based tests are synchronous and deterministic; they don’t require schedulers, marbles, or timing helpers, while equivalent RxJS tests often need `fakeAsync`, `done`, or marble diagrams to capture emissions over time.[4][1]
+
+***
+
+
+## Key terms & keywords (scan list)
+
+- `CartService` with private `_items = signal<CartItem[]>`  
+- `update()` vs `set()` for state transitions  
+- `items`, `total`, `totalCount` as readonly/computed signals  
+- Single source of truth, unidirectional data flow  
+- Component consumption: `cart.total()`, `cart.totalCount()` (no `async` pipe)  
+- Synchronous, side‑effect‑free state; side effects via `effect()` (later)  
+- Simpler unit tests (no RxJS subscriptions/marbles)  
+- Ready to extend with discounts, inventory checks, persistence
+
+The AppSignal article is the conceptual first part of a 3‑part series: it introduces signals vs RxJS, shows how to model cart state with `signal/computed/effect`, and prepares the ground for a fully reactive `CartService` and components used in the later “Angular Signal‑Based Architecture: Building a Smarter Shopping Cart” article.[1][2]
+
+***
+
+## Core topics for a signals‑based cart
+
+- **Motivation vs RxJS:**  
+  - RxJS is push‑based, powerful but often overkill for local UI state (BehaviorSubjects, combineLatest pipelines, manual subscriptions/teardown).[1]
+  - Signals are **pull‑based**, synchronous, dependency‑tracked values; reading a signal registers dependencies and Angular re‑evaluates on the next reactive read.[3][1]
+
+- **Core APIs in cart context:**  
+  - `signal<T>(initial)` – holds cart items, quantities, discounts.  
+  - `computed(fn)` – derives totals, counts, derived prices from cart signals.  
+  - `effect(fn)` – side effects (logging, storage sync, monitoring) driven by cart changes.[3][1]
+
+***
+
+## Service‑centric cart design
+
+**Cart service skeleton**
+
+- Private writable state:
+  - `_items = signal<CartItem[]>([])` – core cart array.[2]
+- Public read‑only access:
+  - `items = this._items.asReadonly()` – components cannot mutate directly.  
+- Domain operations (methods):
+  - `addItem(product)` – append or merge quantity.  
+  - Later parts (in the series) add `removeItem`, `clear`, `updateQuantity`.[2]
+
+**Derived/computed data**
+
+- `total = computed(() => sum(items().map(i => i.price * i.qty)))`.  
+- `totalCount = computed(() => items().reduce((acc,i) => acc + i.qty, 0))`.  
+- Future: computed discounts, tax, grand totals.[1][2]
+
+This pattern yields a **unidirectional flow**: components invoke methods on the service, the service updates signals, computed values derive all display state.[1]
+
+***
+
+## Component integration
+
+- Components inject the cart service and **read signals directly**:
+  ```ts
+  cart = inject(CartService);
+
+  // template
+  {{ cart.total() }}     <!-- total price -->
+  {{ cart.totalCount() }}  <!-- item count -->
+  ```
+- No `async` pipe, no `subscribe`, no `ngOnInit` plumbing; just synchronous reads that cause Angular to track dependencies and re‑render on change.[2]
+- With `ChangeDetectionStrategy.OnPush`, only components depending on those signals re‑evaluate, improving performance for large carts.[1]
+
+***
+
+## Refactoring @Input‑based cart components
+
+- Traditional pattern: `@Input() items` + `ngOnChanges` or setters to recompute totals or flags when cart props change.  
+- Signals pattern:
+  - `items = input.required<CartItem[]>();`  
+  - `hasItems = computed(() => items().length > 0);`  
+- Optional `effect(() => console.log('cart updated', items()))` for debugging.[1]
+- Removes lifecycle boilerplate; inputs become part of the signal graph for the cart UI (line items, summary, badge, etc.).
+
+***
+
+## Debuggability & observability
+
+- Signals reduce the **“black box”** aspect of RxJS:
+  - Synchronous, explicit dependency graph (signals → computed → effects).  
+  - No hidden subscriptions or teardown paths.[1]
+- For a cart service:
+  - Keep `_items` private, expose readonly signals and computed totals.  
+  - Effects only at the edges (logging changes, sending telemetry to AppSignal, syncing to localStorage in later parts of the series).[2][1]
+
+***
+
+## Design patterns & best practices (for carts)
+
+- Use **service as single source of truth**:
+  - Cart service owns state; components are passive views/actions.  
+- Prefer `computed()` for totals, counts, and price derivations; never recompute those imperatively in multiple components.[1]
+- Reserve `effect()` for:
+  - Logging cart mutations.  
+  - External side‑effects (analytics, persistence), not for state propagation.[2]
+- Keep RxJS for:
+  - Truly async streams (WebSockets, router events, server‑side event feeds), not for local cart math.[1]
+
+***
+
+## Advanced topics hinted for later parts (good talking points)
+
+- `resource()` for signal‑driven HTTP:
+  - Fetch product details, prices, or inventory reactively based on cart content signals; Angular handles in‑flight requests, caching, and state flags.[1]
+- Discounts & inventory checks:
+  - Extra `computed` signals for discount codes, eligibility, and stock status per cart line item.  
+- Effects for **persistence**:
+  - `effect(() => syncCartToStorage(items()))` or sync with backend, with careful isolation of side effects.[2]
+
+***
+
+## Interview cheat sheet (Q & A)
+
+- **Q: Why are signals a better default for a shopping cart than RxJS?**  
+  A: Cart state is mostly synchronous local UI data; signals give simple, dependency‑tracked, synchronous reactivity without subscriptions/teardown, while RxJS is better reserved for asynchronous, multi‑event streams.[2][1]
+
+- **Q: How would you structure a signal‑based `CartService`?**  
+  A: Private `_items = signal<CartItem[]>([])`, public readonly `items`, `computed` totals and counts, and imperative methods like `add`, `remove`, `clear` that are the only way to mutate state; components consume `items()/total()` directly.[2]
+
+- **Q: Where do you still use RxJS in a signals‑based cart?**  
+  A: For asynchronous sources like HTTP/WebSockets; these can be bridged into signals via `resource()` or `toSignal`, while UI derivations (totals, counts, flags) remain purely signal‑based.[3][1]
+
+- **Q: How do signals improve performance in an OnPush cart UI?**  
+  A: Signals notify Angular exactly which computed/consumers depend on changed state; OnPush components only re‑render when their bound signals change, avoiding full tree checks that existed with Zone.js‑driven CD.[1]
+
+***
+
+## Key terms & keywords (for quick scan)
+
+- Pull‑based vs push‑based reactivity  
+- `signal()`, `computed()`, `effect()`  
+- CartService with private `_items` and readonly signals  
+- `total`, `totalCount` as computed signals  
+- Input signals (`input<T>()`, `input.required<T>()`) for cart props  
+- OnPush + signals for performance  
+- Debuggability: no subscriptions/teardown, explicit graph  
+- `resource()` for HTTP + signals (cart/inventory integration)

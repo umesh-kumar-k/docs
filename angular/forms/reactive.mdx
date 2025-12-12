@@ -1,0 +1,130 @@
+Angular reactive forms use explicit, immutable AbstractControl trees (FormControl/Group/Array) built in component class, synchronized to DOM via formControlName directives and observable streams for value/status changes. FormBuilder streamlines creation; unified `events` observable replaces multiple subscriptions for state tracking.[1]
+
+## Core Mechanism
+
+- **Control Tree Construction**
+  ```
+  FormBuilder.group({
+    name: new FormControl(''),
+    address: fb.group({street: fb.control('')}),
+    tags: fb.array([fb.control('')])
+  })
+  ↓
+  [formGroup]="form" → formGroupName → formControlName sync
+  ```
+  
+- **Value/State Propagation**
+  ```
+  Child change → Parent aggregate (status/value)
+  ↓
+  valueChanges/statusChanges observables emit
+  ↓
+  Template reflects via {{form.value}} | async pipe
+  ```
+
+- **setUpControl Flow**
+  ```
+  FormControlDirective → CVA lookup → writeValue/registerOnChange
+  ↓ Bidirectional sync via NG_VALUE_ACCESSOR
+  ```
+
+## Important Classes/Interfaces
+
+- **AbstractControl**: Base (value/status/valid/dirty/touched/pending)
+- **FormControl**: Single field (new FormControl('initial', Validators.required))
+- **FormGroup**: Named controls (fb.group({name: fc, nested: fg}))
+- **FormArray**: Indexed controls (fb.array([fc, fc])); dynamic push/remove
+- **FormBuilder**: Factory (inject(FormBuilder).group/array/control)[1]
+
+## Design Patterns
+
+- **Composite**: FormGroup/Array aggregate child status/values
+- **Observer**: valueChanges/statusChanges/events observables
+- **Bridge**: FormControlDirective ↔ ControlValueAccessor
+- **Builder**: FormBuilder fluent API for complex trees
+
+## Best Practices
+
+- Build model first in component class (not template)
+- Use FormBuilder for DRY construction
+- Leverage `patchValue()` over `setValue()` (partial updates)
+- `events` observable unifies value/status/pristine/touched tracking
+- Type guards: `isFormArray(control)` for validators
+- Standalone components: `imports: [ReactiveFormsModule]`
+
+## Advanced Topics
+
+```
+Unified Events (Angular 17+):
+form.events.subscribe(e => {
+  if (e instanceof ValueChangeEvent) console.log(e.value)
+  if (e instanceof StatusChangeEvent) console.log(e.status)
+})
+
+Type Guards:
+if (isFormArray(control)) control.controls.forEach(...)
+```
+
+- FormRecord: Object keys with same value type
+- Dynamic validators: control.setValidators(fn); control.updateValueAndValidity()
+
+## Big Tech References
+
+- **Netflix**: Reactive forms + custom CVA across design system; FormBuilder schemas from API[1]
+- **Google/Angular Team**: Official docs emphasize immutable model + observable streams
+
+## Interview Q&A
+
+**Q: Reactive vs Template-Driven?**  
+A: Reactive: explicit model first, testable, dynamic; Template: directive-driven, simpler[1]
+
+**Q: setValue vs patchValue?**  
+A: setValue strict structure match; patchValue partial/silent fail[1]
+
+**Q: FormArray dynamic add?**  
+A: `aliases.push(fb.control(''))`; template `@for (alias of aliases.controls; track $index)`[1]
+
+**Q: Unified events benefit?**  
+A: Single subscription vs valueChanges + statusChanges + pristineChanges[1]
+
+**Q: Nested path resolution?**  
+A: `form.get(['address', 'street'])` or `formControlName="address.street"`[1]
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| No sync to DOM | Missing [formControl] | Add ReactiveFormsModule imports |
+| Path not found | Wrong nesting | Match model structure exactly |
+| Memory leak | Unsubscribed observables | Use async pipe or takeUntilDestroyed |
+| Type errors | AbstractControl | isFormArray/isFormGroup guards |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Testable model, dynamic forms, unified observables, FormBuilder.
+- **Tradeoffs**:
+  | Approach | Pros | Cons |
+  |----------|------|------|
+  | Reactive | Dynamic, testable | Verbose setup |
+  | Template | Declarative | Less control |
+
+## Essential Terms & Keywords
+
+- ReactiveFormsModule
+- FormControl
+- FormGroup
+- FormArray
+- FormBuilder
+- AbstractControl
+- formControlName
+- formGroupName
+- formArrayName
+- valueChanges
+- statusChanges
+- events observable
+- patchValue/setValue
+- Validators.required
+- isFormArray/isFormGroup
+- ControlValueAccessor[1]
+
+[1](https://angular.dev/guide/forms/reactive-forms)

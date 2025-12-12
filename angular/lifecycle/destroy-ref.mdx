@@ -1,0 +1,111 @@
+Angular DestroyRef (v16+) provides automatic subscription cleanup via `takeUntilDestroyed()` operator and `onDestroy(callback)` registration, eliminating manual `ngOnDestroy` boilerplate and Subject management. Injectable `DestroyRef` emits destruction signal for components/directives/injectors, auto-completing piped observables in injection context.[1]
+
+## Core Mechanism
+
+```
+Injection Context (ctor/field):
+interval(1000).pipe(takeUntilDestroyed()).subscribe()
+
+Outside Context:
+destroyRef = inject(DestroyRef);
+interval(1000).pipe(takeUntilDestroyed(destroyRef)).subscribe()
+
+Manual Callback:
+destroyRef.onDestroy(() => subscription.unsubscribe());
+```
+
+## Important Classes/Interfaces
+
+- **DestroyRef**: Injectable service with `onDestroy(callback: () => void)`
+- **takeUntilDestroyed()**: RxJS pipe operator from `@angular/core/rxjs-interop`
+- **OnDestroy**: Now optional (replaced by DestroyRef in most cases)
+
+## Design Patterns
+
+- **Auto-Cleanup**: `takeUntilDestroyed()` replaces manual Subject + ngOnDestroy
+- **Explicit Context**: Pass DestroyRef for cross-component cleanup
+- **Injection Boundary**: Works only in ctor/field/factory functions
+
+## Best Practices
+
+```
+✅ Injection Context: takeUntilDestroyed() // Zero boilerplate
+✅ Cross-Component: takeUntilDestroyed(child.destroyRef)
+✅ Manual: destroyRef.onDestroy(cleanupFn)
+✅ Signals: auto-managed (no manual cleanup needed)
+
+❌ ngOnInit: takeUntilDestroyed() // Injection context error
+❌ Manual Subject: destroy$ = new Subject() // Verbose
+```
+
+## Advanced Topics
+
+```
+Child Destroy Signals Parent:
+@ViewChild(Child) child!: Child;
+interval().pipe(takeUntilDestroyed(this.child.destroyRef))
+
+Multiple Signals:
+destroyRef.onDestroy(() => {
+  sub1.unsubscribe();
+  localStorage.clear();
+  window.removeEventListener();
+});
+```
+
+- Works with injectors (services/providers), not just components
+
+## Big Tech References
+
+- **Netflix**: Adopted takeUntilDestroyed v16; eliminated 95% ngOnDestroy boilerplate 
+- **Angular Team**: Designed for signals era; auto-cleanup aligns with no-zone philosophy
+
+## Interview Q&A
+
+**Q: takeUntilDestroyed() without args?**  
+A: Works only in injection context (ctor/field); auto-resolves DestroyRef[1]
+
+**Q: ngOnInit subscription error?**  
+A: Injection context violation; pass explicit DestroyRef or use field injection[1]
+
+**Q: Replace ngOnDestroy Subject?**  
+A: Yes, takeUntilDestroyed() or destroyRef.onDestroy() 
+
+**Q: Service cleanup?**  
+A: Provider DestroyRef (injector-scoped); same API 
+
+**Q: Child destroy → parent sub?**  
+A: takeUntilDestroyed(child.destroyRef) in parent[1]
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| "Not injection ctx" | ngOnInit takeUntilDestroyed() | Pass explicit DestroyRef |
+| Memory leak | Forgot manual unsubscribe | takeUntilDestroyed() |
+| Verbose Subject | Manual destroy$ pattern | DestroyRef.onDestroy() |
+| Service leak | No provider cleanup | Provider DestroyRef |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Zero-boilerplate cleanup, injection-context auto-resolve, cross-component.
+- **Tradeoffs**:
+  | Method | Pros | Cons |
+  |--------|------|------|
+  | takeUntilDestroyed() | Auto | Injection ctx only |
+  | onDestroy() | Flexible | Manual callback |
+
+## Essential Terms & Keywords
+
+- DestroyRef
+- takeUntilDestroyed()
+- onDestroy(callback)
+- Injection Context
+- @angular/core/rxjs-interop
+- Auto-Cleanup
+- Provider DestroyRef
+- Child Destroy Signal
+- ngOnDestroy Replacement
+- Memory Leak Prevention[1]
+
+[1](https://www.angularminds.com/blog/angular-reactive-forms-best-practices)

@@ -1,0 +1,114 @@
+Angular ControlValueAccessor (CVA) bridges FormControl with custom/native DOM elements via NG_VALUE_ACCESSOR multi-provider, implementing writeValue/onChange/onTouched for bidirectional sync without @Input/@Output boilerplate. Angular auto-selects custom CVA over DefaultValueAccessor for form-bound components.
+
+## Core Mechanism
+
+- **FormControl Synchronization**
+  ```
+  FormControl → setUpControl() → dir.valueAccessor
+  ↓
+  writeValue(control.value) → Native/Custom Widget
+  ↓
+  Widget Event → onChange(newValue) → control.setValue()
+  ```
+  
+- **Provider Registration**
+  ```
+  @Component({
+    providers: [{
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => MyControl),
+      multi: true
+    }]
+  })
+  ```
+  
+- **CVA Interface Methods**
+  - writeValue(obj): FormControl → widget
+  - registerOnChange(fn): Save callback for widget → FormControl
+  - registerOnTouched(fn): Track user interaction (blur/focus)
+
+## Important Classes/Interfaces
+
+- **ControlValueAccessor**: writeValue/onChange/onTouched/setDisabledState
+- **NG_VALUE_ACCESSOR**: Multi-provider token (custom + defaults)
+- **FormControlDirective**: Binds [formControl] → CVA lookup 
+
+## Design Patterns
+
+- **Bridge Pattern**: Abstract FormControl from widget impl (jQueryUI slider)
+- **Provider Multi-Registration**: Stack accessors (custom overrides default)
+- **ForwardRef**: Circular/self-provider resolution
+
+## Best Practices
+
+- Register in component providers: useExisting + multi: true
+- Skip @Input/@Output when implementing CVA (FormControl handles sync)
+- Call onChange(value) on ALL widget interactions (not just blur)
+- Empty registerOnTouched() unless tracking interaction explicitly
+- Use forwardRef only for external providers (class direct in decorator)
+
+## Advanced Topics
+
+- **Default Accessors Hierarchy**:
+  ```
+  Checkbox → Number → Radio → Range → Select → Default (input/textarea)
+  ```
+- **setDisabledState(isDisabled)**: FormControl disabled → widget
+- **Testing**: TestBed.configureTestingModule({providers: [NG_VALUE_ACCESSOR]})
+- **Standalone**: providers: [...] replaces NgModule registration
+
+## Big Tech References
+
+- **Netflix**: CVA wrappers for 50+ 3rd-party widgets; unified form validation 
+- **Google Material**: MatInput/MatSlider use CVA for consistent forms API
+
+## Interview Q&A
+
+**Q: NG_VALUE_ACCESSOR vs DefaultValueAccessor?**  
+A: Custom CVA wins (multi-provider); Default fallback for input/textarea 
+
+**Q: writeValue vs ngOnChanges?**  
+A: writeValue replaces @Input for CVA; called by FormControl sync 
+
+**Q: Why multi: true?**  
+A: Stack multiple accessors; Angular selects first matching 
+
+**Q: onChange timing?**  
+A: Every widget interaction (keyup/change); not just blur 
+
+**Q: Test custom CVA?**  
+A: TestBed.providers + spyOn(cva, 'writeValue') 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| No FormControl sync | Missing NG_VALUE_ACCESSOR | Add providers array |
+| Two-way broken | Forgot onChange(value) | Call on ALL widget events |
+| Disabled not working | Skip setDisabledState | Implement + widget.disabled |
+| Testing fails | External provider | TestBed direct providers |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Widget abstraction, auto two-way binding, testing mocks.
+- **Tradeoffs**:
+  | Approach | Pros | Cons |
+  |----------|------|------|
+  | CVA | Form-native | Provider boilerplate |
+  | @Input/Output | Simple | Manual sync logic |
+
+## Essential Terms & Keywords
+
+- ControlValueAccessor
+- NG_VALUE_ACCESSOR
+- writeValue
+- registerOnChange
+- registerOnTouched
+- setDisabledState
+- useExisting
+- multi: true
+- forwardRef
+- DefaultValueAccessor
+- FormControlDirective
+- Bridge Pattern
+- setUpControl

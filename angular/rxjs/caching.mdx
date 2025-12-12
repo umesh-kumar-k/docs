@@ -1,0 +1,197 @@
+Angular caching with RxJS in the Angular Experts article shows how to implement **time-based, in-memory API response caching** using modern `share` (RxJS 7.1+) instead of older `shareReplay`+manual timeout flags. The focus example is caching an API key, but the pattern generalizes to any HTTP stream or expensive observable.[1][2]
+
+## Key Topics & Sections
+
+### TL;DR / Goals
+- Use case: retrieve and cache `apiKey` from backend, avoid repeated HTTP calls while keeping a time-based expiry.[1]
+- Compare older patterns (manual local field cache + `shareReplay`) vs new pattern using `share` with `resetOn*` options.[1]
+- Provide refactoring, caveats, and a cheat-sheet-style operator configuration.[1]
+
+### Original `shareReplay` Caching Pattern
+- Service stores an `apiKey$` field; first call triggers HTTP, subsequent calls return cached observable.[1]
+
+  ```ts
+  @Injectable({ providedIn: 'root' })
+  export class ApiKeyService {
+    apiKey$: Observable<string>;
+
+    constructor(private httpClient: HttpClient) {}
+
+    getApiKey() {
+      if (this.apiKey$) {
+        return this.apiKey$;           // return cached stream
+      } else {
+        this.apiKey$ = this.httpClient
+          .get<string>(API_KEY_ENDPOINT)
+          .pipe(shareReplay(1));       // cache 1 value
+
+        setTimeout(() => {
+          this.apiKey$ = undefined;    // manual cache invalidation
+        }, CACHE_TIMEOUT);
+
+        return this.apiKey$;
+      }
+    }
+  }
+  ```
+
+
+- Pros:
+  - Very common pattern (StackOverflow, blogs).[3][4]
+  - Simple to implement for one resource.[1]
+- Cons:
+  - Cache invalidation handled outside RxJS via `setTimeout` and mutable field.[1]
+  - Race conditions and complexity around first vs later subscribers, especially if invalidation happens while subscribers are active.[5][1]
+  - Harder composability, cannot easily reuse as a pure stream.[1]
+
+### New `share`-based Time Cache (RxJS 7.1+)
+
+**Core idea**: Use `share` with a custom `ReplaySubject` connector and `resetOnComplete/error/refCount` hooks to make the **observable itself** implement time-based caching, rather than external flags.[6][1]
+
+- Example from article:
+
+  ```ts
+  const CACHE_TIMEOUT = 10 * 1000; // 10 seconds
+
+  @Injectable({ providedIn: 'root' })
+  export class ApiKeyService {
+    apiKey$ = this.httpClient.get<string>(API_KEY_ENDPOINT).pipe(
+      tap(() => console.log('[DEBUG] request happened')),
+      share({
+        connector: () => new ReplaySubject(1),       // cache last value
+        resetOnComplete: () => timer(CACHE_TIMEOUT), // time-based reset
+      }),
+    );
+
+    constructor(private httpClient: HttpClient) {}
+  }
+  ```
+
+
+- Behavior:
+  - First subscription triggers HTTP request; all concurrent subscribers share the same response (multicast).[2][1]
+  - Subsequent subscriptions **within `CACHE_TIMEOUT`** get cached value immediately without new HTTP call.[1]
+  - After `CACHE_TIMEOUT` elapses and the subject resets, the **next subscription** triggers a new HTTP call and starts a fresh cache cycle.[1]
+- Compared to `shareReplay`:
+  - No manual `setTimeout` + field clearing; cache behavior fully described in the RxJS operator.[1]
+  - Avoids subtle issues where late subscribers might not see cached value if the internal subject completed or was reset incorrectly.[5][1]
+
+### Timeline / Behavior Section
+- Article illustrates a timeline:
+  - t0: 1st subscriber → HTTP request → value cached.[1]
+  - t1, t2 (< timeout): other subscribers → get same cached value, **no new request**.[1]
+  - t3 (> timeout): next subscriber → new HTTP request, cache refreshed.[1]
+- Shows that this pattern supports:
+  - Multiple consumers across components/services.
+  - Clear, predictable, time-based invalidation.[2][1]
+
+## Key APIs, Classes, Interfaces
+
+- **`HttpClient`** (Angular): `httpClient.get<T>(endpoint)` as source cold observable.[2][1]
+- **`Observable<T>`**: Service exposes `apiKey$: Observable<string>` for components to subscribe or `async`-pipe.[6][1]
+- **`ReplaySubject<T>`**:
+  - Used as `connector` in `share` to replay last value to late subscribers (classic caching primitive).[4][1]
+- **RxJS Operators**:
+  - `share({...})` (RxJS >= 7.1) with configuration:
+    - `connector: () => new ReplaySubject(1)` – create shared replay-capable subject.[6][1]
+    - `resetOnComplete` / `resetOnError` / `resetOnRefCountZero` – functions or booleans controlling when to drop cache and resubscribe on next subscription.[6][1]
+  - `tap()` for debug logging to verify request count.[1]
+  - `timer()` to implement time-based reset.[1]
+
+## Design Patterns
+
+- **Service-level Stream Caching**:
+  - Expose a cached observable (`apiKey$`) from an injectable service; components use `async` pipe or `subscribe` without knowing caching details.[2][1]
+- **Pure RxJS Caching**:
+  - Keep caching logic inside the stream pipeline, avoid imperative state management and separate invalidation timers.[5][1]
+- **Time-based Cache Invalidation**:
+  - Use `resetOnComplete` with a `timer` to schedule when the cache should be dropped and later resubscribed.[1]
+- **Replay + Multicasting**:
+  - `ReplaySubject(1)` ensures **latest value** is cached and delivered to all subscribers, similar to `shareReplay(1)` but with more control through `share`.[5][1]
+
+## Best Practices
+
+- Prefer `share` with configuration over ad-hoc `shareReplay` + `setTimeout` for:
+  - Readability: caching behavior is localized to a single operator.[1]
+  - Composability: the observable is reusable across app layers.[5][1]
+  - Fewer side-effectful instance fields and timers.[1]
+- Use `ReplaySubject(1)` if you want “get the last value immediately” caching semantics; adjust buffer size for multi-value use cases.[4][1]
+- Always **log or test** request counts (`tap`) to validate that caching behaves as expected (no hidden duplicate calls).[7][1]
+- Expose cached streams as readonly properties (`readonly apiKey$`) to avoid consumers overwriting them.[2][1]
+- Combine with Angular `async` pipe in templates to auto-manage subscriptions and avoid manual `subscribe/unsubscribe`.[5][6]
+
+## Advanced Topics / Trade-offs
+
+- **Staleness vs Freshness**:
+  - Time-based caching is a compromise; choose `CACHE_TIMEOUT` per domain (e.g., API keys, config data vs volatile data).[2][1]
+- **Manual vs Stream-based Invalidation**:
+  - Some patterns still require explicit refresh (e.g., user clicks refresh); that can be modeled by:
+    - Additional trigger stream that forces a re-subscription or resets `share` via `resetOnRefCountZero`.[13][5]
+- **Error Handling**:
+  - Decide whether errors should be cached or cause reset; you can configure `resetOnError` in `share` or place `catchError` around HTTP source.[5][1]
+- **Multi-key Caches**:
+  - For per-parameter caching (e.g., `getUser(id)`), you typically maintain a `Map<key, Observable>` and use the same `share` configuration per entry.[5][2]
+
+## External / Big-Company Style References
+
+- Thoughtram “Advanced caching with RxJS”: explores patterns with cache invalidation, explicit reload signals, and Angular integration.[5]
+- Various community & enterprise blogs show similar patterns using `shareReplay` or `publishReplay`+`refCount` for HTTP caching in Angular services.[4][2]
+- Modern tutorials (e.g., RxJS HTTP caching videos) also converge on `shareReplay`/`share` as the core technique for client-side API caching.[7]
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Why cache API responses in Angular with RxJS?**  
+A: To reduce redundant HTTP calls, improve perceived performance, and keep UI responsive even with intermittent network, especially for rarely-changing data like config or API keys.[2][5][1]
+
+**Q2: How does the classic `shareReplay` caching pattern work, and what are its drawbacks?**  
+A: Service keeps an `Observable` field; first call sets it to `http.get().pipe(shareReplay(1))`, later calls reuse it and manually clear it after a timeout. Drawbacks: imperative cache invalidation, risk of race conditions and harder-to-test side effects.[3][1]
+
+**Q3: How does the new `share`-based solution implement time-based caching?**  
+A: It pipes the HTTP observable through `share({ connector: () => new ReplaySubject(1), resetOnComplete: () => timer(CACHE_TIMEOUT) })`, so the observable multicasts and caches the last value and automatically resets the subject after a timeout, causing the next subscription to refetch.[6][1]
+
+**Q4: Why use `ReplaySubject(1)` as the connector instead of the default `Subject`?**  
+A: `ReplaySubject(1)` replays the last emitted value to late subscribers; a plain `Subject` would miss already-emitted values for subscribers that arrive later, breaking caching semantics.[4][1]
+
+**Q5: How would you expose cached API data to Angular components?**  
+A: Via a service that exposes a cached observable property (e.g., `apiKey$`) and use it in components through the `async` pipe or direct subscription, without components handling caching logic.[2][1]
+
+**Q6: What are typical pitfalls when implementing RxJS caching?**  
+A: Caching errors unintentionally, never refreshing stale data, memory leaks due to never-resetting subjects, and mixing imperative cache state with reactive streams in confusing ways.[5][1]
+
+**Q7: When would you avoid client-side RxJS caching?**  
+A: Highly dynamic/real-time data, strong consistency requirements, or when backend already implements efficient caching and client-side caching adds complexity without benefit.[8][2]
+
+## Important Terms & Keywords (for quick revision)
+
+- `HttpClient.get<T>()`  
+- `Observable<T>` as cache surface  
+- `shareReplay(1)` (classic caching)  
+- `ReplaySubject(1)`  
+- `share({ connector, resetOnComplete, resetOnError, resetOnRefCountZero })`  
+- Time-based caching, `CACHE_TIMEOUT`, `timer()`  
+- Service-level caching, pure RxJS caching  
+- Multicasting, hot observable  
+- Stale vs fresh data, cache invalidation  
+- In-memory cache vs server-side cache  
+- Angular `async` pipe with cached observables  
+
+These points should map well into your Obsidian-style notes and provide both conceptual and code-level talking points for a Senior Architect interview.
+
+[1](https://angularexperts.io/blog/rxjs-api-cache/)
+[2](https://www.sparkcodehub.com/angular/advanced/implement-api-caching)
+[3](https://stackoverflow.com/questions/49797910/angular-5-caching-http-service-api-calls)
+[4](https://angular.love/fastest-way-to-cache-for-lazy-developers-angular-with-rxjs/)
+[5](https://blog.thoughtram.io/angular/2018/03/05/advanced-caching-with-rxjs.html)
+[6](https://v17.angular.io/guide/rx-library)
+[7](https://www.youtube.com/watch?v=uzgzWkw_4fA)
+[8](https://blog.stackademic.com/managing-apis-using-rx-js-observable-streams-9eef7bc38055)
+[9](https://dev.to/this-is-angular/how-caching-data-in-angular-with-rxjs-27mj)
+[10](https://www.reddit.com/r/Angular2/comments/1e9qfyq/what_is_your_preferred_way_to_cache_api_calls_in/)
+[11](https://houseofangular.io/tech-knowledge/fastest-way-to-cache-for-lazy-developers-angular-with-rxjs/)
+[12](https://www.reddit.com/r/angular/comments/9leo6k/what_is_the_preferred_way_of_using_cache_to/)
+[13](https://stackoverflow.com/questions/77362395/angular-service-data-caching-with-rxjs)
+[14](https://angularexperts.io/blog/)
+[15](https://www.prestonlamb.com/blog/rxjs-cache-and-refresh-in-angular/)
+[16](https://dev.to/chrollo4ki/easy-caching-with-rxjs-jkl)
+[17](https://blog.searce.com/optimizing-angular-applications-leveraging-rxjs-a55230de2ad1)
+[18](https://itnext.io/how-to-cache-http-requests-in-angular-with-rxjs-9aa9d59ed044?gi=40856fb20850)

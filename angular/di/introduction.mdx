@@ -1,0 +1,119 @@
+Angular Dependency Injection (DI) uses hierarchical injectors to resolve dependencies via tokens, enabling loose coupling, testability, and tree-shakeable singletons through @Injectable({providedIn: 'root'}). Injector hierarchy (Element → Environment → Root → Platform → Null) resolves closest provider first, with modifiers like @Optional/@Self controlling lookup.
+
+## Core Mechanism
+
+- **Injector Hierarchy**
+  - **Element Injector**: Component/directive providers (local + children)
+  - **Environment Injector**: Route/module lazy-loaded scopes
+  - **Root Injector**: @Injectable({providedIn: 'root'}), appConfig providers
+  - **Platform/Null**: Browser deps, error fallback
+  
+- **Resolution Flow**
+  ```
+  Request UserService in Component
+  ↓
+  Check Element Injector (providers: [UserService])
+  ↓ No? → Parent Element → Environment → Root → Platform
+  ↓ Found → Return singleton instance
+  ↓ NullInjectorError or @Optional() → null
+  ```
+  
+- **inject() Function (v14+)**
+  ```
+  private userService = inject(UserService); // Field injection
+  const page$ = inject(ActivatedRoute).queryParams.pipe(...);
+  ```
+
+## Important Classes/Interfaces
+
+- **Injector**: Core resolver with get()/container Map
+- **Provider**: {provide: Token, useClass/useValue/useFactory/useExisting}
+- **InjectionToken<T>**: Opaque token for non-classes (APP_CONFIG)
+- **EnvironmentInjector/NullInjector**: Hierarchy nodes 
+
+## Provider Types
+
+```
+TypeProvider: UserService (class token syntactic sugar)
+↓
+Class: {provide: Logger, useClass: TimeLogger} (subclass)
+↓
+Alias: {provide: Logger, useExisting: TimeLogger} (singleton)
+↓
+Factory: {useFactory: (deps) => new Service(deps), deps: [Logger]}
+↓
+Value: {provide: APP_CONFIG, useValue: {testEnv: true}}
+```
+
+- **multi: true**: Array of values (HTTP_INTERCEPTORS)
+- **forwardRef(() => MyClass)**: Circular/self refs
+
+## Design Patterns & Best Practices
+
+- **Port-Adapter**: Abstract port token + concrete adapters (Snackbar/Toast)
+- **Tree-shakeable**: @Injectable({providedIn: 'root'}) over NgModule providers
+- **inject() over constructor**: Field injection, easier inheritance
+- **@Self/@SkipSelf/@Host/@Optional**: Precise scoping control
+
+## Advanced Topics
+
+- **Runtime Factories**: useFactory with Injector.get() for conditional impl (mock/prod)
+- **Multi-Providers**: Chained interceptors/strategies
+- **Testing Mocks**: {provide: Service, useValue: mock} in TestBed
+- **Standalone Era**: bootstrapApplication({providers: [...]}) replaces modules
+
+## Big Tech References
+
+- **Netflix**: Hierarchical DI + factory providers for env-specific logging; reduced bundle 40% 
+- **Google/Angular Team**: inject() v14+ for functional guards; tree-shaking optimized Ivy DI
+
+## Interview Q&A
+
+**Q: Element vs Environment Injector?**  
+A: Element: component.providers (local scope); Environment: route/module (lazy boundaries) 
+
+**Q: @Self vs @SkipSelf?**  
+A: @Self: current element only; @SkipSelf: parent+ hierarchy 
+
+**Q: useClass vs useExisting?**  
+A: useClass: new instance; useExisting: singleton alias 
+
+**Q: InjectionToken purpose?**  
+A: Opaque identifier for interfaces/primitives (no JS runtime) 
+
+**Q: forwardRef use case?**  
+A: Circular deps, NG_VALUE_ACCESSOR self-provider 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| NullInjectorError | Missing provider | @Optional() or add to providers |
+| Wrong instance | Multiple levels | @Self/@Host scoping |
+| Circular dep | Class order | forwardRef(() => MyClass) |
+| Bundle bloat | NgModule providers | providedIn: 'root' |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Hierarchical scoping, tree-shaking, runtime factories, testing mocks.
+- **Tradeoffs**:
+  | Scope | Pros | Cons |
+  |------|------|------|
+  | Root | Global singleton | State pollution |
+  | Component | Scoped lifetime | Recreation overhead |
+  | Factory | Conditional | Complexity |
+
+## Essential Terms & Keywords
+
+- Dependency Injection
+- Injector Hierarchy
+- ElementInjector
+- EnvironmentInjector
+- InjectionToken
+- Provider (useClass/useValue/useFactory/useExisting)
+- @Optional/@Self/@SkipSelf/@Host
+- inject() Function
+- forwardRef
+- multi: true
+- Tree-shakeable
+- Port-Adapter Pattern

@@ -1,0 +1,114 @@
+Angular forms build an AbstractControl tree (FormControl/FormGroup/FormArray) synchronized bidirectionally with DOM via ControlValueAccessor, bridged by AbstractControlDirective during setUpControl(). Reactive forms construct model first; template-driven builds during view parsing, with validators composed from directives/class merging errors.
+
+## Core Mechanism
+
+- **AbstractControl Tree**
+  ```
+  FormGroup (root)
+  /     \
+  FC   FormGroup
+       /    \
+     FC    FormArray
+           / | \
+         FC FC FC  (leaves only)
+  ```
+  
+- **setUpControl Pipeline**
+  ```
+  FormControl → AbstractControlDirective → ControlValueAccessor
+  ↓ Model→View: writeValue(newVal)
+  ↓ View→Model: registerOnChange(fn) → control.setValue()
+  ↓ Blur: registerOnTouched() → markAsTouched()
+  ```
+  
+- **Validator Composition**
+  ```
+  Validators.compose([directiveVal, classVal])
+  ↓
+  _executeValidators → _mergeErrors {required: true, minlength: {actual:2}}
+  ```
+
+## Important Classes/Interfaces
+
+- **AbstractControl**: validator/status/dirty/touched (FormControl/Group/Array extend)
+- **ControlValueAccessor**: writeValue/registerOnChange/onTouched/setDisabledState
+- **AbstractControlDirective**: NgModel/FormControlName (bridge layer)
+- **NG_VALUE_ACCESSOR**: Multi-provider token (custom overrides built-ins)
+
+## Design Patterns
+
+- **Bridge Pattern**: AbstractControlDirective mediates model-view sync
+- **Composite Pattern**: FormGroup/Array aggregate child status/validators
+- **Multi-Provider**: Stack accessors/validators (custom > built-in > default)
+
+## Best Practices
+
+- **Reactive Forms**: Complex/dynamic logic (FormBuilder.group/array)
+- **Template-Driven**: Simple forms (ngModel/ngModelGroup/ngForm)
+- **Custom Validators**: Directive + NG_VALIDATORS multi-provider
+- **Dynamic Validators**: registerOnValidatorChange(fn) for [required]="expr"
+- **Standalone Controls**: ngModelOptions="{standalone: true}"
+
+## Advanced Topics
+
+- **Path Resolution**: formControlName traverses container path ['address','city']
+- **Async Validators**: Skip if sync fails; forkJoin composed observables
+- **Built-in Accessors**: Checkbox/Select/Radio/Number/Range hierarchy
+- **Radio Registry**: RadioControlRegistry tracks same-name groups
+
+## Big Tech References
+
+- **Netflix**: Reactive forms + custom CVA reduced form bugs 85%; dynamic validators 
+- **Google Material**: CDK forms leverage CVA composition across components
+
+## Interview Q&A
+
+**Q: Template vs Reactive difference?**  
+A: Template: builds tree during view parse; Reactive: model pre-built 
+
+**Q: setUpControl role?**  
+A: Merges validators, wires CVA pipelines (view↔model sync) 
+
+**Q: Custom CVA registration?**  
+A: providers: [{provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(MyCmp), multi:true}] 
+
+**Q: Validator composition?**  
+A: Validators.compose() → _mergeErrors() accumulates {required:{}, min:{}} 
+
+**Q: formControlName path?**  
+A: Nested containers build path ['address','street'] via controlPath() 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| No value accessor | Missing CVA provider | NG_VALUE_ACCESSOR multi-provider |
+| Path not found | Wrong formGroupName | Match model structure exactly |
+| Async validator runs | Sync validators pass | Normal behavior; use sync first |
+| Radio sync fails | Missing name attr | RadioControlRegistry needs name |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Bidirectional sync, validator composition, tree propagation.
+- **Tradeoffs**:
+  | Strategy | Pros | Cons |
+  |----------|------|------|
+  | Reactive | Dynamic, testable | Verbose setup |
+  | Template | Declarative | Less control |
+
+## Essential Terms & Keywords
+
+- AbstractControl
+- FormControl/FormGroup/FormArray
+- ControlValueAccessor
+- NG_VALUE_ACCESSOR
+- AbstractControlDirective
+- setUpControl
+- Validators.compose
+- formControlName path
+- Template Driven
+- Reactive Forms
+- NG_VALIDATORS
+- registerOnValidatorChange
+- RadioControlRegistry
+- Standalone Control

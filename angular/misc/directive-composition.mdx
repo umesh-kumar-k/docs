@@ -1,0 +1,111 @@
+Angular Directive Composition API (`hostDirectives`) enables components/directives to compose standalone directives onto their host element declaratively in TS, encapsulating reusable behaviors (HostBindings, attributes, events) without template pollution. Angular 15+ feature promotes decomposition, type-safe inputs/outputs, and chaining for enterprise-scale reusable UI patterns in Senior Architect interviews.[1][2]
+
+## Directive Composition Intro Section
+**Key Points**:
+- `hostDirectives?: (Type<unknown> | {directive: Type<unknown>; inputs?: string[]; outputs?: string[]})[]` [1]
+- Applies directives to host element from component/directive TS class[2]
+- Multiple directives supported, no limits[1]
+
+## Default Behavior Section
+**Key Points**:
+- Inputs/Outputs **hidden** from public API by default[2][1]
+- Use `inputs: ['directiveInput']`, `outputs: ['directiveOutput']` to expose/remap[1]
+- Template type checking preserved[1]
+
+## Full Directive Feature Support Section
+**Key Points**:
+- All directive capabilities work: `HostBinding`, Injection Tokens, lifecycle hooks[1]
+- **Chaining**: Host directives can compose other host directives[1]
+
+## Limitations Section
+**Key Points**:
+- Directives must be **standalone: true**[1]
+- **One instance per directive type** per host (no duplicates in chain)[1]
+- **Components cannot** be used as host directives[1]
+
+## Practical Example Section (Tag Component)
+**Key Points**:
+```ts
+// Before: Component handles classes directly
+@HostBinding('class') get hostClass() { return [this.type(), this.variant()].join(' '); }
+
+// After: Extract to AppearanceDirective, compose
+hostDirectives: [AppearanceDirective]  // inputs auto-exposed or via config
+```
+- Replaces manual `@HostBinding` logic with composed directive[3]
+
+## Key Classes/Interfaces
+- **hostDirectives**: Array of `Type<Directive>` or `{directive, inputs[], outputs[]}`[2][1]
+- **AppearanceDirective**: Standalone directive with `input('type')`, `@HostBinding('class')`[3]
+- **CompanyDefaultDirective**: Composes `NoNavigationDirective`, `CompanyDaysOffDirective`, `{directive: ActiveDayDirective, inputs: ['day: startDate']}`[4]
+
+## Design Patterns & Best Practices
+- **Behavior Decomposition**: Extract `@HostBinding`/host logic to standalone directives[3][2]
+- **Input/Output Remapping**: `{inputs: ['directiveInput: componentInput']}` for aliases[1]
+- **DI Access**: `constructor(private directive: DirectiveType)` to interact with composed instances[5]
+- **Chaining**: Build directive hierarchies (MenuBehavior → AdminMenu)[2]
+- **Standalone Only**: Enforce modern Angular patterns[1]
+
+## Advanced Topics
+- **Input Transformation**: Access/modify via DI: `constructor(private hostDir: HostDirective)`[5]
+- **Complex Remapping**: `inputs: ['dirProp1', 'dirProp2: myCustomInput']`[1]
+- **Nested Composition**: Directive A composes Directive B composes Directive C[1]
+- Official: Angular CDK examples (MenuBehavior on components)[2]
+
+## Big Tech References
+- Angular Team: Official docs use `MenuBehavior` → `AdminMenuComponent` example[2]
+- No specific Google/FAANG case studies; adopted in Angular CDK core[2]
+
+## Interview Cheat Sheet
+**Q: What is Directive Composition API?**  
+A: `hostDirectives` array applies standalone directives to host element from TS class[2]
+
+**Q: Default inputs/outputs visibility?**  
+A: Hidden; expose via `{directive, inputs: ['dirInput'], outputs: ['dirOutput']}`[1]
+
+**Q: Directive requirements?**  
+A: Must be `standalone: true`; no components; unique per chain[1]
+
+**Q: Access composed directive instance?**  
+A: `constructor(private directiveInstance: DirectiveType)` via DI[5]
+
+**Q: Replace `@HostBinding` logic?**  
+A: Extract to standalone directive → `hostDirectives: [MyHostDirective]`[3]
+
+**Q: Chaining support?**  
+A: Yes, directives compose other host directives[1]
+
+**Q: Type checking?**  
+A: Full template type checking preserved[1]
+
+## Key Terms & Keywords
+- `hostDirectives`, Directive Composition API
+- `{directive: Type, inputs: string[], outputs: string[]}`
+- Standalone directives only
+- Input/output remapping/aliasing (`'dirInput: componentInput'`)
+- Directive chaining, nested composition
+- `@HostBinding`, HostListener via composition
+- DI access to host directive instances
+- Angular 15+, template type checking
+- Behavior decomposition pattern[3][2][1]
+
+[1](https://angularexperts.io/blog/angular-directive-composition/)
+[2](https://angular.dev/guide/directives/directive-composition-api)
+[3](https://www.angularspace.com/directive-composition-api/)
+[4](https://www.telerik.com/blogs/use-powerful-directive-composition-api-angular-15-kendo-ui)
+[5](https://www.thisdot.co/blog/introduction-to-directives-composition-api-in-angular)
+[6](https://angular.dev/guide/directives/directive-composition-api/)
+[7](https://www.bitovi.com/blog/angular-v15-directive-composition-api)
+[8](https://blog.angular-university.io/angular-if/)
+[9](https://dev.to/railsstudent/built-dry-components-with-signal-and-directive-composition-api-in-angular-4j8l)
+[10](https://www.telerik.com/blogs/angular-basics-controlling-flow-angular-templates-if-for-switch)
+[11](https://angular.love/en/work-smart-not-hard-use-directive-composition-api/)
+[12](https://www.angularjswiki.com/angular/directive-composition-api-in-angular-15/)
+[13](https://www.freecodecamp.org/news/angular-structural-directive-patterns-what-they-are-and-how-to-use-them/)
+[14](https://www.youtube.com/watch?v=1mlf3jx22Z0)
+[15](https://www.angular.love/en/2023/11/13/work-smart-not-hard-use-directive-composition-api/)
+[16](https://blog.angular-university.io/angular-for/)
+[17](https://www.angularspace.com/host-directives-decomposition-unleashed/)
+[18](https://v2.angular.io/docs/ts/latest/guide/structural-directives.html)
+[19](https://stackoverflow.com/questions/44597077/apply-a-directive-conditionally)
+[20](https://www.youtube.com/watch?v=ybsyBko_dag)

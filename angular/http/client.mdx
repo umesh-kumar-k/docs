@@ -1,0 +1,168 @@
+Angular 15 refurbishes `HttpClient` with **standalone setup (`provideHttpClient`)**, **functional interceptors (`HttpInterceptorFn`)**, and **better lazy-scope behavior** (`withRequestsMadeViaParent`), plus opt‑in legacy/class interceptors and extra `with*` features (JSONP, XSRF).[1]
+
+***
+
+## Standalone HttpClient APIs
+
+**Key Points**:
+- No more `HttpClientModule`; use **function-based providers**:
+  ```ts
+  import { provideHttpClient, withInterceptors } from '@angular/common/http';
+
+  bootstrapApplication(AppComponent, {
+    providers: [
+      provideHttpClient(
+        withInterceptors([authInterceptor]),
+      ),
+    ],
+  });
+  ```
+- Pattern: `provideXxx()` + composable `withXxx()` feature functions is the **standard standalone API pattern** (more tree-shakable than modules/methods).[1]
+- Static analysis can drop unused `with*` features → smaller bundles.[1]
+
+***
+
+## Functional Interceptors
+
+**Key Points**:
+- New **function-style** interceptors, no `class implements HttpInterceptor` needed:
+  ```ts
+  import { HttpInterceptorFn } from '@angular/common/http';
+  import { tap } from 'rxjs';
+
+  export const authInterceptor: HttpInterceptorFn = (req, next) => {
+    console.log('request', req.method, req.url);
+
+    if (req.url.startsWith('https://demo.angulararchitects.io/api/')) {
+      const headers = req.headers.set('Authorization', 'Bearer Auth-1234567');
+      req = req.clone({ headers });
+    }
+
+    return next(req).pipe(
+      tap(resp => console.log('response', resp)),
+    );
+  };
+  ```
+- Registered with `withInterceptors([authInterceptor])` inside `provideHttpClient`.[1]
+- Semantics identical to classic interceptors (can clone request, inspect/transform response).[1]
+
+***
+
+## Interceptors and Lazy Loading / Environment Injectors
+
+**Key Points**:
+- In Angular 15+ **route `providers`** create an **environment injector** (scope for that route + children).[1]
+- You can register a scoped `HttpClient` + interceptors for lazy feature routes:
+  ```ts
+  export const FLIGHT_BOOKING_ROUTES: Routes = [{
+    path: '',
+    component: FlightBookingComponent,
+    providers: [
+      MyService,
+      provideState(bookingFeature),
+      provideEffects([BookingEffects]),
+      provideHttpClient(
+        withInterceptors([bookingInterceptor]),
+        withRequestsMadeViaParent(),   // important
+      ),
+    ],
+  }];
+  ```
+
+**Default behavior**:
+- If **inner scope** defines interceptors, **outer-scope interceptors are ignored** (similar to old lazy-module behavior).[1]
+
+**`withRequestsMadeViaParent`**:
+- Changes behavior so **both inner and outer-scope interceptors run**.[1]
+- Useful for adding feature-specific interceptors (e.g., booking) while still keeping global ones (e.g., auth/logging).[1]
+
+***
+
+## Pitfall with `withRequestsMadeViaParent`
+
+**Key Points**:
+- A **root-scope service** that injects `HttpClient` is **unaware** of inner-scope interceptors:  
+  - It always uses the root `HttpClient` → only root interceptors run for its calls, even if feature routes added extra interceptors.[1]
+- Workaround:
+  - Register that service also in the route `providers` (inner scope) so it gets the scoped `HttpClient`.[1]
+- Recommendation:
+  - Avoid many inner-scope interceptors; prefer a **generic root** interceptor that can **dynamically import** additional logic for lazy parts.[1]
+
+***
+
+## Legacy Interceptors & Extra Features
+
+**Legacy/class-based interceptors**:
+- Still supported via `withLegacyInterceptors()` plus classic multi-provider:
+  ```ts
+  bootstrapApplication(AppComponent, {
+    providers: [
+      provideHttpClient(
+        withInterceptors([authInterceptor]),
+        withLegacyInterceptors(),
+      ),
+      {
+        provide: HTTP_INTERCEPTORS,
+        useClass: LegacyInterceptor,
+        multi: true,
+      },
+    ],
+  });
+  ```
+
+**Other `with*` features**:
+- `withJsonpSupport()` – enable JSONP.[1]
+- `withXsrfConfiguration({ cookieName, headerName })` – configure XSRF.[1]
+- `withNoXsrfProtection()` – completely disable XSRF protection.[1]
+- If `withXsrfConfiguration` not called, sensible defaults apply.[1]
+
+***
+
+## Design Patterns & Best Practices
+
+- Use **`provideHttpClient()` + `withInterceptors()`** in app bootstrap and route `providers` for modular HTTP configuration.[1]
+- Prefer **functional interceptors** for:
+  - Simpler DI (no class), better tree-shaking.
+  - Easy composition in tests (plain functions).[1]
+- Limit **inner-scope** interceptors:
+  - Use root interceptor + dynamic `import()` for feature-specific logic.[1]
+- For migration:
+  - Enable `withLegacyInterceptors()` and gradually convert class interceptors to `HttpInterceptorFn`.[1]
+- Recognize `provide*/with*` pattern as **general standalone API pattern** across Angular (Router, HttpClient, state, etc.).[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: How is HttpClient configured in Angular 15+ without `HttpClientModule`?**  
+A: Via `provideHttpClient()` in `bootstrapApplication`, optionally with features like `withInterceptors`, `withJsonpSupport`, `withXsrfConfiguration`.[1]
+
+**Q: What is a functional interceptor and how is it registered?**  
+A: It’s a function of type `HttpInterceptorFn = (req, next) => Observable<HttpEvent<any>>`, registered using `withInterceptors([fn])` inside `provideHttpClient()`.[1]
+
+**Q: How do interceptors behave with lazy-loaded routes / environment injectors?**  
+A: Interceptors registered in an inner environment injector override outer interceptors; using `withRequestsMadeViaParent()` on inner HttpClient ensures outer interceptors still run.[1]
+
+**Q: What is the main pitfall of `withRequestsMadeViaParent`?**  
+A: Root-scope services injecting `HttpClient` do not see inner-scope interceptors; they always use the root HttpClient, so only root interceptors apply to their calls unless those services are also provided in the inner scope.[1]
+
+**Q: How can you keep using class-based interceptors?**  
+A: Enable `withLegacyInterceptors()` in `provideHttpClient()` and register class interceptors via `HTTP_INTERCEPTORS` multi-provider as before.[1]
+
+**Q: What are some additional `with*` options for HttpClient?**  
+A: `withJsonpSupport()`, `withXsrfConfiguration()`, and `withNoXsrfProtection()` to control JSONP and XSRF behavior.[1]
+
+***
+
+## Key Terms & Keywords
+
+- `provideHttpClient()`, `withInterceptors()`
+- `HttpInterceptorFn` (functional interceptor)
+- Environment injector, route-level `providers`
+- `withRequestsMadeViaParent()`
+- `withLegacyInterceptors()`, `HTTP_INTERCEPTORS`
+- `withJsonpSupport()`, `withXsrfConfiguration()`, `withNoXsrfProtection()`
+- Standalone APIs: `provideXxx` + `withXxx` pattern
+- Tree-shakability, lazy scope interceptors[1]
+
+[1](https://www.angulararchitects.io/blog/micro-frontends-with-modern-angular-part-1-standalone-and-esbuild/)

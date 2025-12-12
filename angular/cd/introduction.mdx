@@ -1,0 +1,113 @@
+Angular change detection automatically synchronizes UI with state changes via view-based dirty checking and zone-monitored async events, enforcing unidirectional data flow in development mode. This mechanism prevents infinite loops while enabling efficient tree-wide updates, essential for performant Angular apps at scale.
+
+## Core Mechanism
+
+- **Views & Bindings Foundation**
+  - View: Internal structure per component holding DOM nodes[], component instance, oldValues[] (prior binding results)
+  - Binding: Compiler-generated def linking DOM prop (e.g., textContent) to expression fn via viewDefinition
+  - 1:1 component-to-view mapping; child views recurse during tree traversal
+  
+- **Checking Cycle (checkAndUpdateView)**
+  ```
+  1. Iterate bindings: eval expr → compare oldValue → update DOM if ≠ → store newValue in oldValues
+  2. Update directives/host bindings
+  3. Render LView (DOM ops)
+  4. Recurse child views
+  5. Fire lifecycle hooks (post: AfterViewChecked)
+  ```
+  
+- **Dev Mode Verification**
+  - Synchronous re-check post-cycle (no DOM writes)
+  - Diffs → ExpressionChangedAfterItHasBeenCheckedError (unidirectional enforcement)
+
+## Zone.js Integration
+
+```
+Zone.js monkey-patches async (setTimeout/events/Promise)
+↓
+NgZone detects stable → application.tick()
+↓
+Root ViewRef → tree-wide checkAndUpdateView
+```
+
+- **Optimization: NgZone.runOutsideAngular()**
+  - Frequent timers (e.g., Date.now() clocks) skip auto-triggers → manual detectChanges() if needed
+
+## Lifecycle Hook Ordering
+
+```
+Pre-render (per view): OnChanges → OnInit → DoCheck
+Post-children: AfterContentInit → AfterContentChecked → AfterViewInit → AfterViewChecked
+```
+- **Pitfall**: Child AfterViewChecked mutates parent post-parent bindings → error
+
+## Best Practices
+
+- Cache live getters (Date.now()) in fields; async update via setInterval(1) in runOutsideAngular
+- Unidirectional flow: No post-binding mutations (services/events in hooks)
+- OnPush strategy for pure components (skip unless @Input/Observable changes)
+- Debug: Breakpoint checkAndUpdateView; inspect view.component/nodes/oldValues
+
+## Advanced Topics
+
+- **Detached Views**: *ngIf=false/*ngFor-empty skips subtrees (tree-shaking)
+- **Manual Triggers**: cdr.detectChanges() for detached views; ng.profiler.timeChangeDetection()
+- **Zone-less Mode**: Angular 16+ signals bypass zones for finer control
+
+## Big Tech References
+
+- **Netflix**: OnPush + async pipes reduced CD cycles 70%; zonedOutside timers for metrics 
+- **Google (Angular team)**: Ivy renderer optimizes view updates; dev-mode errors caught pre-prod
+
+## Interview Q&A
+
+**Q: Why ExpressionChangedAfterItHasBeenCheckedError?**  
+A: Dev verification detects post-binding mutations; enforces unidirectional flow 
+
+**Q: Fix timestamp getter error?**  
+A: Cache field + setInterval(1) in NgZone.runOutsideAngular(); same value during check+verify 
+
+**Q: Zone.js role?**  
+A: Intercepts browser async → notifies NgZone → auto tree CD; runOutsideAngular skips 
+
+**Q: Hook order impact?**  
+A: Pre-render: OnInit/DoCheck; post-child: AfterViewChecked (parent mutation risk) 
+
+**Q: View.oldValues purpose?**  
+A: Dirty check: new expr !== oldValue triggers DOM update 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Live getter (Date.now()) | Diff check vs verify | Cache + async outside zone |
+| Child AfterViewChecked → parent | Post-parent binding | setTimeout(0) or OnPush/Observable |
+| Infinite CD loop | setInterval inside zone | runOutsideAngular() |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Automatic async CD, tree-shaking, dev safety checks.
+- **Tradeoffs**:
+  | Aspect | Pros | Cons |
+  |--------|------|------|
+  | Default (Default strategy) | Simple, full coverage | Frequent CD overhead |
+  | OnPush | Perf gains | Manual change tracking |
+
+## Essential Terms & Keywords
+
+- Change Detection
+- View
+- Bindings
+- oldValues
+- ExpressionChangedAfterItHasBeenCheckedError
+- NgZone
+- runOutsideAngular
+- checkAndUpdateView
+- Unidirectional Data Flow
+- Zone.js
+- Dirty Checking
+- AfterViewChecked
+- OnInit
+- DoCheck
+- OnChanges
+- OnPush Strategy

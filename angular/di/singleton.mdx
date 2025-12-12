@@ -1,0 +1,108 @@
+Angular services create multiple instances across lazy-loaded modules when added to @NgModule.providers, breaking singleton state like app config. Use `@Injectable({providedIn: 'root'})` or `forRoot()` static methods for true singletons, with tree-shaking and runtime guards preventing duplication.
+
+## Core Mechanism
+
+- **Duplication Problem**
+  - Lazy modules create new EnvironmentInjector per route
+  - providers: [Service] in lazy module → new instance
+  - Result: SettingsService.get('FEATURE') differs by module
+  
+- **Singleton Solutions**
+  ```
+  @Injectable({ providedIn: 'root' })  // Tree-shakeable, root lookup
+  ↓
+  static forRoot(): ModuleWithProviders {  // AppModule only
+    return { ngModule: MyModule, providers: [Service] }
+  }
+  ```
+  
+- **Resolution Hierarchy Override**
+  ```
+  Lazy Module Request → Skip local providers
+  ↓
+  EnvironmentInjector → RootInjector (providedIn: 'root')
+  ↓
+  Single instance returned
+  ```
+
+## Important Classes/Interfaces
+
+- **providedIn: 'root'/'any'/'platform'**: Scoping options (root preferred)
+- **ModuleWithProviders**: forRoot() return type
+- **RootInjectorGuard**: Base class with @Optional/@SkipSelf constructor check 
+
+## Design Patterns
+
+- **Singleton Pattern**: Restrict to one instance via DI scoping
+- **forRoot Convention**: Root-only providers (RouterModule pattern)
+- **Runtime Singleton Guard**: Constructor throws on duplicate detection
+- **Tree-shakeable Providers**: providedIn eliminates unused bundles
+
+## Best Practices
+
+- Never add singletons to lazy @NgModule.providers
+- Prefer providedIn: 'root' over forRoot (tree-shaking + testing)
+- AppModule.forRoot() only; lazy modules import without providers
+- Guard critical services: extends RootInjectorGuard(MyService)
+- InjectionToken: {providedIn: 'root', factory: () => new Service()}
+
+## Advanced Topics
+
+- **InjectionToken Singletons**: Second arg {providedIn: 'root', factory()}
+- **forRoot + providedIn**: Both work (root wins); no duplication
+- **providedIn: 'any'**: Per lazy module singleton (not app-wide)
+- **TestBed Compatibility**: providedIn services auto-resolve in tests
+
+## Big Tech References
+
+- **Netflix**: providedIn: 'root' + guards across 1000+ services; zero config duplication 
+- **Google/Angular Team**: Official docs mandate providedIn for new apps 
+
+## Interview Q&A
+
+**Q: Lazy module creates duplicate service?**  
+A: Yes, new EnvironmentInjector; fix with providedIn: 'root' 
+
+**Q: forRoot vs providedIn?**  
+A: providedIn tree-shakeable; forRoot conventional (RouterModule style) 
+
+**Q: Guard singleton at runtime?**  
+A: @Optional/@SkipSelf parent check → throw Error 
+
+**Q: InjectionToken singleton?**  
+A: new Token('name', {providedIn: 'root', factory: () => new Service()}) 
+
+**Q: providedIn: 'any' use case?**  
+A: Per-lazy-module singleton (not app-wide) 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Lazy duplicate | providers: [Service] | providedIn: 'root' |
+| Bundle bloat | NgModule providers | Tree-shakeable providedIn |
+| No test resolution | Missing TestBed | Auto-resolves with providedIn |
+| Multiple roots | AppModule + forRoot | AppModule.forRoot() only |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Tree-shaking, lazy-safe, runtime guards, testing friendly.
+- **Tradeoffs**:
+  | Approach | Pros | Cons |
+  |----------|------|------|
+  | providedIn: 'root' | Tree-shake + tests | Newer API |
+  | forRoot() | Conventional | Manual import |
+
+## Essential Terms & Keywords
+
+- Singleton Pattern
+- providedIn: 'root'
+- forRoot()
+- ModuleWithProviders
+- EnvironmentInjector
+- Lazy Module Duplication
+- RootInjectorGuard
+- @Optional/@SkipSelf
+- Tree-shakeable Providers
+- InjectionToken factory
+- providedIn: 'any'/'platform'

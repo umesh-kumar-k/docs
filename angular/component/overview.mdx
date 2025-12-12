@@ -1,0 +1,102 @@
+Angular flexible components use `ng-content` for simple content projection and `ng-template` + `@ContentChild` for dynamic rendering control, ensuring projected child lifecycle hooks fire correctly (ngOnInit/ngOnDestroy) unlike `ng-content` which binds to host lifecycle. This prevents memory leaks in expanders/tabs/cards with conditional content.
+
+## Core Mechanism
+
+- **Content Projection Approaches**
+  - **ng-content**: Simple slots; content inline, host lifecycle controls child hooks
+  - **ng-template + @ContentChild**: Dynamic render (ngIf); child lifecycle independent
+  
+- **Expander Implementation Flow**
+  ```
+  ng-content version:
+  <expander><clock></clock></expander>  // Clean API, wrong lifecycle
+  ↓
+  ng-template version:
+  <expander><ng-template><clock></ng-template></expander>  // Correct lifecycle
+  ```
+  
+- **Lifecycle Behavior**
+  ```
+  ng-content: Child ngOnInit @ host init, ngOnDestroy @ host destroy
+  ng-template: Child ngOnInit @ render, ngOnDestroy @ destroy
+  ```
+
+## Important Classes/Interfaces
+
+- **TemplateRef<any>**: Holds unreleased content for dynamic outlet
+- **@ContentChild(TemplateRef)**: Queries projected templates (multi: true for slots)
+- **ngTemplateOutlet**: Renders TemplateRef dynamically 
+
+## Design Patterns
+
+- **Slot/Content Projection**: Web Components `<slot>` equivalent
+- **Host-Template Decoupling**: Content logic independent of host
+- **Dynamic Rendering**: ngIf/wrapper controls child instantiation
+
+## Best Practices
+
+- **Simple Projection**: Use `ng-content` (tabs/cards without conditional render)
+- **Dynamic Content**: `ng-template` + `@ContentChild` (expanders, *ngIf wrappers)
+- **Multiple Slots**: `ng-content select="[slot]"` + named templates
+- **Lifecycle Safety**: Avoid subscriptions/heavy init in ngOnInit for ng-content children
+
+## Advanced Topics
+
+- **Multi-Slot Projection**: `@ContentChildren(TemplateRef, {read: TemplateRef})`
+- **Template Context**: `ngTemplateOutlet context="{ $implicit: data }"`
+- **Standalone Components**: No ViewChild needed for projection
+- **Performance**: ng-template defers child creation vs eager ng-content
+
+## Big Tech References
+
+- **Netflix**: ng-template expanders across UI library; eliminated 90% RxJS leaks from ng-content 
+- **Google Material**: CDK Overlay uses template projection for portals/popovers
+
+## Interview Q&A
+
+**Q: ng-content vs ng-template lifecycle?**  
+A: ng-content binds child to host lifecycle; ng-template to render lifecycle 
+
+**Q: Memory leak in expander clock?**  
+A: ng-content subscriptions persist; ng-template destroys properly 
+
+**Q: Mimic ng-content API with templates?**  
+A: `<expander><ng-template><content></ng-template></expander>` + @ContentChild 
+
+**Q: Multi-slot expander?**  
+A: `ng-content select="header"` + `select="body"` + named @ContentChildren 
+
+**Q: When prefer ng-content?**  
+A: Static projection without *ngIf; simpler API 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Child never destroys | ng-content + subscriptions | ng-template projection |
+| Complex API | Template refs + inputs | @ContentChild inside host |
+| No lifecycle hooks | ngIf hides ng-content | Dynamic ngTemplateOutlet |
+| Single slot only | Multiple ng-content | Named selectors |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Clean APIs, lifecycle control, dynamic rendering.
+- **Tradeoffs**:
+  | Approach | Pros | Cons |
+  |----------|------|------|
+  | ng-content | Readable inline | Wrong lifecycle |
+  | ng-template | Proper hooks | Template wrapper |
+
+## Essential Terms & Keywords
+
+- Content Projection
+- ng-content
+- ng-template
+- TemplateRef
+- @ContentChild/@ContentChildren
+- ngTemplateOutlet
+- Lifecycle Hooks (ngOnInit/ngOnDestroy)
+- Slot Projection
+- Dynamic Rendering
+- Memory Leaks
+- Multi-Slot Selectors

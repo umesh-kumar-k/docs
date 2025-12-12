@@ -1,0 +1,334 @@
+This article walks through a full OAuth2/OIDC setup where **Angular acts as OAuth2 Client**, **Keycloak as Authorization/OIDC Server**, and **Spring Boot as Resource Server**, using JWT bearer tokens for authentication/authorization.[1]
+
+***
+
+## OAuth2/OIDC & Roles Overview
+
+- Angular = **OAuth2 Client**, Keycloak = **Authorization / OIDC Server**, Spring Boot = **Resource Server** (validates JWT, enforces roles).[1]
+- OAuth2 handles authorization; OIDC adds **ID Token** (JWT) with user claims (sub, email, name).[1]
+- Flow: Angular redirects to Keycloak → user logs in → Angular receives **Access Token** (for Spring) and **ID Token** (user info).[1]
+- Angular attaches JWT in `Authorization: Bearer <token>` header to Spring; Spring validates using Keycloak’s public keys (issuer-based JWKS).[1]
+
+***
+
+## Keycloak Setup
+
+### Realms
+
+- Run Keycloak via Docker: realm admin `eternal` / `eternal123` on `http://localhost:8081`.[1]
+- Create **realm** `eternal` (isolated tenants: own users, roles, clients).[1]
+
+### Client Setup
+
+- Create OIDC client `eternal` (Client Type: OpenID Connect).[1]
+- Disable **Client authentication** (public client from SPA).[1]
+- Disable **Direct access grants** (no resource-owner password grant; SPA must not handle credentials).[1]
+- Valid redirect URIs/Web origins: `http://localhost:4200/` (with trailing slash).[1]
+
+### Users, Roles, Groups
+
+- Users:
+  - `John List` – customer, view holidays.  
+  - `Lucy Sanders` – admin, edit holidays.[1]
+- Client roles (for client `eternal`):
+  - `view-holidays`  
+  - `admin-holidays`[1]
+- Groups:
+  - `customer` (role `view-holidays`)  
+  - `admin` (role `admin-holidays`)[1]
+- Assign John → `customer`, Lucy → `admin`.[1]
+
+***
+
+## Angular: OAuth2 Client with Keycloak
+
+### keycloak-js Wrapper: `KeycloakService`
+
+- Install client lib: `npm i keycloak-js@22.0.5` (match Keycloak server version).[1]
+- Service wraps `Keycloak` instance:
+
+```ts
+@Injectable({ providedIn: 'root' })
+export class KeycloakService {
+  private _keycloak?: Keycloak;
+  profile?: UserProfile;
+
+  get keycloak() {
+    if (!this._keycloak) {
+      this._keycloak = new Keycloak({
+        url: 'http://localhost:8081',
+        realm: 'eternal',
+        clientId: 'eternal',
+      });
+    }
+    return this._keycloak;
+  }
+
+  async init() {
+    const authenticated = await this.keycloak.init({
+      onLoad: 'check-sso',
+      silentCheckSsoRedirectUri: window.location.origin + '/assets/silent-check-sso.html',
+    });
+    if (!authenticated) return false;
+
+    this.profile = await this.keycloak.loadUserInfo() as UserProfile;
+    this.profile.token = this.keycloak.token ?? '';
+    return true;
+  }
+
+  login()  { return this.keycloak.login(); }
+  logout() { return this.keycloak.logout({ redirectUri: 'http://localhost:8081' }); }
+}
+```
+
+- `silent-check-sso.html` allows **silent token refresh** in hidden iframe:
+
+```html
+<html><body>
+  <script>parent.postMessage(location.href, location.origin);</script>
+</body></html>
+```
+
+### Signals-based Store: `SecurityStore`
+
+- Wrap KeycloakService into a **signal store**:
+
+```ts
+@Injectable({ providedIn: 'root' })
+export class SecurityStore {
+  #keycloakService = inject(KeycloakService);
+
+  loaded = signal(false);
+  user = signal<User | undefined>(undefined);
+
+  loadedUser = computed(() => (this.loaded() ? this.user() : undefined));
+  signedIn   = computed(() => this.loaded() && !this.user()?.anonymous);
+
+  constructor() { this.onInit(); }
+
+  async onInit() {
+    const isServer = isPlatformServer(inject(PLATFORM_ID));
+    if (isServer) {
+      this.user.set(ANONYMOUS_USER);
+      this.loaded.set(true);
+      return;
+    }
+
+    const isLoggedIn = await this.#keycloakService.init();
+    if (isLoggedIn && this.#keycloakService.profile) {
+      const { sub, email, given_name, family_name, token } = this.#keycloakService.profile;
+      this.user.set({
+        id: sub,
+        email,
+        name: `${given_name} ${family_name}`,
+        anonymous: false,
+        bearer: token,
+      });
+    } else {
+      this.user.set(ANONYMOUS_USER);
+    }
+    this.loaded.set(true);
+  }
+
+  async signIn()  { await this.#keycloakService.login(); }
+  async signOut() { await this.#keycloakService.logout(); }
+}
+```
+
+- Supports SSR: server path sets anonymous user only.[1]
+
+### HTTP Interceptor: Attach JWT
+
+```ts
+export const securityInterceptor: HttpInterceptorFn = (req, next) => {
+  const store = inject(SecurityStore);
+  const bearer = store.user()?.bearer;
+  if (!bearer) return next(req);
+
+  return next(req.clone({
+    headers: req.headers.set('Authorization', `Bearer ${bearer}`)
+  }));
+};
+```
+
+- Optionally filter by API base URL before attaching token.[1]
+
+### Header/Login Component
+
+```html
+<div class="security">
+  @if (user(); as u) {
+    @if (u.anonymous) {
+      <button data-testid="btn-sign-in" mat-raised-button (click)="securityStore.signIn()">Sign In</button>
+    } @else {
+      <div class="flex items-center">
+        <p class="profile" data-testid="p-username">Welcome {{ u.name }}</p>
+        <button data-testid="btn-sign-out" mat-raised-button (click)="securityStore.signOut()">Sign Out</button>
+      </div>
+    }
+  }
+</div>
+```
+
+***
+
+## Spring Boot: OAuth2 Resource Server
+
+### Dependencies
+
+```groovy
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+}
+```
+
+### JWT Issuer Config
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: "http://localhost:8081/realms/eternal"
+```
+
+- Spring downloads JWKS from Keycloak realm and verifies signed JWTs.[1]
+
+### Security Configuration
+
+```java
+@Configuration
+public class SecurityConfiguration {
+
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+      .cors().configurationSource(request -> {
+        var cors = new CorsConfiguration();
+        cors.setAllowedOrigins(List.of("http://localhost:4200"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cors.setAllowedHeaders(List.of("*"));
+        cors.setAllowCredentials(true);
+        return cors;
+      })
+      .and()
+      .authorizeHttpRequests(authz -> {
+        try {
+          authz.anyRequest().authenticated()
+              .and()
+              .oauth2ResourceServer()
+              .jwt()
+              .jwtAuthenticationConverter(
+                  new KeycloakJwtAuthenticationConverter(List.of("account")));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      });
+    return http.build();
+  }
+}
+```
+
+### Role Mapping: `KeycloakJwtAuthenticationConverter`
+
+```java
+public class KeycloakJwtAuthenticationConverter
+    implements Converter<Jwt, AbstractAuthenticationToken> {
+
+  @Override
+  public AbstractAuthenticationToken convert(Jwt source) {
+    var defaultAuthorities = new JwtGrantedAuthoritiesConverter().convert(source);
+    var resourceRoles = extractResourceRoles(source);
+    return new JwtAuthenticationToken(
+        source,
+        Stream.concat(defaultAuthorities.stream(), resourceRoles.stream())
+              .collect(Collectors.toSet()));
+  }
+
+  private Collection<? extends GrantedAuthority> extractResourceRoles(Jwt jwt) {
+    var resourceAccess = new HashMap<>(jwt.getClaim("resource_access"));
+    var eternal = (Map<String, List<String>>) resourceAccess.get("eternal");
+    var roles   = (ArrayList<String>) eternal.get("roles");
+    return roles.stream()
+        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.replace("-", "_")))
+        .collect(Collectors.toSet());
+  }
+}
+```
+
+- Convert client roles (`view-holidays`, `admin-holidays`) into Spring `ROLE_VIEW_HOLIDAYS`, `ROLE_ADMIN_HOLIDAYS`.[1]
+- Use in controllers with `@Secured("ROLE_ADMIN_HOLIDAYS")` or `@PreAuthorize`.[1]
+
+***
+
+## Behavior & Testing
+
+- As `John List` (customer / `view-holidays`):
+  - Can view holidays endpoint.  
+  - Adding holiday (admin endpoint) → `401/403`.[1]
+- As `Lucy Sanders` (admin / `admin-holidays`):
+  - Can add holidays; backend authorizes via mapped roles.[1]
+
+***
+
+## Design Patterns & Best Practices
+
+- **SPA as Public OAuth2 Client**:
+  - Use **Authorization Code + PKCE** (implicit/disallowed; here Keycloak JS hides complexity).[1]
+- **Never handle user credentials in SPA**:
+  - No Direct Access Grants; follow OAuth 2.1 best practice.[1]
+- **Signals-based auth state**:
+  - `SecurityStore` as single source of truth (SSR-friendly).[1]
+- **Resource Server Approach**:
+  - JWT stays on the client; backend validates & authorizes with roles.[1]
+- Alternative (future article): Spring also as OAuth2 **Client** (server-side auth, HTTP-only cookie).[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Describe the roles of Angular, Keycloak, and Spring in this setup.**  
+A: Angular is the OAuth2 **Client** (SPA), Keycloak is the **Authorization / OIDC Server**, and Spring Boot is the **Resource Server** validating JWTs from Angular and enforcing authorization with mapped roles.[1]
+
+**Q2: How are users and roles modeled in Keycloak?**  
+A: Realm `eternal` defines client `eternal`; client roles `view-holidays` and `admin-holidays` assigned via groups `customer` and `admin` to users `John List` and `Lucy Sanders`.[1]
+
+**Q3: How does Angular integrate with Keycloak?**  
+A: Using `keycloak-js`, wrapped in `KeycloakService` that calls `init({ onLoad: 'check-sso', silentCheckSsoRedirectUri })`, `login()`, `logout()`, and `loadUserInfo()` to get OIDC profile + token.[1]
+
+**Q4: How is auth state represented in Angular?**  
+A: `SecurityStore` is a signal-based store with `user`, `loadedUser`, and `signedIn` computed signals; it maps Keycloak profile to domain `User` and handles SSR by defaulting to anonymous on server.[1]
+
+**Q5: How are API calls secured between Angular and Spring?**  
+A: An `HttpInterceptorFn` reads `user().bearer` from `SecurityStore` and attaches `Authorization: Bearer <token>` header to outgoing HTTP requests to the backend.[1]
+
+**Q6: How does Spring validate and use the JWT?**  
+A: As an OAuth2 Resource Server with `issuer-uri` set to the Keycloak realm; it fetches JWKS to validate signatures and uses a custom `KeycloakJwtAuthenticationConverter` to derive Spring authorities (`ROLE_*`) from `resource_access.eternal.roles`.[1]
+
+**Q7: How is role-based authorization enforced in backend endpoints?**  
+A: Controllers are annotated with `@Secured("ROLE_ADMIN_HOLIDAYS")` (or `@PreAuthorize`), relying on authorities produced by `KeycloakJwtAuthenticationConverter`.[1]
+
+***
+
+## Key Terms & Keywords (for MDX index)
+
+- OAuth2 roles: **Client**, **Authorization Server**, **Resource Server**  
+- Keycloak: **realm**, **client**, **client roles**, **groups** (`customer`, `admin`)  
+- Roles: `view-holidays`, `admin-holidays`  
+- OIDC: **ID Token**, **Access Token**, **claims** (`sub`, `email`, `given_name`, `family_name`)  
+- Angular:
+  - `keycloak-js`, `KeycloakService`, `SecurityStore`
+  - `signal`, `computed`, `HttpInterceptorFn`, `Authorization: Bearer`
+  - `silent-check-sso.html`  
+- Spring Boot:
+  - `spring-boot-starter-oauth2-resource-server`
+  - `issuer-uri`, JWKS, `SecurityFilterChain`
+  - `KeycloakJwtAuthenticationConverter`, `JwtAuthenticationToken`, `GrantedAuthority`, `ROLE_*`  
+- Patterns:
+  - SPA as public OAuth2 client
+  - Resource Server JWT validation
+  - Role mapping `resource_access[client].roles` → `ROLE_*`  
+- Alternative pattern (mentioned): Spring as Client with HTTP-only cookie.
+
+[1](https://www.angulararchitects.io/blog/micro-frontends-with-modern-angular-part-1-standalone-and-esbuild/)

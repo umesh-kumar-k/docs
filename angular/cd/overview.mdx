@@ -1,0 +1,120 @@
+Angular change detection runs recursively on a tree of views (1:1 with components), performing dirty checks via Zone.js-monitored async events and lifecycle hooks in precise order. View states (ChecksEnabled/OnPush) control skipping subtrees for performance, with ChangeDetectorRef methods enabling manual optimization.
+
+## Core Mechanism
+
+- **View as Foundation**
+  - Low-level abstraction: holds component instance, nodes[] (DOM refs/child views), state (ChecksEnabled/FirstCheck/Errored/Destroyed)
+  - 1:1 component-view mapping; tree traversal via nodes/parent
+  - DOM interpolations update during check; structure fixed (ViewContainerRef for dynamic)
+  
+- **checkAndUpdateView Cycle**
+  ```
+  1. Set firstCheck flag
+  2. Update child inputs/directives
+  3. Update child view state (OnPush logic)
+  4. Check embedded views (recurse)
+  5. OnChanges (if bindings changed)
+  6. OnInit/ngDoCheck (OnInit only first)
+  7. Update ContentChildren
+  8. AfterContentInit/Checked
+  9. Update DOM interpolations
+  10. Check child views (recurse)
+  11. Update ViewChildren
+  12. AfterViewInit/Checked
+  13. Disable checks (OnPush)
+  ```
+  
+- **State Control**
+  - Skip if !ChecksEnabled || Errored/Destroyed
+  - OnPush: Disable post-first check; re-enable if parent bindings change
+
+## ChangeDetectorRef Methods
+
+```
+detach(): view.state &= ~ChecksEnabled  // Skip subtree
+reattach(): view.state |= ChecksEnabled // Re-enable current
+markForCheck(): Walk to root, enable OnPush parents
+detectChanges(): Run once (ignores state)
+checkNoChanges(): Verify no changes (throws if unstable)
+```
+
+- **Hook Order (A→B→C)**:
+  ```
+  A: AfterContentInit/Checked → bindings
+  B: AfterContentInit/Checked → bindings  
+  C: AfterContentInit/Checked → bindings → AfterViewInit/Checked
+  B: AfterViewInit/Checked
+  A: AfterViewInit/Checked
+  ```
+
+## Design Patterns & Best Practices
+
+- **OnPush + markForCheck**: Skip unless @Input ref changes or ngDoCheck dirty checks
+- **detach/reattach in OnChanges**: Manual OnPush for non-@Input triggers
+- **detectChanges()**: Local subtree update (e.g., async data load)
+- **Avoid live getters**: Cache values; DOM updates only during check
+- **Zone optimization**: runOutsideAngular for frequent timers
+
+## Advanced Topics
+
+- **Ivy Differences**: Operations refactored; same public API (Angular 4+)
+- **Custom Dirty Checking**: ngDoCheck() + markForCheck() for array length/mutations
+- **View State Manipulation**: Low-level flags for perf; risky outside CDR
+- **Zone-less (Angular 16+)**: Signals bypass Zone.js for granular triggers
+
+## Big Tech References
+
+- **Netflix/Google**: OnPush + immutable state reduced CD cycles 70%; custom ngDoCheck for metrics 
+- **Angular Team**: Ivy optimizes view traversal; dev-mode errors prevent prod issues
+
+## Interview Q&A
+
+**Q: detach() vs OnPush?**  
+A: detach() skips immediately + subtree; OnPush auto-manages via @Input ref changes 
+
+**Q: Why OnChanges before child check?**  
+A: Allows child prep; fires even if child skipped (reattach opportunity) 
+
+**Q: markForCheck() traversal?**  
+A: Bubbles to root enabling OnPush parents only; safe for deep detached trees 
+
+**Q: DOM update timing?**  
+A: During check (interpolations); pre-first-check for structure 
+
+**Q: Fix skipped DOM after detach()?**  
+A: detectChanges() once or reattach() + detach() post-check 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Detached DOM stale | No check after prop change | OnChanges → detectChanges() |
+| OnPush array mutation | Ref same, contents changed | ngDoCheck length check + markForCheck |
+| Hook mutation error | AfterViewChecked → parent | detach() or setTimeout(0) |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Tree-shaking via state, manual control, lifecycle precision.
+- **Tradeoffs**:
+  | Strategy | Pros | Cons |
+  |----------|------|------|
+  | Default | Full coverage | CD overhead |
+  | OnPush | Skip subtrees | Manual triggers |
+  | Manual (detach) | Max control | Bug-prone |
+
+## Essential Terms & Keywords
+
+- View
+- ViewState (ChecksEnabled/FirstCheck)
+- checkAndUpdateView
+- ChangeDetectorRef
+- detach/reattach/markForCheck
+- detectChanges/checkNoChanges
+- OnPush
+- ViewFlags
+- ngDoCheck/OnChanges
+- Zone.js
+- Ivy Renderer
+- ViewContainerRef
+- ContentChildren/ViewChildren
+- Dirty Checking

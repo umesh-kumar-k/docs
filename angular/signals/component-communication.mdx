@@ -1,0 +1,146 @@
+Angular component communication with Signals uses `input()`, `model()`, `output()`, `contentChildren()`, and `viewChildren()` functions (replacing decorators), delivering reactive InputSignal/ModelSignal/OutputEmitterRef for granular OnPush updates, 2-way binding, and DOM/component queries with computed/effect reactivity. Angular Compiler transforms these into optimized bindings; required inputs lack defaults, transformers convert bound values.
+
+## Section-by-Section Key Points
+
+**Input Signals**
+```
+label = input.required<string>();     // InputSignal<string>
+featured = input<boolean>({transform: booleanAttribute});
+```
+- Template: `label()` (function call); `[label]="from()"` from signal
+- `input()` optional/undefined; `input.required()` mandatory
+- **No constructor access**: Use ngOnInit/ngOnChanges/computed/effect
+- **Aliases**: `{alias: 'title'}` → `<app-opt title="foo">`
+- **Transformers**: `booleanAttribute()`, `numberAttribute()`, custom fn
+
+**Two-Way Binding (Model Signals)**
+```
+current = model<number>(0);           // Input + Output
+```
+- Template: `[(current)]="tabIndex"` auto 2-way
+- Manual: `current = input(0); currentChange = output<number>();`
+- No transformers; initial value required
+
+**Content Queries**
+```
+tabs = contentChildren(TabCmp);       // Signal<TabCmp[]>
+tabs = contentChildren(TabCmp, {descendants: true});
+```
+- **Handles**: `#tab` → `contentChildren(TabCmp, {selector: '#tab'})`
+- **Read**: `{read: ElementRef<HTMLElement>}` or ViewContainerRef
+- Reactive: `computed(() => tabs()[current()])`
+
+**Output API**
+```
+confirmed = output<string>();
+confirmed.emit('foo');                // OutputEmitterRef
+tabChanged = outputFromObservable(obs$); // RxJS interop
+```
+- **Manual**: `instance.confirmed.subscribe()` on ComponentRef
+- **Observable**: `outputToObservable(ref.instance.output)` + race/merge
+
+**View Queries**
+```
+form = viewChild.required(NgForm);    // Single node
+inputs = viewChildren<HTMLInputElement>('input');
+```
+- **Dynamic add**: `placeholder().createComponent(ToastCmp)`
+- **setInput**: `ref.setInput('label', 'msg')`
+- **Event handling**: `ref.instance.output.subscribe()`
+
+## Important Classes/Interfaces
+
+- **input<T>()**: → InputSignal<T>
+- **model<T>()**: → ModelSignal<T> (2-way)
+- **output<T>()**: → OutputEmitterRef<T>
+- **contentChildren<T>()/viewChildren<T>()**: → Signal<T[]>
+- **contentChild<T>()/viewChild<T>()**: → Signal<T|undefined>
+
+## Design Patterns
+
+- **Reactive Projection**: `computed(() => tabs()[current()])`
+- **Signal 2-Way**: `model()` replaces `@Input/@Output` boilerplate
+- **Query Reactivity**: `contentChildren()` auto-updates on projection
+
+## Best Practices
+
+```
+✅ computed/effect: Replace ngOnChanges/ngOnInit for inputs
+✅ input.required: Mandatory props (no ctor access)
+✅ {descendants: true}: Nested queries when needed
+✅ outputFromObservable: Dynamic component RxJS events
+✅ OnPush: Native signal reactivity
+❌ Constructor: input.required() access (undefined)
+❌ Aliases: Unless directive selector mismatch
+```
+
+## Advanced Topics
+
+```
+Dynamic Components:
+placeholder = viewChild.required(ViewContainerRef);
+ref = placeholder().createComponent(DynamicCmp);
+ref.setInput('data', signalValue());
+outputToObservable(ref.instance.evt$).pipe(race(timer(5s)))
+
+Parent Injection:
+pane = inject(TabbedPaneComponent); // All DOM ancestors
+visible = computed(() => pane.currentTab() === this);
+```
+
+## Big Tech References
+
+- **Netflix**: Signal inputs + computed for dashboard widgets [enterprise reactivity]
+- **Angular Team**: Alex Rickabaugh: Idiomatic signal communication patterns
+
+## Interview Q&A
+
+**Q: input.required() in constructor?**  
+A: Undefined/error; use ngOnInit/computed/effect 
+
+**Q: model() vs input+output?**  
+A: model(): Auto 2-way; manual: explicit current/currentChange 
+
+**Q: contentChildren vs @ContentChildren?**  
+A: Signal reactive array vs static QueryList 
+
+**Q: Dynamic component events?**  
+A: `outputToObservable(ref.instance.output)` + operators 
+
+**Q: Query descendants?**  
+A: `{descendants: true}` for nested matches 
+
+## Error Patterns & Fixes
+
+| Scenario | Cause | Fix |
+|----------|-------|-----|
+| Required input undef | Constructor access | computed/effect/ngOnInit |
+| No 2-way binding | Missing model() | `[(prop)]="value"` → model() |
+| Stale query results | @ContentChildren | contentChildren() signal |
+| Dynamic event leak | No unsubscribe | outputToObservable auto-complete |
+
+## Key Highlights & Tradeoffs
+
+```
+🏆 Highlights: Reactive queries, native 2-way, granular updates
+⚖️ Tradeoffs:
+| New API | Legacy |
+|---------|---------|
+| Signals | QueryList |
+| Functions | Decorators |
+| Reactive | Static |
+```
+
+## Essential Terms & Keywords
+
+- input()/input.required()/model()
+- output()/outputFromObservable()
+- contentChildren()/viewChildren()/contentChild()/viewChild()
+- InputSignal/ModelSignal/OutputEmitterRef
+- {alias, transform, descendants, read}
+- createComponent/setInput
+- computed() for queries
+- booleanAttribute/numberAttribute
+- runInInjectionContext
+
+[1](https://www.angulararchitects.io/en/blog/component-communication-with-signals-inputs-two-way-bindings-and-content-view-queries/)

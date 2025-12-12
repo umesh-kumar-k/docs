@@ -1,0 +1,70 @@
+Angular Signals' **push/pull** model—producers **push** notifications, consumers **pull** values—explains behaviors across signals, computed (lazy pull), effects (eager poll→pull), and templates for zone/signals components. Expanded with **section-wise key points** from article for complete Senior Architect coverage.[1]
+
+## Signal Fundamentals (Article Intro)
+- Signals unify reactivity: pull via `()` (sync, multiple OK), push via `set()`/`update()` (notifies "changed", no value)[1]
+- **Reactive Graph**: Getters track reads → consumers subscribe to producers[1]
+- Quiz: `count()` twice → same value (pure function); `set()` notifies once[1]
+
+## Computed Signals Section
+**Key Points**:
+- `computed(() => count() * 2)` lazy: 0 reads despite `set()` pushes[1]
+- First `doubleCount()`: registers producers, computes/pulls[1]
+- Subsequent `set()`: marks stale → recompute only on next pull[1]
+- Batches: Multiple pushes → single pull with final value[1]
+
+## Effects Section
+**Key Points**:
+- `effect(() => console.log(count()))`: Dirty initial → runs on create[1]
+- Push marks dirty → on CD: poll producers → pull if changed → re-run[1]
+- Quiz: Ctor `set(1); set(2)` → effect sees final 2 (batched)[1]
+- Even computed +2: poll sees same → skip re-run[1]
+- `onCleanup(fn)`, `DestroyRef` auto-cleanup[1]
+
+## Templates Section
+**Key Points**:
+- Zone.js: Templates pull on CD (click → zone → pull signals)[1]
+- Signals components (`signals: true`): Push-driven CD[1]
+- Effect semantics: push → poll → pull for template refresh[1]
+
+## Push/Pull Deep Dive Section
+**Key Points**:
+- **Push**: Only notification (RxJS multicasting)[1]
+- **Pull**: Value retrieval (function-like)[1]
+- Effects poll computed (skip unchanged), always pull base signals[1]
+
+## Design Patterns & Best Practices
+- **Reactive Graph**: Producers → consumers via tracking[1]
+- Computed replaces `ngOnChanges`/BehaviorSubject; effects for side-effects[1]
+- Batch sync `set()`: Single notification/pull[1]
+- Effects prevent unnecessary API calls via polling[1]
+
+## Advanced Topics
+- **Polling Logic**: Computed unchanged → effect skips despite base signal push[1]
+- Signals Components: Zone-less, push CD[1]
+- Evolving: Check post-Dec 2023 impl, YouTube "Angular Signals In-depth"[1]
+
+## Interview Cheat Sheet
+**Q: Computed 0 runs despite `set()`?**  
+A: Lazy—never pulled → no execution/registration[1]
+
+**Q: Effect ctor `set(1); set(2)`?**  
+A: Batched → single run with final value[1]
+
+**Q: Even computed +2 skips effect?**  
+A: Poll sees unchanged computed → abort[1]
+
+**Q: Signals components CD?**  
+A: `signals: true` → push-driven, zone-less[1]
+
+**Q: Effect initial dirty run?**  
+A: Always runs first regardless of value[1]
+
+## Key Terms & Keywords
+- Push/pull, reactive graph, producers/consumers
+- `signal()`, `set()`, `update()`, getter tracking
+- `computed()`: lazy, stale, batching
+- `effect()`: dirty initial, push→poll→pull, `onCleanup()`
+- Signals components: `signals: true`, zone-less CD
+- Polling, eager notifications, lazy execution[1]
+
+[1](https://angularexperts.io/blog/angular-core-module-standalone-migration)

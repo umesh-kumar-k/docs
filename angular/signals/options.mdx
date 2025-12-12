@@ -1,0 +1,158 @@
+Angular Signals architecture explores 5 patterns for state management: direct component signals, service signals, readonly facades, state-signal services, and NGRX/Redux integration, emphasizing immutability, OnPush optimization, and computed derivations for fine-grained reactivity in enterprise apps.
+
+## Section-by-Section Key Points
+
+**Option 1: Signals in Component (arc-simple)**
+```
+from = signal('Hamburg');
+flights = signal<Flight[]>([]);
+search() { this.flights.set(await svc.find()); }
+```
+- Template: `<input [ngModel]="from()" (ngModelChange)="from.set($event)">`
+- OnPush + immutables required (object ref checks)
+- `flights.update(f => [{...f[0], date: newDate}, ...f.slice(1)])`
+- No ngModel 2-way binding yet (manual set)
+
+**Excursus: Change Detection**
+- OnPush: Checks on signal/async emit (Angular 17+ perf gains)
+- Signal Components (future): Granular `@for/@if` updates, no ancestor checks
+- Nested signals > immutables for fine-grained updates
+
+**Option 2: Move Signals to Service (arc-facade2)**
+```
+@Injectable({providedIn: 'root'})
+export class Facade {
+  readonly flights = signal<Flight[]>([]);
+  async load() { this.flights.set(await svc.find()); }
+}
+```
+- Component: `flights = this.facade.flights;`
+- State persists across route changes; shared across components
+
+**Option 3: Information Hiding (arc-facade3)**
+```
+private _flights = signal<Flight[]>([]);
+readonly flights = this._flights.asReadonly();
+updateCriteria(from: string) { this._from.set(from); }
+```
+- Forces controlled updates via service methods
+- RxJS Subject→Observable pattern equivalent
+
+**Option 3a: State-Signal Service (arc-facade3a)**
+```
+private state = signal({from: '', flights: []});
+readonly flights = computed(() => this.state().flights);
+updateCriteria(from: string) {
+  patchSignal(this.state, {from});
+}
+```
+- Single source-of-truth; `patchSignal` utility (Component Store inspired)
+- NGRX Signal Store preview
+
+**Option 4: NGRX Redux (arc-ngrx)**
+```
+criteria = this.store.selectSignal(selectCriteria);
+updateCriteria(from: string) {
+  this.store.dispatch(updateCriteria({from}));
+}
+```
+- Immutable state tree, actions/reducers/effects
+- `selectSignal` for Signal slices
+
+**Option 5: Store Facade (arc-ngrx-facade)**
+```
+@Injectable()
+export class Facade {
+  criteria = this.store.selectSignal(selectCriteria);
+  updateCriteria(from: string) {
+    this.store.dispatch(updateCriteria({from}));
+  }
+}
+```
+- Domain-specific API; gradual store adoption
+
+## Important Classes/Interfaces
+
+- **WritableSignal<T>, ReadonlySignal<T>**: Core signal types
+- **computed<T>()**: Derived reactive values
+- **patchSignal()**: Utility for partial state updates
+- **signal<T>(value)**: Writable signal factory
+
+## Design Patterns
+
+- **Signal Facade**: Service encapsulates state + controlled mutations
+- **Readonly Projection**: Private writable → public readonly signals
+- **State Signal**: Single object signal + computed derivations
+- **Redux Adapter**: NGRX `selectSignal` + dispatch
+
+## Best Practices
+
+```
+✅ Immutables: {...old, prop: new} not mutation
+✅ OnPush: Signal bindings trigger checks
+✅ Facade Services: State persistence, sharing
+✅ computed(): Derived state (flights.length → count)
+✅ patchSignal(): Partial updates (Component Store style)
+❌ Mutation: array.push() breaks reactivity
+```
+
+## Advanced Topics
+
+```
+Nested Signals (future advantage):
+total = computed(() => this.basket().size * this.price());
+
+Signal Components (planned):
+Granular @for/@if updates, no ancestor marking
+```
+
+- NGRX Signal Store evolution teased
+
+## Big Tech References
+
+- **Netflix**: Signal facades + computed for dashboard metrics [implied enterprise patterns]
+- **Angular Team**: Signals → future granular CD (no ancestor pollution)
+
+## Interview Q&A
+
+**Q: Signal vs Observable binding?**  
+A: Signal: direct `flights()`; Observable: `flights | async` 
+
+**Q: Why immutables mandatory?**  
+A: OnPush checks object refs; mutation invisible 
+
+**Q: State signal vs multiple signals?**  
+A: Single: patchSignal(); Multiple: explicit set() verbose 
+
+**Q: Facade vs direct component signals?**  
+A: Facade: state persistence, sharing; Component: simple 
+
+**Q: computed() re-execution?**  
+A: On dependency change; memoized until deps stable 
+
+## Key Highlights & Tradeoffs
+
+```
+🏆 Highlights: Fine-grained reactivity, OnPush perf, service sharing
+⚖️ Tradeoffs:
+| Pattern | Sharing | Complexity |
+|---------|---------|------------|
+| Component | No | Simple |
+| Facade | Yes | Controlled |
+| NGRX | Global | Redux boilerplate |
+```
+
+## Essential Terms & Keywords
+
+- WritableSignal/ReadonlySignal
+- computed()
+- patchSignal()
+- asReadonly()
+- OnPush + Signals
+- State Signal Pattern
+- Signal Facade
+- NGRX selectSignal
+- Immutables Required
+- Granular Change Detection
+
+[1](https://www.angulararchitects.io/blog/angular-signals-your-architecture-5-options/)

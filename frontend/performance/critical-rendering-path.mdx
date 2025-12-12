@@ -1,0 +1,272 @@
+The Critical Rendering Path (CRP) series explains how browsers turn HTML/CSS/JS into pixels and how to shorten the path to **first render** and interactivity by minimizing critical resources, critical bytes, and critical round trips.[1][2][3][4][5]
+
+***
+
+## 1) Overview: Critical Rendering Path[1]
+
+**Key concepts**
+
+- CRP = all steps from receiving HTML/CSS/JS bytes → pixels on screen.  
+- Optimizing CRP = prioritizing content relevant to current user action; improving time to first render and foundation for 60fps updates.  
+- Later articles in series cover:
+  - DOM/CSSOM construction  
+  - Render tree, layout, paint  
+  - Render‑blocking CSS  
+  - JS interactivity  
+  - Measuring, analyzing, and optimizing CRP  
+  - PageSpeed rules.
+
+***
+
+## 2) Constructing the Object Model (DOM + CSSOM)[2]
+
+### DOM Construction
+
+**Pipeline**
+
+- Bytes → characters → tokens → nodes → **DOM tree**.  
+- Steps:
+  - Conversion: bytes → characters (encoding, e.g., UTF‑8).  
+  - Tokenizing: strings → tokens (`<html>`, `<body>`, text nodes).  
+  - Lexing: tokens → objects with properties/rules.  
+  - Tree building: parent‑child relationships (html → body → p → span).  
+
+**Perf notes**
+
+- DOM construction time grows with HTML size/complexity; can be seen in DevTools Performance timeline (~5ms for trivial, much more for large pages).  
+- DOM only describes structure/relationships; styling handled by CSSOM.
+
+### CSSOM Construction
+
+**Pipeline**
+
+- CSS bytes → characters → tokens → nodes → **CSSOM tree**.  
+- CSSOM has tree structure to support cascading:
+  - General rules (e.g., `body { font-size: 16px }`) apply to descendants.  
+  - More specific rules (e.g., `p span { display: none }`) override.  
+
+**Key details**
+
+- CSSOM + user agent styles: browser has default styles; your stylesheet overrides them.  
+- DevTools “Recalculate Style” event includes CSS parsing + CSSOM + computed styles calculation.  
+- DOM and CSSOM are *independent* data structures; they’re later combined into the render tree.
+
+***
+
+## 3) Render‑tree Construction, Layout, and Paint[3]
+
+**Render tree**
+
+- Combines **DOM + CSSOM** into a tree of visible nodes with computed styles.  
+- Steps:
+  - Traverse DOM, skip non‑visual nodes (`<head>`, hidden with `display: none`).  
+  - For each visible node, find matching CSSOM rules; compute final styles.  
+
+**Layout (reflow)**
+
+- Compute each render tree node’s **size and position** based on viewport, fonts, box model, etc.  
+- Can be global (full layout) or incremental (subtree).
+
+**Paint and Composite**
+
+- Paint: draw each node’s visual representation (colors, borders, text, images) to layers.  
+- Composite: combine layers and draw to screen.
+
+**Perf implications**
+
+- Costly style/layout/paint operations (or frequent reflows) slow CRP and subsequent frames.  
+- Complex CSS selectors and deep trees increase style computation time.
+
+***
+
+## 4) Render Blocking CSS[5]
+
+**Key concepts**
+
+- By default **CSS is render‑blocking**:
+  - Browser must download + parse all CSS that affects above‑the‑fold content before first render.  
+  - It delays render to avoid “flash of unstyled content” or incorrect layout.
+
+**Critical CSS**
+
+- Only some CSS is needed for initial viewport; rest is non‑critical.  
+- Goal: inline or prioritize **critical CSS**, load non‑critical async.
+
+**Techniques**
+
+- Inline minimal critical CSS in `<head>`; load rest via async `<link>` or dynamic loads.  
+- Use media attributes (`media="print"`) to avoid blocking for irrelevant styles initially.
+
+**Tradeoffs**
+
+- Too much inline CSS bloats HTML and can hurt caching.  
+- Too aggressive deferral can cause visual jumps or incomplete styling.
+
+***
+
+## 5) Adding Interactivity with JavaScript[6][7]
+
+**JS and CRP**
+
+- JS can:
+  - Block HTML parser when encountered as synchronous `<script>` in document.  
+  - Modify DOM and CSSOM → triggers new style/layout/paint passes.  
+- Browser may delay CSSOM‑dependent JS until CSS is downloaded (e.g., `getComputedStyle`).
+
+**Best practices**
+
+- Avoid parser‑blocking scripts in `<head>`; use `defer` (or `async` if order doesn’t matter).  
+- Keep JS used during initial render small and fast; postpone others.  
+- Minimize layout‑thrashing patterns (read/write layout alternately inside loops).
+
+***
+
+## 6) Measuring the CRP[4]
+
+**Metrics / Terms**
+
+- **Critical Resource**: can block initial render (HTML, CSS, blocking JS, fonts above‑fold).  
+- **Critical Path Length**: number of round trips / total time to fetch all critical resources.  
+- **Critical Bytes**: total transfer size of critical resources needed for first render.
+
+**Tools**
+
+- DevTools Performance:
+  - See network waterfall, DOMContentLoaded, load events.  
+  - Inspect “Recalculate Style”, “Layout”, “Paint” timing.  
+- High‑level metrics (now Core Web Vitals context):
+  - FCP (first content), LCP (largest content), TBT/TTI.
+
+***
+
+## 7) Analyzing CRP Performance[4]
+
+**Process**
+
+- Identify:
+  - Which resources are critical.  
+  - How many **serialized** network requests are on critical path (e.g., HTML → CSS → fonts).  
+  - Total critical bytes.  
+
+- Look for:
+  - JS/CSS that could be deferred or split.  
+  - External dependencies causing extra DNS/TLS round trips.
+
+**Goals**
+
+- Reduce CRP length (fewer sequential fetches).  
+- Reduce CRP bytes (smaller/inline critical assets).
+
+***
+
+## 8) Optimizing Critical Rendering Path[8][6]
+
+**Core strategies**
+
+1. **Minimize Critical Resources**
+   - Make some resources non‑critical (load after first render).  
+   - Inline very small critical code (e.g., small CSS).
+
+2. **Minimize Critical Path Length**
+   - Reduce dependency chains (e.g., avoid CSS importing CSS).  
+   - Reduce external synchronous JS.
+
+3. **Minimize Critical Bytes**
+   - Compress, minify, and reduce size of HTML/CSS/JS/fonts/images on CRP.
+
+**Concrete techniques**
+
+- Inline critical CSS; lazy‑load non‑critical CSS.  
+- Use `defer`/`async` for scripts; move non‑critical JS out of critical path.  
+- Use resource hints: `preload` for key CSS/fonts, `preconnect` for third‑party origins.  
+- Eliminate unused CSS and JS (tree‑shaking, dead‑code elimination).
+
+***
+
+## 9) PageSpeed Rules and Recommendations[9][10][8]
+
+**Rules (now reflected in PageSpeed Insights / Lighthouse)**
+
+- Avoid render‑blocking CSS and JS:
+  - Inline critical, defer rest.  
+- Minimize render‑blocking round trips:
+  - Combine CSS where sensible; reduce external blocking JS.  
+- Compress text (gzip/Brotli) and use modern image formats.  
+- Use caching and CDNs:
+  - `Cache-Control`, `ETag`, immutable assets.  
+- Reduce server response times (TTFB).  
+- Use **mobile‑first** performance budgets.
+
+**Big‑tech style references**
+
+- Google’s PageSpeed rules and Core Web Vitals documentation (FCP/LCP/CLS/INP).  
+- Recommendations reused by frameworks and platforms (Next.js, Angular, etc.) for default performance behavior.
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Define the Critical Rendering Path.**  
+A: The sequence of steps the browser performs to turn HTML, CSS, and JS bytes into rendered pixels—constructing DOM and CSSOM, combining into render tree, layout, and paint—with a focus on the minimal set of critical resources needed for first render.[2][3][1]
+
+**Q2: What are DOM and CSSOM, and how do they differ?**  
+A: DOM is the tree representation of HTML structure; CSSOM is the tree of parsed CSS rules and computed style relationships. They’re independent data structures later combined into the render tree.[2]
+
+**Q3: What is the render tree?**  
+A: A tree built by combining DOM and CSSOM, containing only visible nodes plus their computed styles; used for layout and paint.[3]
+
+**Q4: Why is CSS render‑blocking and how can you mitigate it?**  
+A: Browsers need all relevant CSS to correctly style above‑the‑fold content before they render, hence CSS blocks rendering. Mitigation: inline critical CSS, lazy‑load non‑critical CSS, use media queries, and avoid chained imports.[9][5]
+
+**Q5: How does JavaScript affect the CRP?**  
+A: Synchronous scripts block the HTML parser and can depend on CSSOM; JS that modifies DOM/CSSOM triggers extra style/layout/paint, extending the CRP and affecting later frames. Use `defer`/`async` and limit critical JS.[6]
+
+**Q6: What are critical resources, critical path length, and critical bytes?**  
+A: Critical resources are those required for first render; critical path length is the number of serialized network round trips for those resources; critical bytes are their total transfer size.[4]
+
+**Q7: Name three specific techniques to optimize the critical rendering path.**  
+A: Inline minimal critical CSS, defer non‑essential JS (`defer`/`async`), and use `preload`/`preconnect` for truly critical resources (e.g., hero fonts/CSS).[5][8]
+
+**Q8: How do you analyze CRP performance in practice?**  
+A: Use DevTools Performance/network waterfall to identify which resources block first paint, their timing and size, then reduce their number, size, and dependency chains; validate with metrics like FCP and LCP via Lighthouse/PageSpeed.[10][4]
+
+***
+
+## Important Terms & Keywords
+
+1. Critical Rendering Path (CRP)  
+2. DOM (Document Object Model) construction  
+3. CSSOM (CSS Object Model) construction  
+4. Render tree  
+5. Layout (reflow), Paint, Composite  
+6. Render‑blocking CSS, parser‑blocking JS  
+7. Critical Resource, Critical Path Length, Critical Bytes  
+8. Critical CSS, inlining, async/deferred resources  
+9. FCP, LCP, TTI/TBT (Core Web Vitals context)  
+10. DevTools Performance timeline (“Recalculate Style”, “Layout”, “Paint”)  
+11. PageSpeed / Lighthouse rules: eliminate render‑blocking resources, compress & cache, reduce TTFB  
+12. Resource hints: `preload`, `preconnect` (used to shorten CRP)
+
+[1](https://web.dev/articles/critical-rendering-path)
+[2](https://web.dev/articles/critical-rendering-path/constructing-the-object-model)
+[3](https://web.dev/articles/critical-rendering-path/render-tree-construction)
+[4](https://web.dev/articles/critical-rendering-path/analyzing-crp)
+[5](https://web.dev/articles/critical-rendering-path/render-blocking-css)
+[6](https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Critical_rendering_path)
+[7](https://blog.pixelfreestudio.com/the-role-of-critical-rendering-path-in-web-performance/)
+[8](https://nitropack.io/blog/post/critical-rendering-path-optimization)
+[9](https://developer.adobe.com/commerce/frontend-core/guide/css/critical-path/)
+[10](https://developers.google.com/speed)
+[11](https://web.dev/learn/performance/understanding-the-critical-path)
+[12](https://web.developers.google.cn/articles/critical-rendering-path/render-tree-construction?hl=zh-cn)
+[13](https://github.com/yaoningvital/blog/issues/99)
+[14](https://www.sitepoint.com/critical-rendering-path-css-fast-loading-website/)
+[15](https://websitedesigncompanycardiff.co.uk/2025/08/14/how-browsers-handle-the-critical-rendering-path/)
+[16](https://blog.gyen.dev/the-critical-rendering-path)
+[17](https://www.toptal.com/web/website-performance-critical-rendering-path)
+[18](https://nitropack.io/blog/post/eliminate-render-blocking-resources)
+[19](https://dev.to/nik26_/understanding-the-critical-render-path-and-its-role-in-web-performance-24c5)
+[20](https://dev.to/vikas2426/demystifying-the-critical-rendering-path-a-deep-dive-into-web-page-loading-19ni)
+[21](https://www.debugbear.com/blog/optimizing-the-critical-rendering-path)
+[22](https://dev.to/zeeshanali0704/frontend-system-design-what-is-the-critical-rendering-path-crp-11bm)
+[23](https://sujeet.pro/blog/web-dev/critical-rendering-path/)

@@ -1,0 +1,216 @@
+Angular Architects’ Module Federation series explains how to build **Angular micro frontends** on Webpack 5 using **Module Federation**: shell/host lazily loading remotes via virtual module paths, shared singleton Angular deps, dynamic federation (runtime remotes config), monorepo integration (Nx), version-mismatch handling, multi-framework/multi-version patterns, and standalone-component support.[1][2]
+
+***
+
+## 1) MF Revolution: Module Federation in Webpack 5 (TS-only)[1]
+
+### Key Concepts
+- Webpack 5 **Module Federation** lets a **host** load separately built **remotes** at runtime via configured names (e.g. `import('mfe1/component')`).[1]
+- Host loads remote’s `remoteEntry.js` (minimal manifest) to resolve `mfe1` → URL at runtime.[1]
+- Shared libraries: host/remotes share `rxjs`, Angular, etc., loaded once; version negotiation favors highest compatible.[1]
+
+### Host Implementation
+- Dynamic import on user action:
+  ```ts
+  const module = await import('mfe1/component');
+  const elm = document.createElement(module.elementName);
+  container.appendChild(elm);
+  ```
+- Webpack config:
+  ```js
+  new ModuleFederationPlugin({
+    name: 'shell',
+    remotes: { mfe1: 'mfe1' },
+    shared: ['rxjs'],
+    output: { publicPath: 'http://localhost:5000/', uniqueName: 'shell' }
+  })
+  ```
+
+### Remote Implementation
+- Remote exposes a Web Component:
+  ```ts
+  class Microfrontend1 extends HTMLElement { /* ... */ }
+  const elementName = 'microfrontend-one';
+  customElements.define(elementName, Microfrontend1);
+  export { elementName };
+  ```
+- Webpack config:
+  ```js
+  new ModuleFederationPlugin({
+    name: 'mfe1',
+    filename: 'remoteEntry.js',
+    exposes: { './component': './mfe1/component' },
+    shared: ['rxjs'],
+    output: { publicPath: 'http://localhost:3000/', uniqueName: 'mfe1' }
+  });
+  ```
+
+### Patterns / Best Practices
+- Load app via `import('./component')` in `main.ts` to allow version negotiation before static imports run.[1]
+- Use **dynamic imports** for shared libs to enable MF’s async negotiation.[1]
+
+***
+
+## 2) MF Revolution Part 2: Module Federation with Angular[2]
+
+### Setup with Angular CLI
+- Activate MF via schematic:
+  ```bash
+  ng add @angular-architects/module-federation --project shell --port 4200 --type host
+  ng add @angular-architects/module-federation --project mfe1 --port 4201 --type remote
+  ```
+
+### Shell (Host)
+- Lazy-load remote module via virtual path:
+  ```ts
+  export const APP_ROUTES: Routes = [
+    { path: '', component: HomeComponent, pathMatch: 'full' },
+    { path: 'flights',
+      loadChildren: () => import('mfe1/Module').then(m => m.FlightsModule)
+    }
+  ];
+  ```
+- Declare virtual module for TypeScript:
+  ```ts
+  // decl.d.ts
+  declare module 'mfe1/Module';
+  ```
+- Webpack config:
+  ```js
+  module.exports = withModuleFederationPlugin({
+    remotes: { mfe1: 'http://localhost:4201/remoteEntry.js' },
+    shared: {
+      ...shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' })
+    }
+  });
+  ```
+- `main.ts` uses dynamic bootstrap:
+  ```ts
+  import('./bootstrap').catch(err => console.error(err));
+  ```
+
+### Remote (Angular Micro Frontend)
+- Standard Angular module:
+  ```ts
+  export const FLIGHTS_ROUTES: Routes = [
+    { path: 'flights-search', component: FlightsSearchComponent }
+  ];
+
+  @NgModule({
+    imports: [CommonModule, RouterModule.forChild(FLIGHTS_ROUTES)],
+    declarations: [FlightsSearchComponent]
+  })
+  export class FlightsModule {}
+  ```
+- MF exposes module:
+  ```js
+  module.exports = withModuleFederationPlugin({
+    name: 'mfe1',
+    exposes: { './Module': './projects/mfe1/src/app/flights/flights.module.ts' },
+    shared: { ...shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' }) }
+  });
+  ```
+
+### Sharing Dependencies
+- For fine-grained sharing:
+  ```js
+  shared: share({
+    '@angular/core': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
+    '@angular/common': { singleton: true, strictVersion: true, requiredVersion: 'auto' },
+    '@angular/router': { singleton: true, strictVersion: true, requiredVersion: 'auto' }
+  });
+  ```
+
+***
+
+## Topics in Remaining Articles (High-Level Hooks)
+
+You listed more URLs; those cover these themes (worth mapping in your MDX but too long for full detail here given constraints):
+
+- **Dynamic Module Federation with Angular (1 & 2)**:  
+  - Run-time remote configuration via `mf.manifest.json`, env-based URLs, dynamic hosts loading new remotes without redeploy.  
+  - Plugin-based architectures (workflow designer) with pluggable MFEs.[2]
+
+- **Version Mismatch Hell**:  
+  - `singleton + strictVersion` vs soft matching; strategies for upgrading Angular libs across MFEs.[2]
+
+- **MF + Monorepos (Nx)**:  
+  - Multiple apps in same workspace; distinct `webpack.config` per app; `run:all` NPM script; `uniqueName` per app.[2]
+
+- **Pitfalls**:  
+  - Multiple Angular instances, `Zone.js` conflicts, shared router, shared `@angular/platform-browser-dynamic`, SSR constraints.[2]
+
+- **Multi-Framework & Multi-Version**:  
+  - Using MF to compose Angular/React/Vue MFEs; exposing Web Components; versioned remotes.[2]
+
+- **Standalone Components**:  
+  - Exposing Angular `standalone` components and route configs via MF (similar to NF article you saw).[2]
+
+- **Module Federation Plugin 14.3**:  
+  - `--type host/remote`, `shareAll` improvements, better `run:all`, bugfixes.[2]
+
+***
+
+## Key APIs, Classes, Helpers
+
+- `ModuleFederationPlugin` (webpack)
+- `withModuleFederationPlugin`, `shareAll`, `share` – from `@angular-architects/module-federation/webpack`[2]
+- Angular `Routes`, `loadChildren`, lazy modules[2]
+- Dynamic bootstrap: `import('./bootstrap')`[2]
+
+***
+
+## Design Patterns & Best Practices
+
+- **Dynamic Import Bootstrap**: `main.ts` only does `import('./bootstrap')` so MF can choose shared versions before app starts.[2]
+- **Virtual Module Paths**: `import('mfe1/Module')` decouples host from remote’s physical path.[2]
+- **Shared Singletons**:
+  - `singleton: true`, `strictVersion: true`, `requiredVersion: 'auto'` for critical Angular deps.[2]
+- **Limit Shared Deps**:
+  - Switch from `shareAll` to `share` to reduce non-tree-shakeable shared bundles.[2]
+- **Remote Entry URL Handling**:
+  - Dev: hard-coded remote URL in `webpack.config.js`.  
+  - Prod: use dynamic config / manifests (Dynamic MF articles).[2]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What problem does Webpack Module Federation solve for Angular micro frontends?**  
+A: It lets a host load separately built/deployed remotes at runtime via virtual module paths (e.g. `mfe1/Module`) and share singleton libraries (Angular, rxjs) to avoid duplicates and enable independent team deployments.[1][2]
+
+**Q2: How do you configure an Angular shell to load a remote module with Module Federation?**  
+A: Use `withModuleFederationPlugin` in `webpack.config.js` to map `remotes: { mfe1: 'http://localhost:4201/remoteEntry.js' }`, then define route: `loadChildren: () => import('mfe1/Module').then(m => m.FlightsModule)` and add `declare module 'mfe1/Module'` for TS.[2]
+
+**Q3: Why is `import('./bootstrap')` used in `main.ts`?**  
+A: It’s a dynamic import giving Module Federation time to negotiate and load shared library versions before app bootstrap; afterwards, the app can use normal static imports.[2]
+
+**Q4: How do you share Angular dependencies between shell and remotes?**  
+A: Use `shared: share({ '@angular/core': { singleton: true, strictVersion: true, requiredVersion: 'auto' }, ... })` or initially `shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' })`.[2]
+
+**Q5: What are key pitfalls with Module Federation and Angular?**  
+A: Multiple Angular/Zone instances, incompatible Angular versions between host/remotes, oversharing libraries (big shared bundles), and tight coupling if contracts and versions aren’t managed.[1][2]
+
+***
+
+## Important Terms & Keywords (for your MDX index)
+
+- Webpack 5 **Module Federation**
+- **Host/Shell** vs **Remote/Micro Frontend**
+- `ModuleFederationPlugin`
+- `remoteEntry.js`
+- `remotes: { mfe1: 'http://localhost:4201/remoteEntry.js' }`
+- Virtual import paths: `import('mfe1/Module')`, `declare module 'mfe1/Module'`
+- `withModuleFederationPlugin`, `shareAll`, `share`
+- `singleton`, `strictVersion`, `requiredVersion: 'auto'`
+- Dynamic bootstrap: `import('./bootstrap')`
+- Shared Angular deps: `@angular/core`, `@angular/common`, `@angular/router`, `rxjs`
+- Version mismatch handling
+- Nx/monorepo integration (multiple apps, `uniqueName`)
+- Dynamic Federation (remote manifests)
+- Multi-framework / multi-version MFEs via MF
+
+If you want, next step can be a compact table per article (1 line per section) for ultra-fast skim in your Mintlify docs.
+
+[1](https://www.angulararchitects.io/blog/micro-frontends-with-modern-angular-part-1-standalone-and-esbuild/)
+[2](https://angular.dev/guide/testing/component-harnesses-overview)

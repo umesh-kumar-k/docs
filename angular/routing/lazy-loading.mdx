@@ -1,0 +1,104 @@
+The specific Angular.love article content is not accessible (the URL currently shows different material), so a precise section‑by‑section summary of that page is not possible. For senior‑level prep on “lazy loading with Ivy,” the key Ivy‑era patterns are:[1]
+
+## Core Ivy lazy‑loading patterns
+
+- **Router‑based module lazy loading (Ivy+):**  
+  ```ts
+  const routes: Routes = [
+    {
+      path: 'admin',
+      loadChildren: () =>
+        import('./admin/admin.module').then(m => m.AdminModule),   // or
+      // loadChildren: async () => (await import('./admin/admin.module')).AdminModule
+    }
+  ];
+  ```
+  - Dynamic `import()` activates Webpack code‑splitting and produces a separate JS chunk for `AdminModule` and deps.[2][3]
+  - Ivy simplifies this – no `SystemJsNgModuleLoader`, no magic string syntax.
+
+- **Manual module lazy loading with Ivy:**
+  - Use `import('./lazy/lazy.module')` and the Angular `Compiler` to compile and instantiate the module at runtime when not using the router.[2]
+  - Service pattern:
+    ```ts
+    @Injectable({ providedIn: 'root' })
+    export class LazyLoaderService {
+      constructor(private compiler: Compiler, private injector: Injector) {}
+
+      loadModule(path: () => Promise<NgModuleFactory<any> | Type<any>>) {
+        return path()
+          .then(modOrFactory =>
+            modOrFactory instanceof NgModuleFactory
+              ? modOrFactory                                // ViewEngine
+              : this.compiler.compileModuleAsync(modOrFactory) // Ivy
+          )
+          .then(factory => factory.create(this.injector).instance);
+      }
+    }
+    ```
+    and call `loadModule(() => import('./lazy/lazy.module').then(m => m.LazyModule));`.[2]
+
+- **Component‑level lazy loading with Ivy:**
+  - Use dynamic `import()` of a standalone component or a component factory and insert via `ViewContainerRef.createComponent`, or rely on newer `@defer` for template‑level lazy loading (modern Angular 17+).[4][5]
+
+## Important classes/interfaces
+
+- `NgModuleFactory`, `Compiler`, `Injector` – used when manually compiling/loading NgModules under Ivy.[2]
+- `loadChildren` in `Routes` – standard Ivy‑era router lazy‑load entry point.[3]
+- `ViewContainerRef` / `ComponentRef` – for dynamic component instantiation when lazy‑loading components.[4]
+
+## Design patterns
+
+- **Router‑driven feature slicing:** use lazy routes to split app into coarse‑grained feature bundles; Ivy’s `import()` syntax handles code‑splitting.[3]
+- **Service‑based module loader:** encapsulate Ivy compilation vs ViewEngine differences, exposing a simple `loadModule` contract – still relevant when you must lazy‑load modules without the router.[2]
+- **Dynamic component loading:** Ivy enables direct lazy loading of components without wrapper NgModules; this pattern is largely superseded today by standalone components + `@defer` but is still useful in older architectures.[5][4]
+
+## Best practices (Ivy era)
+
+- Prefer **router lazy loading** for modules; keep manual `Compiler` usage in a small, well‑tested service if needed.[3][2]
+- Keep lazy modules **feature‑scoped** (e.g., `admin`, `reports`) to minimize cross‑bundle coupling and avoid pulling large shared modules into every lazy chunk.  
+- Use **dynamic `import()` only as lazy boundaries**; avoid scattering them for small components that don’t justify extra network requests.  
+- Avoid legacy `loadChildren: './lazy/lazy.module#LazyModule'`; always use Ivy‑style dynamic imports.[3]
+
+## Interview cheat sheet (Q & A)
+
+- **Q: How did Ivy change lazy loading compared to ViewEngine?**  
+  A: Ivy uses standard `import()` for router (`loadChildren`) and manual loaders, eliminating `SystemJsNgModuleLoader` and magic strings, and allowing direct compilation of `Type<any>` via `Compiler.compileModuleAsync`.[3][2]
+
+- **Q: How do you lazy‑load a module via the router in Ivy?**  
+  A: Configure `loadChildren: () => import('./feature/feature.module').then(m => m.FeatureModule)` (or `async/await` variant); the CLI creates a separate chunk for that module.[3]
+
+- **Q: How can you programmatically lazy‑load a module without the router under Ivy?**  
+  A: Use a service that calls `import('./lazy/lazy.module')`, then passes the result to `Compiler.compileModuleAsync` (if it’s a `Type`), then `factory.create(injector)` to instantiate.[2]
+
+- **Q: How is component‑level lazy loading different with Ivy?**  
+  A: Ivy allows dynamic imports of components and direct `createComponent` calls without intermediate NgModules, enabling fine‑grained lazy loading and patterns later generalized by `@defer`.[5][4]
+
+## Key terms & keywords (scan list)
+
+- Ivy renderer / Angular 9+  
+- `loadChildren` with dynamic `import()`  
+- Router lazy loading of NgModules  
+- Manual lazy loading via `Compiler.compileModuleAsync`  
+- `NgModuleFactory`, `Injector`  
+- Dynamic component loading (Ivy)  
+- Code‑splitting, lazy chunks
+
+[1](https://angular.love/asynchronous-modules-and-components-in-angular-ivy/)
+[2](https://juri.dev/blog/2019/10/lazyload-module-ivy-viewengine/)
+[3](https://www.ahmedbouchefra.com/lazy-loading-angular-11-modules-ivy-async-await/)
+[4](https://brianflove.com/posts/2019-12-13-lazy-load-angular-v9-components/)
+[5](https://angular.dev/guide/templates/defer)
+[6](https://dev.to/phenomnominal/automatically-upgrade-lazy-loaded-angular-modules-for-ivy-2bjj)
+[7](https://www.thisdot.co/blog/loading-components-dynamically-in-angular-9-with-ivy)
+[8](https://techvify.com/lazy-loading-in-angular/)
+[9](https://stackoverflow.com/questions/48124682/is-there-a-way-to-lazy-load-components-not-modules-in-angular)
+[10](https://github.com/IgorMinar/ivy-lazy-load-component)
+[11](https://stackoverflow.com/questions/75883330/how-to-load-lazy-modules-programmatically-in-angular-app)
+[12](https://www.telerik.com/blogs/how-to-lazy-load-component-angular)
+[13](https://www.freecodecamp.org/news/lazy-loading-in-angular-intro-to-ngmodules/)
+[14](https://www.youtube.com/watch?v=qc4xHvOiLK8)
+[15](https://dev.to/negue/lazy-loaded-components-in-angular-4lnd)
+[16](https://github.com/juristr/manually-lazy-load-ngmodule)
+[17](https://www.youtube.com/watch?v=lyuT4_okMUQ)
+[18](https://www.youtube.com/watch?v=HKQsj1wSiP4)
+[19](https://v9.angular.cn/guide/lazy-loading-ngmodules)

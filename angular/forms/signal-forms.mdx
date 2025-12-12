@@ -1,0 +1,112 @@
+Angular Signal Forms (experimental) provide a **signal-first, reactive form API** that bridges user inputs with linked signals, supporting validation (sync/async/HTTP), nested forms/arrays, conditional rules, custom controls, and subforms. Designed for modern Angular (signals, zoneless), they replace legacy reactive forms with cleaner, more composable patterns.[1]
+
+## First Signal Form Section
+**Key Points**:
+- Create via `form(signal, schema)` where `signal` is a `linkedSignal` of form model[1]
+- Schema uses validators: `required(path.from)`, `minLength(path.from, 3)`, `validate(path, ctx => ...)`[1]
+- `customError({kind: 'city', value, allowed})` for typed errors[1]
+- Bind with `Control` directive: `<input [control]="flightForm.from">`[1]
+- Form fields expose signals: `flightForm.from().errors()`, `.dirty`, `.invalid`, `.pending`[1]
+
+## Refactoring Validators Section
+**Key Points**:
+- Extract to functions: `validateCity(path: FieldPath<string>, allowed: string[])`[1]
+- Use in schema: `validateCity(path.from, ['Graz', 'Hamburg', 'Zürich'])`[1]
+
+## Error Messages & Display Section
+**Key Points**:
+- Validators accept `{message: 'Please enter a value!'}` → `error.message`[1]
+- `<app-validation-errors [errors]="flightForm.from().errors()">` component extracts messages[1]
+- Fallback: `toMessage(error)` based on `error.kind`[1]
+
+## Schema Patterns Section
+**Key Points**:
+- Separate schemas: `export const flightSchema = schema<Flight>((path) => {...})`[1]
+- Reuse: `apply(path, flightSchema)`, `flightFormSchema` extends base[1]
+
+## Conditional Validation Section
+**Key Points**:
+- `applyWhenValue(path.delay, (flight) => flight.delayed, delayedFlight)`[1]
+- Alternatives: `applyWhen(path, ctx => ctx.valueOf(path.delayed))`, `required(path, {when: ctx => ...})`[1]
+- Field modifiers: `disabled(path.delay, ctx => !ctx.valueOf(path.delayed))`, `hidden()`, `readonly()`[1]
+
+## Multi-Field Validators Section
+**Key Points**:
+- `validateTree(path, ctx => { from: ctx.field.from().value(), to: ctx.field.to().value() })`[1]
+- Errors bubble to parent level: `flightForm().errors()`[1]
+- `errorSummary()` aggregates child errors[1]
+
+## Async & HTTP Validators Section
+**Key Points**:
+- `validateAsync(path, {params: ctx => ({value: ctx.value()}), factory: params => rxResource(...), errors: result => ...})`[1]
+- `validateHttp(path, {request: ctx => ({url, params}), errors: result => ...})`[1]
+- `.pending()` during async validation[1]
+
+## Nested Forms & Arrays Section
+**Key Points**:
+- Nested: `apply(path.aircraft, aircraftSchema)` → `flightForm.aircraft.registration()`[1]
+- Arrays: `applyEach(path.prices, priceSchema)` → `@let priceForms = flightForm.prices; @for(price of priceForms; track price)`[1]
+- Manipulate: `pricesForms().value.update(prices => [...prices, initPrice])`[1]
+
+## Subforms & Custom Controls Section
+**Key Points**:
+- Subforms: `<app-aircraft [aircraft]="flightForm.aircraft">`, `aircraft = input.required<Field<Aircraft>>()`[1]
+- Custom controls implement `FormValueControl<T>`: `value = model(0)`, `disabled = input()`, `errors = input<ValidationError[]>()`[1]
+- `<app-delay-stepper [control]="flightForm.delay">`[1]
+
+## Key Classes/Interfaces
+| Type | Purpose |
+|------|---------|
+| `form(signal, schema)` | Creates signal form |
+| `FieldPath<T>` | Type-safe path to field |
+| `Field<T>` | Form field with `.value()`, `.errors[]`, `.dirty`, `.invalid`, `.pending` |
+| `ValidationError` | `{kind: string, message?: string, [props]}` |
+| `FormValueControl<T>` | Custom control interface |
+| `schema<T>(path => {...})` | Validation schema |
+| `linkedSignal(fn)` | Writable signal linked to readonly source |
+
+## Design Patterns & Best Practices
+- **Linked Signal Pattern**: `flight = linkedSignal(() => store.flightValue())` for read-only → editable bridge[1]
+- **Schema Composition**: Base schemas + `apply()`, conditional `applyWhenValue()`[1]
+- **Single Responsibility Validators**: Extract to pure functions[1]
+- **Error Hierarchy**: Field-level + tree validators + `errorSummary()`[1]
+- **Subform Decomposition**: Split large forms across components with `Field<T>` inputs[1]
+
+## Advanced Topics
+- **Tree Validators**: `validateTree()` places errors at specific field levels[1]
+- **Array Validation**: `validateDuplicatePrices(path.prices)` across items[1]
+- **Async Chaining**: Sync validators block async until passing[1]
+- **Custom Control Simplicity**: No CVAs, just `FormValueControl` + `model()`[1]
+
+## Interview Cheat Sheet
+**Q: How do Signal Forms differ from ReactiveForms?**  
+A: Signal-first (fields as signals), schema-based validation, `Control` directive, zoneless-native, `FormValueControl` vs CVAs[1]
+
+**Q: Create a signal form?**  
+A: `form(linkedSignal(model), schema(path => { required(path.from); validateCity(path.from, [...]) }))`[1]
+
+**Q: Conditional validation?**  
+A: `applyWhenValue(path.delay, flight => flight.delayed, delayedSchema)` or `required(path, {when: ctx => ctx.valueOf(path.delayed)})`[1]
+
+**Q: Nested forms?**  
+A: `apply(path.aircraft, aircraftSchema)` → `flightForm.aircraft.type().errors()` + `@let aircraftForm = flightForm.aircraft`[1]
+
+**Q: Custom control?**  
+A: Implement `FormValueControl<T> { value = model(0); disabled/input/errors inputs }`[1]
+
+**Q: Multi-field validation?**  
+A: `validateTree(path, ctx => from: ctx.field.from().value() === ctx.field.to().value())`[1]
+
+## Key Terms & Keywords
+- `form(signal, schema)`, `linkedSignal()`
+- `FieldPath<T>`, `Field<T>`, `schema<T>()`
+- `required()`, `minLength()`, `validate()`, `validateTree()`
+- `apply()`, `applyEach()`, `applyWhenValue()`
+- `ValidationError {kind, message}`, `customError()`
+- `Control` directive, `FormValueControl<T>`
+- `validateAsync()`, `validateHttp()`, `.pending()`
+- `errorSummary()`, tree validators
+- Subforms: `input.required<Field<T>>()`
+- Experimental, signals-native, zoneless[1]
+
+[1](https://angularexperts.io/blog/the-most-impactful-rx-js-best-practice-of-all-time)

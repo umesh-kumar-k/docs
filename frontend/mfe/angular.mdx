@@ -1,0 +1,205 @@
+# Angular Micro Frontends (3-Part Series)
+
+Angular Micro Frontends enable **independent development/deployment** of business domains (Shell + Navigation/User/Feed) using **Native Federation** (esbuild/Vite agnostic vs Webpack Module Federation). Key challenges: **dependency conflicts**, **state sharing**, **breaking changes**. Solutions: **shared libs** → **Anti-Corruption Layer** (ACL) with `public-api.ts` contracts.[1][2][3]
+
+## 1. Modern Micro Frontends Intro[1]
+**Architecture**:
+```
+Shell (Host) ← loads → Remotes (Navigation/User/Feed)
+Each Remote: Independent team/product
+```
+**Evolution**: Module Federation (Webpack 5) → **Native Federation** (framework-agnostic)[1]
+
+**When to Use**:
+```
+✅ Large/complex apps, multiple teams/domains
+✅ Different frameworks (Angular+React+Vue)
+❌ Simple apps → Nx Monorepo sufficient
+```
+**Nx vs MFE**: Nx = code separation; MFE = **deployment separation**[1]
+
+**Setup Demo**:
+```bash
+ng new demo --no-create-app
+ng g app shell --port=4200
+ng g app users --port=4201
+ng add @angular-architects/native-federation
+ng g @angular-architects/native-federation:init --project users --type remote
+ng g @angular-architects/native-federation:init --project shell --type dynamic-host
+```
+**federation.config.js**:
+```js
+withNativeFederation({
+  exposes: { './Component': './projects/users/src/app/app.component.ts' },
+  shared: shareAll({ singleton: true, strictVersion: true })
+})
+```
+**Shell routing**:
+```ts
+{ path: 'users', loadComponent: () => loadRemoteModule('users', './Component') }
+```
+
+## 2. Micro Frontend Chaos & Solutions[2]
+**Chaos Problems**:
+```
+User widget change → breaks Feed + Navigation
+Deployment cascades → rebuild entire graph
+State collision → multiple store/localStorage instances
+Bundle duplication → version conflicts
+```
+**Layered Architecture**:
+```
+Shell → Composition Apps → Feature Apps → Core Libs
+```
+
+### Solution 1: Shared Libraries
+```
+libs/
+  auth@1.0.0
+  user@1.5.0
+apps/
+  shell, feed, navigation (consume libs)
+```
+**Webpack shared**:
+```js
+shared: {
+  "@mfe/auth": { singleton: true, strictVersion: true, requiredVersion: "^1.0.0" }
+}
+```
+**❌ Cons**: Rebuild consumers on lib changes[2]
+
+### Solution 2: Anti-Corruption Layer (ACL) **Recommended**
+```
+apps/user/
+  src/modules/bootstrap/
+    public-api.ts          ← Contract (facade/adapters)
+    public-api.d.ts        ← Type definitions
+```
+**tsconfig paths**:
+```json
+"paths": {
+  "@mfe/user": ["apps/user/public-api.d.ts"]
+}
+```
+**Webpack exposes**:
+```js
+exposes: { './public-api': './apps/user/public-api.ts' }
+```
+**Structure**:
+```
+Core Libs ← Feature Apps (ACL protected) ← Composition Apps ← Shell
+```
+**✅ Benefits**: No rebuild cascade, breaking change protection[2]
+
+## 3. Next Level Micro Frontends[3]
+**Note**: Content focused on NgRx+Signals (not MFE-specific); core concepts align with shared state challenges[3]
+
+**State Management Across MFEs**:
+```
+❌ Shared NgRx Store → tight coupling
+✅ Domain-local stores + Custom Events (ProductEvents service)
+✅ Shared libs for cross-cutting (auth)
+```
+
+## Key Classes/Interfaces
+```ts
+// Native Federation
+loadRemoteModule(remoteName: string, exposedPath: string)
+withNativeFederation({ exposes, shared })
+
+// ACL Pattern
+@Injectable() class PublicApiFacade {
+  // Limited contract only
+  user$ = this.store.select(selectUser);
+  addProduct(product: ProductEvent) { /* dispatch */ }
+}
+
+// Events (cross-framework)
+enum ProductEvents { AddProduct = 'AddProduct' }
+window.dispatchEvent(new CustomEvent(ProductEvents.AddProduct, { detail: product }))
+```
+
+## Design Patterns & Best Practices
+**Progressive Adoption**:
+```
+1. Nx Monorepo (code separation)
+2. Shared Libs (version control)
+3. ACL MFEs (deployment separation)
+4. Full MFEs (multi-framework)
+```
+
+**Shared Dependencies**:
+```
+✅ singleton: true, strictVersion: true
+✅ shareAll({ requiredVersion: 'auto' })
+❌ Skip dev-only: rxjs/testing, rxjs/ajax
+```
+
+**State Strategy**:
+```
+Domain-local: NgRx/Signals per MFE
+Cross-cutting: Shared auth lib + Custom Events
+```
+
+**DevOps**:
+```
+✅ Separate CI/CD per MFE
+✅ federation.manifest.json for discovery
+✅ Bundle analyzer for shared deps
+```
+
+## Advanced Topics
+**Version Conflicts**:
+```
+strictVersion: true  → Fail fast
+strictVersion: false → Console warnings
+requiredVersion: '^17.0.0' → SemVer ranges
+```
+
+**Cross-Framework**:
+```
+Angular Shell ← React/Vue Remotes (via Native Federation)
+✅ Custom Events for communication
+❌ Shared Angular-specific state (NgRx)
+```
+
+**Demo Structure**:
+```
+Shell (purple) ← User (yellow) + Feed (blue) + Navigation (purple)
+Anti-corruption → public-api.ts contracts
+```
+
+## Interview Cheat Sheet
+**Q: Module Federation vs Native Federation?**  
+A: MF = Webpack 5 only; Native Federation = esbuild/Vite/Rollup agnostic, cross-framework[1]
+
+**Q: Micro Frontends vs Nx Monorepo?**  
+A: Nx = code separation; MFEs = **deployment separation** for autonomous teams[1]
+
+**Q: ACL pattern?**  
+A: `public-api.ts` facades/adapters protect internal models; `public-api.d.ts` for static analysis[2]
+
+**Q: Shared deps config?**  
+A: `{ singleton: true, strictVersion: true, requiredVersion: 'auto' }` in `federation.config.js`[1]
+
+**Q: State across MFEs?**  
+A: Domain-local stores + Custom Events; shared auth lib[2]
+
+**Q: Shell routing syntax?**  
+A: `{ path: 'users', loadComponent: () => loadRemoteModule('users', './Component') }`[1]
+
+## Key Terms & Keywords
+- **Native Federation** (`@angular-architects/native-federation`)
+- **Shell/Host** + **Remotes** architecture
+- **Anti-Corruption Layer** (`public-api.ts`, `public-api.d.ts`)
+- `federation.config.js` (`exposes`, `shared`, `shareAll`)
+- `loadRemoteModule(remote, exposedPath)`
+- **singleton: true**, **strictVersion**, **requiredVersion**
+- Custom Events (`ProductEvents.AddProduct`)
+- **4-Layer**: Core Libs → Feature Apps → Composition → Shell
+- Deployment independence, autonomous teams
+- Version conflict resolution[2][1]
+
+[1](https://angularexperts.io/blog/the-most-impactful-rx-js-best-practice-of-all-time)
+[2](https://angular.dev/guide/testing/component-harnesses-overview)
+[3](https://v12.material.angular.io/cdk/test-harnesses)

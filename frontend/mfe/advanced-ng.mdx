@@ -1,0 +1,191 @@
+# Angular Architects Micro Frontends (6-Part Series)
+
+**Native Federation** replaces Webpack Module Federation for **esbuild/Vite/Rollup**, enabling **standalone Angular + SSR/Hydration** Micro Frontends with **Web Components** for multi-version/multi-framework, **automatic shell reloads** (SSE), and **ignoreUnusedDeps** for optimal shared bundles. Covers Shell/Remote setup, routing configs, SSR server-side federation, and hybrid NF+MF. [-6][1]
+
+## 1. Part 1: Standalone + esbuild[1]
+**esbuild Challenge**: Angular 17 default replaces webpack → **no Module Federation**
+**Solution**: **Native Federation** (esbuild/Vite agnostic, ECMAScript modules + Import Maps)
+
+**Remote Setup**:
+```bash
+ng add @angular-architects/native-federation --project mfe1 --type remote --port 4201
+```
+**federation.config.js**:
+```js
+withNativeFederation({
+  name: 'mfe1',
+  exposes: { './Component': './projects/mfe1/src/app/app.component.ts', './routes': './app.routes.ts' },
+  shared: shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' }),
+  skip: ['rxjs/ajax', 'rxjs/testing']  // Node.js packages
+});
+```
+
+**Shell Setup**:
+```bash
+ng add @angular-architects/native-federation --project shell --type dynamic-host --port 4200
+```
+**main.ts**:
+```ts
+initFederation('/assets/federation.manifest.json').then(() => import('./bootstrap'));
+```
+**Routing**:
+```ts
+{ path: 'flights', loadChildren: () => loadRemoteModule('mfe1', './routes').then(m => m.APP_ROUTES) }
+```
+
+**Communication**: Shared libs (`ng g lib auth`) via `tsconfig paths: { "@demo/auth": ["projects/auth/src/public-api.ts"] }`
+
+## 2. Part 2: Multi-Version + Multi-Framework[2]
+**Web Components** for framework isolation:
+```ts
+// mfe2 bootstrap.ts
+const app = await createApplication({ providers: [...] });
+const mfe2Root = createCustomElement(AppComponent, { injector: app.injector });
+customElements.define('mfe2-root', mfe2Root);
+```
+**federation.config.js**: `exposes: { './web-components': './projects/mfe2/src/bootstrap.ts' }`
+
+**Shell Wrapper**:
+```ts
+@Component({ templateUrl: './wrapper.component.html' })
+export class WrapperComponent {
+  @Input() config: WrapperConfig;  // { remoteName, exposedModule, elementName }
+  async ngOnInit() {
+    await loadRemoteModule(this.config.remoteName, this.config.exposedModule);
+    const root = document.createElement(this.config.elementName);
+    this.elm.nativeElement.appendChild(root);
+  }
+}
+```
+**Router**: `withComponentInputBinding()` + `data: { config: { ... } }`
+
+**Zone.js Sharing**: `globalThis.ngZone = inject(NgZone)` (shell) + `{ provide: NgZone, useValue: globalThis.ngZone }`
+
+**Router Prefix**: `UrlMatcher` (`startsWith('profile')`) + MFE internal routes
+
+## 3. Combining NF + MF[3]
+**Hybrid Shell** (NF + Module Federation Runtime):
+```ts
+// main.ts
+await initNativeFederation('federation.manifest.json');
+const shared = getShared();  // NF shared metadata
+initModuleFederation({
+  name: 'shell',
+  remotes: [{ name: 'modfed-mf', entry: 'http://localhost:4201/remoteEntry.js' }],
+  shared  // Bridge NF → MF
+}).initializeSharing();
+```
+**Routing**:
+```ts
+{ path: 'modfed-mf', loadComponent: () => loadModuleRemote('modfed-mf/Component').then(m => m.AppComponent) }
+{ path: 'natfed-mf', loadComponent: () => loadNativeRemote('natfed-mf', './Component').then(m => m.AppComponent) }
+```
+**Config**: `skip: [/^@module-federation/]`
+
+## 4. SSR + Hydration[4]
+**Order**: `@angular/ssr` **first**, then Native Federation:
+```bash
+ng add @angular/ssr --project mfe1 && ng add @angular-architects/native-federation --project mfe1 --type remote
+```
+**Server Start**: `node dist/project/server/fstart.mjs` (auto-federation)
+
+**ng serve Limitation**: Client-only remotes → `fallback: DummyComponent`
+**Production**: Full SSR hydration
+
+**v20**: Delete `server.ts`, rename `bootstrap.server.ts` → `server.ts`
+
+## 5. DX: Auto Shell Reload[5]
+**v20.0.7+**: **SSE notifications** (no config needed)
+- MFE build → SSE `/federation-events` → Shell auto-reload
+- `remoteEntry.json` + `buildNotificationsEndpoint`
+- Dev-only (`ng serve`)
+
+## 6. NF Improvements (v19/20)[6]
+**Key Features**:
+- **ignoreUnusedDeps: true**: Scan code → skip unused deps (`federation.config.js: features`)
+- **Auto Chunk Splitting**: Shared deps → no duplication/singletons
+- **Angular CLI Features**: SSR, i18n, Features API
+- **Component Libs**: Material/Clarity/Kendo/AG-Grid/NG-Bootstrap/zorro/PrimeNG
+- **Auto Host Reload**: SSE (v20.0.7+)
+
+## Key Classes/Interfaces
+```ts
+// Native Federation
+initFederation(manifestPath: string)
+loadRemoteModule(remoteName: string, exposedModule: string, fallback?: Type<any>)
+withNativeFederation({ name, exposes, shared: shareAll(...), skip: [] })
+
+// Web Components
+createCustomElement(component: Type<any>, { injector })
+WrapperConfig { remoteName, exposedModule, elementName }
+
+// SSR
+fstart.mjs  // Federation-aware server
+```
+
+## Design Patterns & Best Practices
+**Progressive MFE**:
+```
+1. Nx Monorepo → Shared Libs → ACL → Native Federation
+2. Shell (NF) + Remotes (NF/MF/Web Components)
+3. SSR Shell → Client-only Remotes
+```
+
+**Shared Config**:
+```js
+shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' })
+features: { ignoreUnusedDeps: true }
+```
+
+**Routing**:
+```
+Shell: loadChildren/remote routes
+MFE: Internal routes + prefix (UrlMatcher)
+```
+
+## Advanced Topics
+**Multi-Framework**: Web Components + `globalThis.ngZone`
+**SSR Fallback**: `loadRemoteModule({ fallback: DummyComponent })`
+**Version Mixing**: NF Shell + MF Remotes + `getShared()` bridge
+**DX**: SSE auto-reload (v20.0.7+), `ignoreUnusedDeps`
+
+## Interview Cheat Sheet
+**Q: esbuild → No Module Federation?**  
+A: **Native Federation** (esbuild/Vite agnostic, ECMAScript modules + Import Maps)[1]
+
+**Q: Remote setup?**  
+A: `ng add @angular-architects/native-federation --type remote` → `exposes`, `shareAll({ singleton: true })`[1]
+
+**Q: Shell routing?**  
+A: `loadChildren: () => loadRemoteModule('mfe1', './routes').then(m => m.APP_ROUTES)`[1]
+
+**Q: Multi-version/frameworks?**  
+A: **Web Components** (`createCustomElement`) + WrapperComponent + `globalThis.ngZone`[2]
+
+**Q: SSR Native Federation?**  
+A: `@angular/ssr` first → `node dist/server/fstart.mjs` (auto-federation)[4]
+
+**Q: NF + MF hybrid?**  
+A: `initNativeFederation()` → `getShared()` → `initModuleFederation({ shared })`[3]
+
+**Q: v20 DX wins?**  
+A: SSE auto-reload + `ignoreUnusedDeps: true` + chunk splitting[5][6]
+
+## Key Terms & Keywords
+- **Native Federation** (`@angular-architects/native-federation`)
+- **federation.config.js**: `withNativeFederation({ exposes, shareAll, skip })`
+- `federation.manifest.json`, `remoteEntry.json`, Import Maps
+- `loadRemoteModule(remoteName, exposedModule)`
+- **Web Components**: `createCustomElement`, WrapperComponent
+- **SSR**: `fstart.mjs`, `fallback: DummyComponent`
+- **DX**: SSE auto-reload (v20.0.7+), `ignoreUnusedDeps`
+- **Hybrid**: NF Shell + MF Runtime (`@module-federation/enhanced`)
+- Standalone routing configs (`loadChildren`)
+- `globalThis.ngZone` sharing [-6][1]
+
+[1](https://www.angulararchitects.io/blog/micro-frontends-with-modern-angular-part-1-standalone-and-esbuild/)
+[2](https://angular.dev/guide/testing/component-harnesses-overview)
+[3](https://v12.material.angular.io/cdk/test-harnesses)
+[4](https://material.angular.dev)
+[5](https://material.angular.dev/guide/using-component-harnesses)
+[6](https://angularexperts.io/blog/angular-material-component-harness/)

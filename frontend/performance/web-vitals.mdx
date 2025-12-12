@@ -1,0 +1,202 @@
+TTFB, FCP, and TBT are **supporting Web Vitals**:  
+- **TTFB**: backend + network latency before first byte.  
+- **FCP**: first content appears.  
+- **TBT**: lab‑only proxy for main‑thread blocking / interactivity issues.[1][2][3]
+
+***
+
+## 1) Time to First Byte (TTFB)[1]
+
+### Definition & Components
+- TTFB = time from request start until **first byte of response** arrives (`responseStart`).[1]
+- Includes: redirects, service worker startup, DNS, TCP/TLS, request processing until first byte is sent.[1]
+
+### Early Hints & “First Byte”
+- HTTP **103 Early Hints** count as first bytes for TTFB; `finalResponseHeadersStart` tracks main response start separately.[1]
+- Some servers “flush early” (headers or `<head>` before body); all these count into TTFB, so comparing TTFB across stacks requires understanding what’s being sent early.[1]
+
+### Targets
+- Guidance: most sites should aim for **TTFB ≤ 0.8s** at **75th percentile**, so FCP/LCP can meet “good” thresholds.[1]
+
+### Measuring TTFB
+
+- **Lab tools**:
+  - DevTools Network panel (Timing tab).  
+  - WebPageTest.[1]
+
+- **Field – NavigationTiming**:
+  ```js
+  new PerformanceObserver((list) => {
+    const [nav] = list.getEntriesByType('navigation');
+    console.log('TTFB:', nav.responseStart);
+  }).observe({ type: 'navigation', buffered: true });
+  ```  
+  Or via `web-vitals`:
+  ```js
+  import { onTTFB } from 'web-vitals';
+  onTTFB(console.log);
+  ```  
+[1]
+
+- **Field – ResourceTiming** (cross‑origin resources):
+  ```js
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      if (entry.responseStart > 0) {
+        console.log('TTFB:', entry.responseStart, entry.name);
+      }
+    }
+  }).observe({ type: 'resource', buffered: true });
+  ```  
+[1]
+
+### High‑Level Optimization Themes
+- Reduce:
+  - Redirect chains.  
+  - DNS/TLS latency (CDN, connection reuse).  
+  - Backend latency (DB, caching, SSR optimizations).[1]
+
+***
+
+## 2) First Contentful Paint (FCP)[2]
+
+### Definition & Threshold
+
+- FCP = time from navigation to when **first content** (text, image, background image, `<svg>`, non‑white `<canvas>`) is painted.[2]
+- “Good” FCP: **≤ 1.8 s** at **75th percentile**, per device class.[2]
+
+### Relation to LCP
+- FCP = first visible content; **LCP** = when **main content** is rendered.  
+- A page can have good FCP but poor LCP (e.g., early spinner, late main content).[2]
+
+### Measuring FCP
+
+- **Tools**:
+  - Field: PageSpeed Insights, CrUX, Search Console, `web-vitals`.[2]
+  - Lab: Lighthouse, DevTools Performance.[2]
+
+- **Paint Timing API**:
+  ```js
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntriesByName('first-contentful-paint')) {
+      console.log('FCP candidate:', entry.startTime, entry);
+    }
+  }).observe({ type: 'paint', buffered: true });
+  ```  
+[2]
+
+- API vs metric nuances (handled by `web-vitals`):
+  - Ignore background‑tab paint entries.  
+  - FCP should be measured for bfcache restores (distinct visits), though API doesn’t emit them.  
+  - Need to aggregate paints from iframes; API doesn’t include cross‑origin frames by default.  
+  - For prerender, FCP should be from `activationStart`, not navigation.[2]
+
+- **`web-vitals` helper**:
+  ```js
+  import { onFCP } from 'web-vitals';
+  onFCP(console.log);
+  ```  
+[2]
+
+### How to Improve FCP (Key Guides)
+
+- Run Lighthouse and focus on:
+  - Eliminate render‑blocking resources.  
+  - Minify/remove unused CSS & JS.  
+  - Preconnect to required origins.  
+  - Reduce server response times (TTFB).  
+  - Avoid multiple redirects.  
+  - Preload key requests (critical CSS, fonts, hero image).  
+  - Keep DOM size & critical request depth low.  
+  - Ensure text remains visible during web‑font load.  
+  - Strong caching for static assets.[2]
+
+***
+
+## 3) Total Blocking Time (TBT)[3]
+
+### Definition & Relationship to INP/TTI
+
+- TBT = sum of **blocking time** of all **Long Tasks (>50 ms)** on main thread between **FCP** and a defined end (often **TTI** in lab tools).[3]
+- Blocking time of one task = `duration − 50 ms` (if >50). TBT = sum across all such tasks.[3]
+
+- Example (from article):  
+  - Tasks: 250, 90, 35, 30, 155 ms ⇒ long tasks: 250, 90, 155.  
+  - Blocking times: 200, 40, 105 ⇒ **TBT = 345 ms**.[3]
+
+- **TBT vs INP**:
+  - TBT is a **lab proxy**: high TBT suggests potential poor INP (slow interactions), but can raise false alarms or miss user‑triggered issues.  
+  - INP (field) is the authoritative interactivity metric; TBT should be used to debug INP in lab.[3]
+
+- **TBT vs TTI**:
+  - TTI marks when page is “reliably interactive” (no long tasks for 5s).  
+  - Many small long tasks can delay TTI slightly but have low TBT; one huge long task yields massive TBT.  
+  - TBT better captures severity of blocking experience and is less sensitive to single outliers than TTI.[3]
+
+### Measuring TBT
+
+- Primarily **lab metric**:
+  - Lighthouse performance audit (uses average mobile device, traces main‑thread tasks).[3]
+  - Other lab tools can compute TBT from performance traces up to chosen endpoint (TTI or full trace).[3]
+
+- Field TBT is possible but discouraged:
+  - User interactions and varied lifetimes make it noisy; for field, prefer INP and possibly Long Animation Frames API.[3]
+
+### Targets & Optimization
+
+- “Good” TBT: **< 200 ms** on **average mobile hardware**.[3]
+- To improve TBT:
+  - Reduce or optimize blocking scripts (JS execution time):
+    - Code‑split, lazy‑load non‑critical JS.  
+    - Break up long tasks into smaller async chunks.  
+    - Move work off main thread (Web Workers).  
+  - Follow **INP** optimization guidance, since both share the same root cause: excessive main‑thread work.[3]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Define TTFB, FCP, and TBT in the context of Web Vitals.**  
+A: **TTFB** measures time from request start until first byte of response (network + backend). **FCP** measures when first content (text/image/svg/canvas) appears. **TBT** (lab) sums blocking time of long JS tasks on the main thread after FCP, indicating how unresponsive the page might be during load.[2][1][3]
+
+**Q2: Why is TTFB important even though it’s not a Core Web Vital?**  
+A: TTFB is upstream of FCP and LCP; slow TTFB inherently delays all paint metrics. A good TTFB (≈≤0.8s at p75) is often required to achieve good LCP/FCP, especially on mobile networks.[1]
+
+**Q3: How would you measure TTFB, FCP, and TBT in practice?**  
+A:  
+- Use DevTools / WebPageTest for TTFB and FCP in lab waterfalls.  
+- Use NavigationTiming + ResourceTiming APIs or `web-vitals` (`onTTFB`, `onFCP`) for field measurement of TTFB/FCP.  
+- Use Lighthouse to get TBT in lab; treat TBT as a proxy when optimizing for INP.[2][3][1]
+
+**Q4: What are three key levers to improve FCP?**  
+A: 1) Reduce TTFB (fast origin/server, CDN, caching). 2) Remove or defer render‑blocking CSS/JS (critical CSS, async/defer scripts). 3) Reduce critical request depth and network payloads (preload key assets, trim DOM, strong caching).[2]
+
+**Q5: Why is TBT often a better lab metric than TTI?**  
+A: TBT quantifies *how much* the main thread is blocked, so a single 10s long task clearly surfaces as very bad (TBT ≈ 9950 ms), while TTI might only say “interactive late” and be skewed by outliers; TBT is more proportional to user‑perceived sluggishness during load.[3]
+
+**Q6: How does Early Hints (103) affect TTFB interpretation?**  
+A: 103 responses count as “first bytes” for TTFB, so platforms using Early Hints may show better TTFB even if main document starts later; you should understand whether your tools measure `responseStart` for hints vs `finalResponseHeadersStart` to interpret TTFB correctly.[1]
+
+**Q7: What TBT value is considered good, and how would you explain that to a non‑technical stakeholder?**  
+A: Less than **200 ms** on average mobile devices; in plain terms, this means the browser is almost never stuck in long scripts for so long that users notice clicks or scrolls feeling blocked during load.[3]
+
+***
+
+## Important Terms & Keywords
+
+- TTFB (Time to First Byte), `responseStart`, `finalResponseHeadersStart`  
+- Redirect time, DNS lookup, TCP/TLS negotiation, backend latency  
+- 103 **Early Hints**, response flushing  
+- FCP (First Contentful Paint), Paint Timing API `first-contentful-paint`, `onFCP`  
+- TBT (Total Blocking Time), Long Task (>50 ms), blocking time = `duration − 50`  
+- INP (Interaction to Next Paint) – TBT as lab proxy  
+- TTI (Time to Interactive) vs TBT  
+- Navigation Timing API, Resource Timing API, `PerformanceObserver`  
+- `web-vitals` JS library: `onTTFB`, `onFCP`  
+- Lighthouse, PageSpeed Insights, CrUX, DevTools Network & Performance  
+
+These notes are structured for quick review and mapping back to CWV and performance‑optimization discussions in senior‑level frontend interviews.
+
+[1](https://web.dev/articles/ttfb)
+[2](https://web.dev/articles/fcp)
+[3](https://web.dev/articles/tbt)

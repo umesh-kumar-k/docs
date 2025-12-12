@@ -1,0 +1,111 @@
+Angular lifecycle hooks tap into component/directive phases: creation (ngOnChanges/ngOnInit/ngDoCheck), content projection (ngAfterContentInit/Checked), view initialization (ngAfterViewInit/Checked), and destruction (ngOnDestroy). Hooks execute in fixed order per change detection cycle; ngDoCheck runs every CD for custom detection.
+
+## Core Mechanism
+
+```
+Creation (once):
+ngOnChanges (inputs) → ngOnInit → ngDoCheck → ngAfterContentInit → ngAfterContentChecked → ngAfterViewInit → ngAfterViewChecked
+
+Every CD Cycle:
+ngOnChanges → ngDoCheck → ngAfterContentChecked → ngAfterViewChecked
+
+Destruction:
+ngOnDestroy
+```
+
+- **Order Guarantee**: Parent hooks → Child hooks (tree traversal)
+
+## Important Classes/Interfaces
+
+- **OnChanges/OnInit/DoCheck/AfterContentInit/ViewInit/AfterViewChecked/OnDestroy**: Lifecycle interfaces
+- **SimpleChanges**: ngOnChanges param (current/previous/firstChange)
+- **NodeFlags**: Compiler flags detect hook presence (e.g., OnInit=1<<16)
+- **@ContentChild/@ViewChild**: Content/view queries ready at respective hooks
+
+## Design Patterns
+
+- **Lifecycle Separation**: Init (ngOnInit), DOM-ready (ngAfterViewInit), Cleanup (ngOnDestroy)
+- **Observer**: ngOnChanges reacts to @Input mutations
+- **Custom Detection**: ngDoCheck for object mutations (ref equality fails)
+
+## Best Practices
+
+```
+✅ ngOnInit: Data fetch, form init, subscriptions
+✅ ngAfterViewInit: Charts, 3rd-party DOM libs
+✅ ngOnDestroy: Unsubscribe, localStorage.clear()
+✅ ngDoCheck: Rare, only for primitive mutations
+❌ ngDoCheck: Heavy logic (runs every CD)
+❌ Constructor: DOM queries/subscriptions
+```
+
+## Advanced Topics
+
+```
+ngDoCheck Mutation Detection:
+ngDoCheck() {
+  if (this.obj !== this.objCopy) {
+    this.objCopy = {...this.obj};
+    this.cd.markForCheck();
+  }
+}
+
+Content vs View:
+@ContentChild('proj') content; // ngAfterContentInit
+@ViewChild('templ') view;     // ngAfterViewInit
+```
+
+- HostListener('window:beforeunload') for page refresh cleanup
+
+## Big Tech References
+
+- **Netflix**: ngAfterViewInit for video players/charts; ngDoCheck rare + OnPush 
+- **Google/Angular**: Lifecycle diagram official docs; ngDoCheck perf warnings
+
+## Interview Q&A
+
+**Q: ngOnChanges vs ngOnInit?**  
+A: ngOnChanges: every @Input change; ngOnInit: once post-first ngOnChanges 
+
+**Q: @ContentChild vs @ViewChild timing?**  
+A: Content: ngAfterContentInit; View: ngAfterViewInit 
+
+**Q: ngDoCheck frequency?**  
+A: Every change detection (expensive); use for primitive mutations only 
+
+**Q: Hook order parent→child?**  
+A: Parent all hooks → Child all hooks (tree order) 
+
+**Q: Memory leak prevention?**  
+A: ngOnDestroy unsubscribe + takeUntil(destroyed$) 
+
+## Error Patterns & Fixes
+
+| Hook | Wrong Use | Fix |
+|------|-----------|-----|
+| ngDoCheck | Heavy logic | OnPush + trackBy |
+| Constructor | DOM queries | ngAfterViewInit |
+| ngOnInit | 3rd-party init | ngAfterViewInit |
+| No cleanup | Forgotten subs | ngOnDestroy + takeUntil |
+
+## Key Highlights & Tradeoffs
+
+- **Highlights**: Predictable order, query guarantees, cleanup safety.
+- **Tradeoffs**:
+  | Hook | Frequency | Use Case |
+  |------|-----------|----------|
+  | ngDoCheck | Every CD | Custom detection |
+  | ngAfter*Checked | Every CD | Post-render logic |
+
+## Essential Terms & Keywords
+
+- ngOnChanges/SimpleChanges
+- ngOnInit
+- ngDoCheck
+- ngAfterContentInit/Checked
+- ngAfterViewInit/Checked
+- ngOnDestroy
+- @ContentChild/@ViewChild
+- NodeFlags
+- Change Detection Cycle
+- Lifecycle Interfaces  

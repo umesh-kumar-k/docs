@@ -1,0 +1,334 @@
+CSS Grid is a **two‑dimensional layout system** for arranging items in rows and columns with explicit track sizing, auto‑placement, named lines/areas, subgrids, and powerful alignment, ideal for page layouts like header/sidebar/content/footer.[1]
+
+***
+
+## Core Concepts & Terminology
+
+- Grid is created on an element with `display: grid` (or `inline-grid`), and only **direct children** become grid items.[1]
+- Key terms:  
+  - **Grid lines**: numbered lines between tracks (row/column), numbering follows writing mode (line 1 on left in LTR, on right in RTL).  
+  - **Grid tracks**: space between two adjacent lines (row track or column track).  
+  - **Grid cell**: smallest unit, intersection of a row track and a column track.  
+  - **Grid area**: rectangle of one or more cells (item spanning multiple tracks).  
+  - **Gaps**: gutters between tracks (`row-gap`, `column-gap`, `gap`).[1]
+
+***
+
+## Defining Rows & Columns
+
+- Basic grid:
+  ```css
+  .container {
+    display: grid;
+    grid-template-columns: 5em 100px 30%;
+    grid-template-rows: 200px auto;
+    gap: 10px;
+  }
+  ```
+  - `auto` track sizing = size to fit content (default).[1]
+
+### Intrinsic sizing keywords
+
+- `min-content`: smallest size without overflow (e.g., width of longest word).  
+- `max-content`: largest size without wrapping (entire content on one line).  
+- `fit-content(X)`: behaves like `max-content` until limit `X`, then wraps; never exceeds `X`.[1]
+
+### `fr` unit (fractional space)
+
+- Flexible length: shares **remaining available space** after fixed/auto tracks:
+  ```css
+  grid-template-columns: 1fr 1fr 1fr;
+  ```
+- Can mix fixed and flexible:
+  ```css
+  grid-template-columns: 200px 1fr;
+  ```
+- Different `fr` values divide remaining space proportionally.[1]
+
+### `minmax()` function
+
+- Declare min and max track sizes:
+  ```css
+  grid-template-columns: minmax(0, 1fr);
+  ```
+- `minmax(auto, 1fr)` respects intrinsic min; `minmax(0, 1fr)` allows equal‑share tracks ignoring min‑content when distributing space.[1]
+
+### `repeat()`
+
+- Repeat patterns in track listing:
+  ```css
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: 200px repeat(2, 1fr 2fr) 200px;
+  ```
+
+
+***
+
+## auto-fill / auto-fit & Responsive Grids Without Media Queries
+
+- Combine `repeat()` + `minmax()` with `auto-fill` / `auto-fit`:
+  ```css
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  ```
+- Behavior:
+  - Both create **as many columns as will fit** with min 200px and flexible max.  
+  - `auto-fill`: keeps empty tracks; you can see “phantom” columns.  
+  - `auto-fit`: collapses empty tracks, so existing items stretch to fill space.[1]
+- This pattern yields **responsive, multi‑column layouts** with no media queries.  
+
+***
+
+## Auto‑Placement & `grid-auto-flow`
+
+- By default, items auto‑place **row by row** into available cells in source order.[1]
+- Change direction:
+  ```css
+  grid-auto-flow: column;  /* place items down columns instead of rows */
+  ```
+  (define row tracks so they don’t all sit in a single row).[1]
+
+### Spanning tracks with auto‑placement
+
+- Increase an auto‑placed item’s span:
+  ```css
+  .item { grid-column-end: span 2; }
+  /* or shorthand */ 
+  .item { grid-column: auto / span 2; }
+  ```
+- Items still start at `auto` (per auto‑placement rules), but cover multiple tracks.[1]
+
+### Dense packing
+
+- Default `grid-auto-flow` progresses forward; gaps remain if item doesn’t fit current row/column.[1]
+- Enable **gap filling**:
+  ```css
+  grid-auto-flow: row dense;
+  ```
+- `dense` may re‑order later items visually to fill earlier gaps → possible mismatch with DOM order; test for accessibility.[1]
+
+***
+
+## Explicit vs Implicit Grid, Negative Lines, `grid-auto-*`
+
+- **Explicit grid**: tracks defined via `grid-template-rows` / `grid-template-columns`.[1]
+- **Implicit grid**: tracks auto‑created when items go beyond explicit grid (e.g., extra rows).[1]
+
+### Negative line numbers
+
+- From **explicit grid** end:
+  ```css
+  .item { grid-column: 1 / -1; }  /* span full width of explicit grid */
+  ```
+- Negative indices don’t apply to implicit rows/columns; `-1` only refers to last explicit line.[1]
+
+### Sizing implicit tracks
+
+- Control sizes for auto‑added rows/columns:
+  ```css
+  .container {
+    grid-auto-rows: minmax(10em, auto);
+    grid-auto-columns: 100px 200px; /* pattern: 100px, 200px, 100px, ... */
+  }
+  ```
+
+
+***
+
+## Line‑Based Placement
+
+- Place via numbered lines with `grid-row-start/end`, `grid-column-start/end` or shorthands `grid-row`, `grid-column`:[1]
+  ```css
+  .container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 200px 100px);
+  }
+
+  .item {
+    grid-column: 1 / 4;  /* lines 1 to 4 */
+    grid-row:    2 / 4;  /* lines 2 to 4 */
+  }
+  ```
+- Lines follow writing mode and direction; tools like DevTools overlays help visualize.[1]
+
+### Stacking items
+
+- Multiple items can occupy same cell; later DOM items overlay earlier ones. Use `z-index` to control stacking.[1]
+
+***
+
+## Named Lines & Template Areas
+
+### Named lines
+
+- Label lines for more semantic placement:
+  ```css
+  .container {
+    display: grid;
+    grid-template-columns:
+      [main-start aside-start] 1fr
+      [aside-end content-start] 2fr
+      [content-end main-end];
+  }
+
+  .sidebar { grid-column: aside-start / aside-end; }
+  footer   { grid-column: main-start  / main-end;  }
+  ```
+
+
+### `grid-template-areas`
+
+- Name items and declare ASCII‑art layout in CSS:  
+  ```css
+  header  { grid-area: header;  }
+  .sidebar{ grid-area: sidebar; }
+  .content{ grid-area: content; }
+  footer  { grid-area: footer;  }
+
+  .container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas:
+      "header  header  header  header"
+      "sidebar content content content"
+      "sidebar footer  footer  footer";
+  }
+  ```
+- Rules:  
+  - Layout must be a complete rectangle; no disconnected same‑name patches.  
+  - Repeat name to span tracks; use `.` for empty cells.[1]
+- Easy to redefine macro layout via media queries by changing `grid-template-columns` + `grid-template-areas`.[1]
+
+***
+
+## Shorthands: `grid-template` & `grid`
+
+- `grid-template`:
+  ```css
+  .container {
+    display: grid;
+    grid-template:
+      "head head head"      minmax(150px, auto)
+      "sidebar content content" auto
+      "sidebar footer footer"   auto
+      / 1fr 1fr 1fr;
+  }
+  ```
+  - Rows (with areas) first, then `/` and columns.[1]
+
+- `grid` shorthand:
+  - Same as `grid-template` but also includes `grid-auto-rows`, `grid-auto-columns`, `grid-auto-flow`, resetting them when used:[1]
+  ```css
+  .container {
+    display: grid;
+    grid: repeat(2, 80px) / auto-flow 120px;
+  }
+  ```
+
+***
+
+## Subgrid (Advanced)
+
+- A grid item can also be a grid container (`display:grid`). By default its grid is independent.[1]
+- `subgrid` lets a nested grid **inherit** parent tracks, gaps, and line names in rows/columns:  
+  ```css
+  .gallery {
+    display: grid;
+    gap: 1em;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+
+  .gallery-item {
+    display: grid;
+    grid-row: auto / span 2;
+    grid-template-rows: subgrid;  /* share rows with parent */
+  }
+  ```
+- For both dimensions:
+  ```css
+  .subgrid-container {
+    display: grid;
+    grid-column: auto / span 2;
+    grid-row: auto / span 3;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+  }
+  ```
+- Items inside subgrid can still use normal grid placement (`grid-column: span 2`, etc.), but now align to parent’s grid lines.[1]
+
+***
+
+## Alignment in Grid
+
+- Same Box Alignment spec as Flexbox, but semantics differ:
+  - `justify-*` → **inline axis**.  
+  - `align-*` → **block axis**.[1]
+
+**Content alignment (tracks)**  
+- `justify-content` / `align-content`: distribute extra space between/around tracks (not moving individual items).[1]
+
+**Item alignment (inside area)**  
+- `justify-self` / `align-self` on items move them within their grid area.  
+- `justify-items` / `align-items` on container set defaults for all items.[1]
+
+- Initial `justify-self` / `align-self` = `stretch`, so items fill their area; changing to `center`, `start`, etc., moves them without resizing the area.[1]
+
+***
+
+## Design Patterns, Best Practices & Trade‑offs
+
+- Use Grid for:
+  - **Two‑dimensional** layouts: pages, dashboards, complex card grids, header/sidebar/content/footer.  
+  - **Area‑based** design with `grid-template-areas` for maintainable, semantic layout definitions.[1]
+- Use Flexbox when:
+  - You only need **one axis** (single row/column of items).  
+- Responsive patterns:
+  - `repeat(auto-fit, minmax(...))` layouts for cards; no media queries needed.[1]
+- Accessibility:
+  - Be cautious with `grid-auto-flow: dense` and reordering; may desync DOM order and visual order.  
+- Performance/maintainability:
+  - Prefer **explicit grids** with named lines/areas for complex shells.  
+  - Use `minmax(0, 1fr)` instead of bare `1fr` when you want equal distribution ignoring min‑content constraints.[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: When would you choose Grid over Flexbox?**  
+A: When the layout is **two‑dimensional**, requiring control over both rows and columns (e.g., full page shells, dashboards, complex card grids), and you need tracks that align in both directions; Flexbox is better for one‑dimensional flows.[1]
+
+**Q2: Explain the difference between explicit and implicit grids.**  
+A: Explicit grid tracks are defined via `grid-template-rows`/`columns`; implicit tracks are auto‑created when items fall outside that definition. Explicit tracks can be targeted with negative line numbers and named lines; implicit track sizing is controlled via `grid-auto-rows`/`grid-auto-columns`.[1]
+
+**Q3: How do `auto-fill` and `auto-fit` differ in `repeat()`?**  
+A: Both create as many columns/rows as fit; `auto-fill` keeps empty tracks (useful for visual templates), while `auto-fit` collapses empty tracks to 0 so remaining items expand to fill available space.[1]
+
+**Q4: What is the `fr` unit and how does it compare to `flex: auto`?**  
+A: `fr` defines a share of **remaining space** in a grid container; after fixed and auto tracks are laid out, the leftover space is divided proportionally by `fr` values—conceptually similar to distributing extra space in Flexbox with `flex-grow`.[1]
+
+**Q5: What does `minmax(0, 1fr)` solve that `1fr` alone doesn’t?**  
+A: `1fr` treats min‑content as the lower bound, so long content can prevent equal distribution; `minmax(0, 1fr)` lowers the min to 0 so tracks truly share the container space equally minus gaps.[1]
+
+**Q6: What problem does `subgrid` solve?**  
+A: It lets nested grids share the parent’s grid tracks, gaps, and line names so child content aligns precisely with the overall layout grid, avoiding duplicate track definitions and alignment mismatches.[1]
+
+**Q7: How do `grid-template-areas` improve maintainability?**  
+A: They provide a declarative, “ASCII art” map of the layout, making it easy to understand and refactor macro layouts (e.g., reordering header/sidebar/content/footer) in one place, often with simple media query overrides.[1]
+
+***
+
+## Important Terms & Keywords
+
+- `display: grid`, `inline-grid`, grid container, grid item  
+- Grid line, track, cell, area, gap (`row-gap`, `column-gap`, `gap`)  
+- `grid-template-rows`, `grid-template-columns`, `grid-template-areas`  
+- Intrinsic sizing: `min-content`, `max-content`, `fit-content()`  
+- `fr` unit, `minmax()`, `repeat()`, `auto-fill`, `auto-fit`  
+- Explicit grid vs implicit grid, `grid-auto-rows`, `grid-auto-columns`  
+- `grid-auto-flow` (row, column, dense)  
+- Line placement: `grid-row-start/end`, `grid-column-start/end`, `grid-row`, `grid-column`  
+- Named lines, `grid-template-areas`, `grid` and `grid-template` shorthands  
+- `subgrid` for rows/columns  
+- Alignment: `justify-content`, `align-content`, `justify-items`, `align-items`, `justify-self`, `align-self`
+
+[1](https://web.dev/learn/css/grid)

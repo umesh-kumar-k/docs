@@ -1,0 +1,114 @@
+Angular Signal Forms Generator converts runtime **metadata (`FieldDef[]`)** into Signal Forms schemas via `toSchema()`, enabling dynamic form creation without compile-time type knowledge. Consumer provides field definitions; generator produces `form(signal, schema)` bound via `Control` directive—ideal for user-defined types/extensions.[1]
+
+## Consumer's Perspective Section
+**Key Points**:
+- Provide `FieldDef[]` metadata array with `name`, `label`, `required`, `minLength`, `maxLength`, `type`[1]
+- `entity = signal<unknown>()` (unknown shape at compile-time)[1]
+- `dynamicForm = form(this.entity, toSchema(this.meta))` creates form[1]
+- Template delegates to `<app-dynamic-form [metaInfo]="meta" [dynamicForm]="dynamicForm">`[1]
+
+**Example metadata**:
+```ts
+meta: FieldDef[] = [
+  { name: 'id', label: 'Id', required: true },
+  { name: 'from', label: 'From', required: true, minLength: 3, maxLength: 20 },
+  { name: 'to', label: 'To', required: true, minLength: 3, maxLength: 20 },
+  { name: 'date', label: 'Date', required: true, type: 'datetime-local' },
+  { name: 'delayed', label: 'Delayed', type: 'checkbox' },
+];
+```
+
+## Implementation: toSchema() Function
+**Key Points**:
+- Converts `FieldDef[]` → `Schema<unknown>` for dynamic fields[1]
+- Iterates metadata, applies validators to `fieldPath = path[fieldDef.name]`[1]
+- Uses bracket notation (`[prop]`) due to runtime field names[1]
+
+**Core implementation**:
+```ts
+export function toSchema(meta: FieldDef[]): Schema<unknown> {
+  return schema<unknown>((path) => {
+    for (const fieldDef of meta) {
+      const fieldPath = (path as any)[fieldDef.name];
+      if (!fieldPath) continue;
+      
+      if (fieldDef.required) required(fieldPath);
+      if (fieldDef.minLength !== undefined) minLength(fieldPath, fieldDef.minLength);
+      if (fieldDef.maxLength !== undefined) maxLength(fieldPath, fieldDef.maxLength);
+    }
+  });
+}
+```
+
+## Implementation: Dynamic Form Component
+**Key Points**:
+- Receives `metaInfo: Signal<FieldDef[]>` and `dynamicForm: Form<unknown>`[1]
+- `@for(fieldDef of metaInfo(); track fieldDef.name)` iterates fields[1]
+- `@let field = $any(dynamicForm())[fieldDef.name]` gets dynamic field[1]
+- `<input [control]="field" [type]="fieldDef.type">` binds with `Control` directive[1]
+- `<app-validation-errors [errors]="field().errors()">` shows errors[1]
+
+**Template core**:
+```html
+@for(fieldDef of metaInfo(); track fieldDef.name) {
+  @let field = $any(dynamicForm())[fieldDef.name];
+  <div class="form-group">
+    <label>{{ fieldDef.label }}</label>
+    <input [type]="fieldDef.type" [control]="field" />
+    <app-validation-errors [errors]="field().errors()" />
+  </div>
+}
+```
+
+## Key Classes/Interfaces
+- **`FieldDef`**: `{ name: string, label: string, required?: boolean, minLength?: number, maxLength?: number, type?: string }`[1]
+- **`toSchema(meta: FieldDef[])`**: `Schema<unknown>` generator[1]
+- **`form(signal: WritableSignal<unknown>, schema: Schema<unknown>)`**: Dynamic Signal Form[1]
+- **`Control` directive**: Binds form field to `<input>`[1]
+- **`metaInfo: Signal<FieldDef[]>`**: Runtime field metadata[1]
+
+## Design Patterns & Best Practices
+- **Metadata-Driven Forms**: `FieldDef[]` describes structure/validation at runtime[1]
+- **Schema Generation**: `toSchema()` transforms metadata → Signal Forms schema[1]
+- **Dynamic Field Access**: `$any(dynamicForm())[fieldDef.name]` for runtime properties[1]
+- **Generic Rendering**: Single `app-dynamic-form` handles any `FieldDef[]`[1]
+- **Type Erasure**: `unknown` + bracket notation for compile-time agnostic forms[1]
+
+## Advanced Topics & Extensibility
+- **Arrays/Form Groups**: Extend `FieldDef` with `children: FieldDef[]` or `items: FieldDef[]`[1]
+- **Custom Validators**: Add `customValidators: ValidatorFn[]` to `FieldDef`[1]
+- **Complex UI**: Replace `<input>` with custom components per `fieldDef.type`[1]
+- **Async Validation**: `asyncValidators: AsyncValidatorFn[]` in metadata[1]
+
+## Interview Cheat Sheet
+**Q: How does Signal Forms Generator work?**  
+A: `FieldDef[]` metadata → `toSchema()` → `form(signal, schema)` → `<app-dynamic-form>` renders fields with `Control` directive[1]
+
+**Q: Why `Schema<unknown>`?**  
+A: Field names unknown at compile-time; bracket notation `(path as any)[fieldDef.name]`[1]
+
+**Q: Dynamic field access in template?**  
+A: `@let field = $any(dynamicForm())[fieldDef.name]; <input [control]="field">`[1]
+
+**Q: Core `toSchema()` pattern?**  
+A: `schema((path) => { for(fieldDef of meta) { const fieldPath = path[fieldDef.name]; if(required) required(fieldPath); } })`[1]
+
+**Q: Consumer API?**  
+A: Provide `meta: FieldDef[]` + `entity: signal<unknown>()` → `form(entity, toSchema(meta))`[1]
+
+**Q: Extensibility?**  
+A: Add `children[]`, `customValidators[]`, complex `type` → custom components to `FieldDef`[1]
+
+## Key Terms & Keywords
+- Signal Forms Generator, `FieldDef[]` metadata
+- `toSchema(meta: FieldDef[])`: `Schema<unknown>`
+- `form(signal, schema)`, dynamic `unknown` type
+- `@for(fieldDef of metaInfo(); track fieldDef.name)`
+- `@let field = $any(dynamicForm())[fieldDef.name]`
+- `Control` directive binding
+- Bracket notation for runtime fields: `path[fieldDef.name]`
+- `required()`, `minLength()`, `maxLength()` validators
+- `<app-validation-errors [errors]="field().errors()">`
+- Extensible: arrays, custom validators, complex UI[1]
+
+[1](https://angularexperts.io/blog/the-most-impactful-rx-js-best-practice-of-all-time)

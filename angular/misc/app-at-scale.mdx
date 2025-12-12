@@ -1,0 +1,183 @@
+The guide promotes a domain‑driven, library‑based architecture for Angular apps on Nx: start with a single standalone app, modularize into domain libraries (feat/ui/data‑access), enforce boundaries via ESLint tags, automate standards with generators, and evolve to multi‑app/monorepo when scaling and deployment needs demand it.[1]
+
+***
+
+## Organizing code: horizontal vs vertical
+
+- Traditional layered (pizza‑box/onion/hexagonal) architectures slice by technical concern (UI, services, data), which is simple but often mismatched with business boundaries.  
+- Vertical/domain approaches slice by business capability (products, orders, checkout, user‑management, shipping), aligning with Conway’s Law and enabling independent evolution per domain.
+
+***
+
+## Breaking up the monolith & starting with Nx
+
+- Goal: modular design that supports reversible decisions and incremental evolution; avoid over‑engineering “ideal end state” up front.  
+- Start with a single app using `npx create-nx-workspace myshop --preset=angular-standalone` or add Nx via `npx nx@latest init` to an existing CLI app.  
+- Nx wraps Angular Devkit builders (build/serve) and adds executors for lint (`@nx/eslint`), test (`@nx/jest`), static serve, etc., configured in `project.json`.
+
+***
+
+## Domain libraries: feat/ui/data-access pattern
+
+- Instead of folders under `src/app`, create **projects** under `packages/` per domain:
+  - `products`, `orders`, `checkout`, `user-management`, `shipping-logistics`.  
+- Within a domain, follow the structured pattern:
+  - `data-access` – API + state.  
+  - `feat-*` – feature flows/pages.  
+  - `ui-*` – reusable presentational components.[1]
+- Use TS path mappings to give semantic imports:
+  ```json
+  "paths": {
+    "@myshop/products-data-access": ["packages/products/data-access/src/index.ts"],
+    "@myshop/products-feat-product-list": ["packages/products/feat-product-list/src/index.ts"],
+    "@myshop/products-ui-product-card": ["packages/products/ui-product-card/src/index.ts"]
+  }
+  ```
+  so that imports clearly reveal domain + type (`feat`, `ui`, `data-access`).
+
+***
+
+## App as thin composition shell
+
+- Application (`src` or `apps/shop`) is mainly:
+  - Routing, bootstrapping, layout, shell composition.  
+  - All business logic/UI/data‑access live in libraries.[1]
+- Example routing with standalone features:
+  ```ts
+  export const appRoutes: Route[] = [
+    {
+      path: 'products',
+      loadComponent: () =>
+        import('@myshop/products-feat-product-list')
+          .then(m => m.ProductsFeatProductListComponent),
+    },
+    {
+      path: 'product/:id',
+      loadComponent: () =>
+        import('@myshop/products-feat-product-detail')
+          .then(m => m.ProductsFeatProductDetailComponent),
+    },
+    // …
+    { path: '', redirectTo: 'products', pathMatch: 'full' },
+  ];
+  ```
+  Nx builds all imported libs into the app bundle; libs are organizational units, not deployables.
+
+***
+
+## When to create/split libraries
+
+- Don’t create a lib per component; start coarse and refine as you observe change patterns.[1]
+- Signals to adjust boundaries:
+  - Frequent cross‑library changes for one feature.  
+  - Circular dependencies between libs.  
+  - Unclear ownership and heavy cross‑team coupling.  
+  - Simple features needing imports from many libs.  
+  - Duplicated utilities/types across domains.
+
+***
+
+## Enforcing boundaries with Nx + ESLint
+
+- Tag libs with:
+  - **Scope tags**: `scope:products`, `scope:orders`, `scope:checkout`, `scope:shared` (vertical).  
+  - **Type tags**: `type:feature`, `type:ui`, `type:data-access`, `type:util` (horizontal).  
+- Example rules:
+  ```ts
+  // Type rules
+  { sourceTag: 'type:feature',
+    onlyDependOnLibsWithTags: ['type:feature','type:ui','type:data-access'] },
+  { sourceTag: 'type:ui',
+    onlyDependOnLibsWithTags: ['type:ui','type:util','type:data-access'] },
+
+  // Domain rules
+  { sourceTag: 'scope:orders',
+    onlyDependOnLibsWithTags: ['scope:orders','scope:products','scope:shared'] },
+  { sourceTag: 'scope:products',
+    onlyDependOnLibsWithTags: ['scope:products','scope:shared'] }
+  ```
+  so:
+  - UI cannot reach across into other domains directly.  
+  - `orders` can depend on `products`, but not vice‑versa.  
+  - `shared` only depends on `shared`, avoiding it becoming a dumping ground.  
+- Violations are caught by ESLint during dev/CI, preserving architecture over time.
+
+***
+
+## Automating standards with Nx
+
+- **Custom generators** encode org conventions:
+  ```ts
+  import { Tree, formatFiles } from '@nx/devkit';
+
+  export default async function (tree: Tree, schema: any) {
+    // create files / modify config
+    await formatFiles(tree);
+  }
+  ```
+  used via `nx generate ...` and Nx Console.  
+- Nx Console + AI integration surfaces workspace metadata to tools like Copilot/Cursor, enabling context‑aware suggestions/actions via the Nx CLI.
+
+***
+
+## From single app to multi‑app / monorepo
+
+- Single app: all features bundled as one deploy; libs only for structure.  
+- When to split:
+  - Different scaling/SLOs (storefront vs admin).  
+  - Resource optimization (internal vs external features).  
+  - Independent release cadences.  
+  - Security isolation for admin functionality.[1]
+- Convert to monorepo:
+  ```bash
+  nx g convert-to-monorepo
+  ```
+  → moves current app into `apps/` and adjusts configs.  
+- Add more apps, e.g. `nx g @nx/angular:app admin`; share domain libs from `packages/`.
+
+***
+
+## Cross‑tech and CI scaling
+
+- Nx supports Angular + React + Next.js + NestJS + Analog, etc., sharing domain libs (types, business logic) across frontend and backend.  
+- CI scaling tools:
+  - Remote caching (Nx Replay).  
+  - Distributed execution (Nx Agents).  
+  - Atomizer for splitting and parallelizing big test suites.  
+  - Flaky task detection and auto re‑runs.
+
+***
+
+## Interview cheat sheet (Q & A)
+
+- **Q: Why move from layered to domain‑driven structure?**  
+  A: Domain libs align with business capabilities and team structure, reduce cross‑team coupling, and allow independent evolution, unlike purely technical layers.
+
+- **Q: How do you organize code within a domain in Nx?**  
+  A: Use `data-access` for API/state, `feat-*` for features, `ui-*` for presentational components, with TS paths (e.g. `@myshop/products-feat-product-list`) to make domain and type obvious at import sites.[1]
+
+- **Q: What role do ESLint module boundary rules play?**  
+  A: They enforce allowed dependencies based on `scope:` and `type:` tags, preventing illegal cross‑domain or anti‑layer imports and preserving architecture as the codebase grows.
+
+- **Q: How would you evolve a single Angular app into multiple independently deployable apps using Nx?**  
+  A: Start with modular domain libs; run `nx g convert-to-monorepo` to create `apps/`, then generate new apps (e.g. `admin`), reusing existing domain libs and adjusting routing per app.
+
+- **Q: How do Nx generators help with large‑scale Angular architecture?**  
+  A: They encode patterns (naming, tags, structure) into repeatable code gen, ensuring new libs/features automatically follow org standards instead of relying on docs and manual discipline.
+
+***
+
+## Important terms & keywords
+
+- Layered vs domain‑driven (vertical) architecture  
+- Domains: products, orders, checkout, user‑management, shipping  
+- Nx workspace, `--preset=angular-standalone`, `nx init`  
+- Domain libraries: `feat-*`, `ui-*`, `data-access`  
+- TS path mappings for semantic imports  
+- App as thin composition/deployment shell  
+- ESLint module boundary rules, `scope:*`, `type:*` tags  
+- Custom Nx generators, Nx Console + AI  
+- `convert-to-monorepo`, multi‑app workspaces  
+- Remote caching, Nx Agents, Atomizer, flaky task detection
+
+[1](https://nx.dev/blog/architecting-angular-applications)

@@ -1,0 +1,220 @@
+Angular’s Streaming Resources extend the Resource API to represent **multi-value streams** as signals, with loader semantics similar to RxJS `switchMap` but different error behavior (resources can recover after errors by switching streams). They support both custom streaming loaders and `rxResource` (Observable-based), with `AbortSignal`-driven cleanup and `params`-driven stream switching.
+
+***
+
+## Core Concepts & Types
+
+- **Stream Loader Return Type**  
+  - Loader returns `PromiseLike<Signal<ResourceStreamItem<T>>>`.  
+  - `ResourceStreamItem<T> = { value: T } | { error: Error }`.  
+  - The inner Signal changes over time → represents the stream.
+
+- **Creating a Streaming Resource**
+  ```ts
+  const myResource = resource({
+    params,
+    stream: async (loaderParams) => {
+      const streamSignal = signal<ResourceStreamItem<number>>({ value: 4711 }); // 1
+      // 2. Async logic to update signal
+      // 3. Cleanup via loaderParams.abortSignal
+      return streamSignal;                                                     // 4
+    }
+  });
+  ```
+  - 4-part pattern: create signal, start async producer, wire cleanup to `AbortSignal`, return signal.
+
+- **SwitchMap Semantics on `params` Change**
+  - New `params` → old stream aborted (cleanup called), new stream created.  
+  - Exactly like RxJS `switchMap`: only latest stream is consumed.
+
+***
+
+## Timer Example & Factory Pattern
+
+- **Consumer Usage**
+  ```ts
+  @Component({...})
+  export class TimerResourceComponent {
+    startValue = signal(0);
+    timer = timerResource(1000, this.startValue);
+    forward() { this.startValue.update(nextSegment); }
+  }
+  ```
+  - `forward()` jumps to next hundred (`17→100`, `123→200`).
+
+- **Factory for Streaming Resource**
+  ```ts
+  export function timerResource(timeout: number, startValue: () => number)
+    : ResourceRef<number | undefined> {
+
+    const params = computed(() => ({ startValue: startValue() }));
+
+    return resource({
+      params,
+      stream: async (loaderParams) => {
+        let counter = loaderParams.params.startValue;
+        const resultSignal = signal<ResourceStreamItem<number>>({
+          value: counter
+        });
+        const ref = setInterval(() => {
+          counter++;
+          if (counter === 7 || counter === 13) {
+            resultSignal.set({ error: new Error('bad luck!') });
+          } else {
+            resultSignal.set({ value: counter });
+          }
+        }, timeout);
+
+        loaderParams.abortSignal.addEventListener('abort', () => {
+          clearInterval(ref);
+        });
+
+        return resultSignal;
+      }
+    });
+  }
+  ```
+  - Initial `value` is `startValue` (no `defaultValue` → `undefined` until first set).  
+  - Errors (7,13) are emitted as `{error}` but **do not end the stream**; next ticks can emit new `{value}`.
+
+***
+
+## Template Semantics & Error Handling
+
+- **Consumer Template**
+  ```html
+  <button (click)="forward()">Forward</button>
+
+  @if (timer.error()) {
+    <p><b>Error</b> due to {{ timer.error()?.message }}</p>
+  } @else {
+    <p><b>Timer:</b> {{ timer.value() }}</p>
+  }
+
+  <p><b>Status:</b> {{ timer.status() }}</p>
+  ```
+  - Must **not** read `value()` when `error()` is set (will throw).  
+  - Error does **not close** the resource; future stream values can override error.
+
+***
+
+## Streaming Loader Semantics
+
+- **Lifecycle**  
+  - On component destroy or `params` change:
+    - Resource aborts current stream (`AbortSignal.abort()` → cleanup handler).  
+    - New loader call creates new signal/stream.
+
+- **Behavior vs Observables**
+  - Resource stream: can go from value → error → value again (recover inside same stream).  
+  - RxJS Observable: unhandled `error` terminates stream permanently.
+
+***
+
+## `rxResource`: Observable Interop
+
+- **Timer via `rxResource`**
+  ```ts
+  export function timerResource(timeout: number, startValue: () => number)
+    : ResourceRef<number | undefined> {
+
+    const params = computed(() => ({ startValue: startValue() }));
+
+    return rxResource({
+      params,
+      stream: (loaderParams) => {
+        const start = loaderParams.params.startValue;
+        return interval(timeout).pipe(
+          map(v => v + start + 1),
+          startWith(start),
+          tap(v => console.log('counter', v)),
+          switchMap(value => {
+            if (value === 7 || value === 13) {
+              return throwError(() => new Error('bad luck'));
+            }
+            return [value];
+          })
+        );
+      }
+    });
+  }
+  ```
+  - `rxResource` is **always streaming** (Angular 19.2+).  
+  - Has same switchMap‑on‑`params` semantics; old Observable unsubscribed, new one used.
+
+- **Key Observable vs Streaming Resource Difference**
+  - Observable: first unhandled `error` completes the inner stream; it cannot emit further values.  
+  - `rxResource`: inner Observable stops, but **resource can recover** by switching to a new Observable via `params` change (new loader call).
+
+***
+
+## Important Types & APIs
+
+- `resource<T>({ params, stream })` with **streaming loader**:
+  - Loader: `(loaderParams) => PromiseLike<Signal<ResourceStreamItem<T>>>`.
+  - `loaderParams`:
+    - `params`: latest params object (from `computed`).  
+    - `abortSignal`: used to stop timers/sockets.
+
+- `rxResource<T>({ params, stream })`:
+  - `stream(loaderParams): Observable<T>` (interval/HTTP/websocket).
+
+- ResourceRef (streaming):
+  - `value()`: latest T (or `undefined` if unset).  
+  - `error()`: latest Error or `null`.  
+  - `status()`: internal status (e.g., loading/error/ok).
+
+***
+
+## Design Patterns & Best Practices
+
+- **Four-Step Streaming Loader Pattern**
+  1. Create `signal<ResourceStreamItem<T>>` with initial `{value}`.  
+  2. Start async producer (interval/websocket) updating signal.  
+  3. Wire cleanup to `AbortSignal` (`clearInterval`, close WS).  
+  4. Return signal.
+
+- **Use `params` + SwitchMap Semantics**
+  - For changing query/filter/startValue, derive `params` via `computed()`.  
+  - Rely on `resource`/`rxResource` to drop stale streams automatically.
+
+- **Error Handling**
+  - Template must branch on `.error()` before reading `.value()`.  
+  - For `rxResource`, error closes current Observable; recover by changing `params` (new stream).
+
+- **When to Prefer `rxResource`**
+  - When you already have an Observable (interval, HTTP, WS) and want streaming behavior with resource semantics (status/error/value) and switchMap on `params`.
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+1. **Q: What does a streaming loader return?**  
+   A: A `PromiseLike<Signal<ResourceStreamItem<T>>>`, where `ResourceStreamItem<T>` is `{value:T}` or `{error:Error}`.
+
+2. **Q: How does a Streaming Resource behave on `params` change?**  
+   A: It aborts the current stream via `AbortSignal`, calls loader again, and uses only the newest stream—like RxJS `switchMap`.
+
+3. **Q: Difference between Resource stream error and Observable error?**  
+   A: Resource: can later emit values again; Observable: first unhandled error completes the stream; must create a new Observable to recover.
+
+4. **Q: When would you use `rxResource`?**  
+   A: When the loader naturally produces an Observable (interval, HTTP, websocket) and you want streaming semantics and switchMap on `params`.
+
+5. **Q: Why is `AbortSignal` important in loaders?**  
+   A: It lets the loader clean up timers/sockets when the component is destroyed or when switching to a new stream, preventing leaks.
+
+***
+
+## Important Terms & Keywords (bullets)
+
+- Streaming Resource  
+- `resource` with `stream` loader  
+- `ResourceStreamItem<T>` (`{value}` / `{error}`)  
+- `AbortSignal` cleanup  
+- `switchMap` semantics on `params`  
+- Timer example (`timerResource`)  
+- `ResourceRef<number | undefined>`  
+- `rxResource` (Observable-based streaming)  
+- Error semantics: Observable vs Resource  
+- `interval`, `switchMap`, `throwError` in `rxResource` loaders
