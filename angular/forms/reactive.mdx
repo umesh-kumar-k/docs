@@ -32,7 +32,7 @@ Angular reactive forms use explicit, immutable AbstractControl trees (FormContro
 
 - **AbstractControl**: Base (value/status/valid/dirty/touched/pending)
 - **FormControl**: Single field (new FormControl('initial', Validators.required))
-- **FormGroup**: Named controls (fb.group({name: fc, nested: fg}))
+- **FormGroup**: Named controls (fb.group(`{name: fc, nested: fg}`))
 - **FormArray**: Indexed controls (fb.array([fc, fc])); dynamic push/remove
 - **FormBuilder**: Factory (inject(FormBuilder).group/array/control)[1]
 

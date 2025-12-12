@@ -27,7 +27,7 @@ Angular advanced form validation uses custom ValidatorFn/AsyncValidatorFn functi
 
 - **ValidatorFn/AsyncValidatorFn**: Sync/async validation signatures
 - **NG_VALIDATORS/NG_ASYNC_VALIDATORS**: Multi-provider tokens
-- **ValidationErrors**: {key: true|details} error object
+- **ValidationErrors**: `{key: true|details}` error object
 - **AbstractControl**: Control passed to validators (value/errors/status)
 
 ## Design Patterns
@@ -90,7 +90,7 @@ A: setValidators([new]), updateValueAndValidity(), valueChanges subscribe[2]
 
 | Scenario | Cause | Fix |
 |----------|-------|-----|
-| No validation trigger | Missing multi:true | NG_VALIDATORS: {multi: true} |
+| No validation trigger | Missing multi:true | NG_VALIDATORS: `{multi: true}` |
 | Keystroke HTTP spam | Default updateOn | updateOn: 'blur'/debounceTime |
 | Wrong instance | useClass directive | useExisting: forwardRef(MyDir) |
 | Pending forever | Infinite observable | take(1)/first() on async |
@@ -98,11 +98,13 @@ A: setValidators([new]), updateValueAndValidity(), valueChanges subscribe[2]
 ## Key Highlights & Tradeoffs
 
 - **Highlights**: Field/form-level, sync/async, type-safe errors, pending feedback.
-- **Tradeoffs**:
-  | Type | Pros | Cons |
-  |------|------|------|
-  | Sync | Immediate | No API calls |
-  | Async | Backend validation | Latency/pending UX |
+
+**Tradeoffs**
+
+| Type | Pros | Cons |
+|------|------|------|
+| Sync | Immediate | No API calls |
+| Async | Backend validation | Latency/pending UX |
 
 ## Essential Terms & Keywords
 

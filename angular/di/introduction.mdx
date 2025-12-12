@@ -1,11 +1,11 @@
-Angular Dependency Injection (DI) uses hierarchical injectors to resolve dependencies via tokens, enabling loose coupling, testability, and tree-shakeable singletons through @Injectable({providedIn: 'root'}). Injector hierarchy (Element → Environment → Root → Platform → Null) resolves closest provider first, with modifiers like @Optional/@Self controlling lookup.
+Angular Dependency Injection (DI) uses hierarchical injectors to resolve dependencies via tokens, enabling loose coupling, testability, and tree-shakeable singletons through @Injectable(`{providedIn: 'root'}`). Injector hierarchy (Element → Environment → Root → Platform → Null) resolves closest provider first, with modifiers like @Optional/@Self controlling lookup.
 
 ## Core Mechanism
 
 - **Injector Hierarchy**
   - **Element Injector**: Component/directive providers (local + children)
   - **Environment Injector**: Route/module lazy-loaded scopes
-  - **Root Injector**: @Injectable({providedIn: 'root'}), appConfig providers
+  - **Root Injector**: @Injectable(`{providedIn: 'root'}`), appConfig providers
   - **Platform/Null**: Browser deps, error fallback
   
 - **Resolution Flow**
@@ -27,8 +27,8 @@ Angular Dependency Injection (DI) uses hierarchical injectors to resolve depende
 ## Important Classes/Interfaces
 
 - **Injector**: Core resolver with get()/container Map
-- **Provider**: {provide: Token, useClass/useValue/useFactory/useExisting}
-- **InjectionToken<T>**: Opaque token for non-classes (APP_CONFIG)
+- **Provider**: `{provide: Token, useClass/useValue/useFactory/useExisting}`
+- **`InjectionToken<T>`**: Opaque token for non-classes (APP_CONFIG)
 - **EnvironmentInjector/NullInjector**: Hierarchy nodes 
 
 ## Provider Types
@@ -36,13 +36,13 @@ Angular Dependency Injection (DI) uses hierarchical injectors to resolve depende
 ```
 TypeProvider: UserService (class token syntactic sugar)
 ↓
-Class: {provide: Logger, useClass: TimeLogger} (subclass)
+Class: `{provide: Logger, useClass: TimeLogger}` (subclass)
 ↓
-Alias: {provide: Logger, useExisting: TimeLogger} (singleton)
+Alias: `{provide: Logger, useExisting: TimeLogger}` (singleton)
 ↓
-Factory: {useFactory: (deps) => new Service(deps), deps: [Logger]}
+Factory: `{useFactory: (deps) => new Service(deps), deps: [Logger]}`
 ↓
-Value: {provide: APP_CONFIG, useValue: {testEnv: true}}
+Value: `{provide: APP_CONFIG, useValue: `{testEnv: true}`}`
 ```
 
 - **multi: true**: Array of values (HTTP_INTERCEPTORS)
@@ -51,7 +51,7 @@ Value: {provide: APP_CONFIG, useValue: {testEnv: true}}
 ## Design Patterns & Best Practices
 
 - **Port-Adapter**: Abstract port token + concrete adapters (Snackbar/Toast)
-- **Tree-shakeable**: @Injectable({providedIn: 'root'}) over NgModule providers
+- **Tree-shakeable**: @Injectable(`{providedIn: 'root'}`) over NgModule providers
 - **inject() over constructor**: Field injection, easier inheritance
 - **@Self/@SkipSelf/@Host/@Optional**: Precise scoping control
 
@@ -59,8 +59,8 @@ Value: {provide: APP_CONFIG, useValue: {testEnv: true}}
 
 - **Runtime Factories**: useFactory with Injector.get() for conditional impl (mock/prod)
 - **Multi-Providers**: Chained interceptors/strategies
-- **Testing Mocks**: {provide: Service, useValue: mock} in TestBed
-- **Standalone Era**: bootstrapApplication({providers: [...]}) replaces modules
+- **Testing Mocks**: `{provide: Service, useValue: mock}` in TestBed
+- **Standalone Era**: bootstrapApplication(`{providers: [...]}`) replaces modules
 
 ## Big Tech References
 

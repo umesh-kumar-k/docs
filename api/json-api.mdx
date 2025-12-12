@@ -50,7 +50,7 @@ Stripe uses JSON:API-like patterns for predictable client libraries across platf
 - **Design**: Apidog/Postman (JSON:API support), Swagger + json-api plugin.[1]
 
 ## Data Structures & Algorithms
-Resource normalization uses graph adjacency lists (relationships → {type : id}); compound docs require client-side JOINs (hash maps by type+id). Sparse fieldsets leverage projection queries (MongoDB $project). Pagination employs cursor-based (indexed _id) or offset (skip/limit). Sorting uses compound indexes (B-trees).[apidog]
+Resource normalization uses graph adjacency lists (relationships → `{type : id}`); compound docs require client-side JOINs (hash maps by type+id). Sparse fieldsets leverage projection queries (MongoDB $project). Pagination employs cursor-based (indexed _id) or offset (skip/limit). Sorting uses compound indexes (B-trees).[apidog]
 
 ## Key Highlights & Tradeoffs
 - **Productivity**: Zero endpoint design debates—focus on business logic.[chris.manson]

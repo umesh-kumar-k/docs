@@ -14,10 +14,10 @@ Angular performance series covers **Initial Load metrics** (FCP/LCP/CLS), **SSR/
 **Core Metrics**:
 | Metric | What | Target |
 |--------|------|--------|
-| **FCP** | First paint | <1.8s |
-| **LCP** | Largest content | <2.5s |
-| **TBT** | Responsiveness | <200ms |
-| **CLS** | Layout shift | <0.1 |
+| **FCP** | First paint | &lt;1.8s |
+| **LCP** | Largest content | &lt;2.5s |
+| **TBT** | Responsiveness | &lt;200ms |
+| **CLS** | Layout shift | &lt;0.1 |
 | **SI** | Speed Index | Lower better |
 
 **Tools** (Top 3):
@@ -161,7 +161,7 @@ A: `@defer (on viewport; prefetch on idle) { <heavy /> }`[4]
 A: Standalone components + `@defer` heavy charts/pivot → separate lazy chunks[5]
 
 **Q: Lighthouse targets?**  
-A: FCP <1.8s, LCP <2.5s, TBT <200ms, CLS <0.1[2]
+A: FCP &lt;1.8s, LCP &lt;2.5s, TBT &lt;200ms, CLS &lt;0.1[2]
 
 **Q: v19 Hybrid Rendering?**  
 A: Per-route SSR/SSG/CSR via `serverRoutes: ServerRoute[]`[6]

@@ -63,9 +63,9 @@ explicitEffect(id, (id) => store.load(id)); // Track only id
 
 ## Important Classes/Interfaces
 
-- **effect(fn, {allowSignalWrites: true})**: Side-effects (avoid writes)
+- **effect(fn, `{allowSignalWrites: true}`)**: Side-effects (avoid writes)
 - **explicitEffect(trackeds..., fn)**: Manual dependency tracking
-- **rxMethod<T>()**: NGRX reactive delegation (auto-subscribe)
+- **rxMethod&lt;T&gt;()**: NGRX reactive delegation (auto-subscribe)
 - **tapResponse()**: NGRX unified next/error/loading
 
 ## Design Patterns

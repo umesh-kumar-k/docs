@@ -1,31 +1,31 @@
-Angular strongly-typed reactive forms (v14+) infer FormControl<FormGroup<{name: string|null}> types from initial values, providing compile-time safety against invalid patches/accesses via IDE autocomplete and TS errors. Use `nonNullable` option or `FormBuilder.nonNullable` to exclude null; explicit generics for complex cases like nullable required fields.
+Angular strongly-typed reactive forms (v14+) infer `FormControl<FormGroup<{name: string|null}>>` types from initial values, providing compile-time safety against invalid patches/accesses via IDE autocomplete and TS errors. Use `nonNullable` option or `FormBuilder.nonNullable` to exclude null; explicit generics for complex cases like nullable required fields.
 
 ## Core Mechanism
 
 - **Type Inference**
   ```
-  fb.group({name: [''], age: [null]}) // → FormGroup<{name: FormControl<string|null>, age: FormControl<number|null>}>
+  fb.group(`{name: [''], age: [null]}`) // → FormGroup<`{name: FormControl<string|null>, age: FormControl<number|null>}`>
   ↓
-  form.patchValue({invalid: 123}) // TS Error: no 'invalid' property
+  form.patchValue(`{invalid: 123}`) // TS Error: no 'invalid' property
   form.controls.age.setValue('abc') // TS Error: expected number|null
   ```
   
 - **Non-Nullable Forms**
   ```
-  fb.nonNullable.group({name: ['']}) // → FormGroup<{name: FormControl<string>}>
-  new FormControl('', {nonNullable: true}) // string only
+  fb.nonNullable.group(`{name: ['']}`) // → FormGroup<`{name: FormControl<string>}`>
+  new FormControl('', `{nonNullable: true}`) // string only
   ```
 
 ## Important Classes/Interfaces
 
-- **TypedFormGroup<T>**: Generic form with inferred control types
+- **`TypedFormGroup<T>`**: Generic form with inferred control types
 - **NonNullableFormBuilder**: Excludes null from all values
-- **FormControl<T>**: Typed single control (string|number|null by default)
-- **FormBuilder.group<T=any>**: Generic typing via interface 
+- **`FormControl<T>`**: Typed single control (string|number|null by default)
+- **`FormBuilder.group<T=any>`**: Generic typing via interface 
 
 ## Design Patterns
 
-- **Type-Safe Builder**: FormBuilder.group<UserForm> enforces structure
+- **Type-Safe Builder**: `FormBuilder.group<UserForm>` enforces structure
 - **Discriminated Unions**: Nullable vs non-nullable controls
 - **Explicit Control Typing**: `fb.control<number|null>(null, Validators.required)`
 
@@ -41,11 +41,11 @@ Angular strongly-typed reactive forms (v14+) infer FormControl<FormGroup<{name: 
 
 ```
 Mixed Nullability:
-fb.group({
+fb.group(`{
   name: '', // string|null (default)
   age: fb.control<number|null>(null, Validators.required), // explicit nullable
   email: fb.nonNullable.control('') // string only
-})
+}`)
 
 FormArray Typing:
 fb.array<FormControl<string>[]>([fb.control('')])
@@ -67,7 +67,7 @@ A: TS error at compile time (number → string field)
 **Q: Nullable required field?**  
 A: `fb.control<number|null>(null, Validators.required)` + min(0) validator 
 
-**Q: FormGroup<any> problem?**  
+**Q: `FormGroup<any>` problem?**  
 A: No type safety/autocomplete; declare with type or inline init 
 
 **Q: nonNullable vs explicit?**  
@@ -77,8 +77,8 @@ A: nonNullable blanket; explicit control-by-control
 
 | Scenario | Cause | Fix |
 |----------|-------|-----|
-| FormGroup<any> | ngOnInit init | Inline declaration or typed property |
-| Null required | Default nullable | fb.control<T|null> or nonNullable |
+| `FormGroup<any>` | ngOnInit init | Inline declaration or typed property |
+| Null required | Default nullable | fb.control&lt;T|null&gt; or nonNullable |
 | Missing field | patchValue extra prop | TS catches at compile |
 | No autocomplete | Untyped form | Infer from initial values |
 
@@ -93,14 +93,14 @@ A: nonNullable blanket; explicit control-by-control
 
 ## Essential Terms & Keywords
 
-- TypedFormGroup<T>
+-`TypedFormGroup<T>`
 - NonNullableFormBuilder
-- FormControl<T>
+- `FormControl<T>`
 - fb.nonNullable.group()
-- {nonNullable: true}
-- fb.control<number|null>
+- `{nonNullable: true}`
+- `fb.control<number|null>`
 - Type Inference
 - Compile-time Safety
-- FormBuilder.group<T>
+- FormBuilder.group`<T>`
 - getRawValue()
 - IDE Autocomplete

@@ -30,7 +30,7 @@ Angular OnPush change detection strategy skips child component checks unless inp
 
 ## Design Patterns & Best Practices
 
-- **Immutable Inputs**: New ref per update ({...old, prop: newVal}) triggers auto-check
+- **Immutable Inputs**: New ref per update (`{...old, prop: newVal}`) triggers auto-check
 - **AsyncPipe Magic**: Subscribes @Input observables, markForCheck on emit (immutability req)
 - **ngDoCheck + Manual**: Deep mutation detect → this.cd.markForCheck()
 - **Immer/DeepFreeze**: Enforce immutability; produce(draft => draft.prop = val)

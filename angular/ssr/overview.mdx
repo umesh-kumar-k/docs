@@ -1,0 +1,444 @@
+Angular’s performance guides here focus on **rendering strategy**: combining client‑side rendering (CSR), server‑side rendering (SSR), prerendering (SSG), full hydration, and incremental hydration to improve Core Web Vitals, SEO, and scalability.[1][2][3][4]
+
+***
+
+## Performance Overview (Angular Guide: Performance)
+
+- Angular surfaces three key guides under performance: **server & hybrid rendering**, **hydration**, and **incremental hydration**, each focused on faster loads and better UX.[1]
+- Goal: choose and combine rendering strategies to reduce JS work on client devices, improve CWV (LCP, FID/INP, CLS), and keep UX smooth even on slow networks/devices.[1]
+
+***
+
+## Hybrid Rendering & SSR (angular.dev/guide/ssr)
+
+### What is Hybrid Rendering?
+
+- Angular apps are CSR by default: simple dev model but heavier JS on client, slower initial render, and weaker SEO.[2]
+- **Hybrid rendering** lets you mix:
+  - **CSR** (client)  
+  - **SSR** (server per‑request)  
+  - **Prerender/SSG** (build‑time static HTML)  
+  per route, to optimize for performance, SEO, and infrastructure cost.[2]
+
+### Enabling SSR / Hybrid
+
+- New project:  
+  ```bash
+  ng new my-app --ssr
+  ```
+- Existing project:  
+  ```bash
+  ng add @angular/ssr
+  ```
+- By default Angular prerenders the entire app and generates a server file; `outputMode: static` → fully static, while setting `RenderMode.Server` on routes enables SSR at runtime.[2]
+
+### Server Route Configuration
+
+- Define **server routes** in `app.routes.server.ts` as `ServerRoute[]` with `RenderMode` per path:[2]
+  ```ts
+  import { RenderMode, ServerRoute } from '@angular/ssr';
+
+  export const serverRoutes: ServerRoute[] = [
+    { path: '',      renderMode: RenderMode.Client   }, // CSR
+    { path: 'about', renderMode: RenderMode.Prerender }, // SSG
+    { path: 'profile', renderMode: RenderMode.Server },  // SSR
+    { path: '**',    renderMode: RenderMode.Server  },   // SSR fallback
+  ];
+  ```
+- Register with `provideServerRendering(withRoutes(serverRoutes))` in `app.config.server.ts`.[2]
+- When using app shell pattern for CSR routes, register shell component via `withAppShell(AppShellComponent)` so CSR routes still show a shell during load.[2]
+
+### Rendering Modes & Trade‑offs
+
+| Mode | Characteristics & Trade‑offs |
+|------|------------------------------|
+| **Client (CSR)** | Easiest dev model; can assume `window` and use any browser‑only libs. Worse initial perf (JS must download/execute before content), SEO weaker (crawlers limited in JS execution). Lowest server cost, works well with SW‑driven offline apps. [2] |
+| **Server (SSR)** | Server renders HTML per request → faster first paint, fewer round trips, excellent SEO. Requires code to be browser‑agnostic (no direct `window`/`document` in shared paths). Higher server CPU cost because Angular runs on every request. [2] |
+| **Prerender (SSG)** | HTML built at **build‑time**, served as static files: fastest per‑request latency, ideal for cache/CDN and high‑traffic pages that look the same to all users. Needs all data at build‑time; cannot show per‑user dynamic content. Increases build time and deployment size for many routes. [2] |
+
+***
+
+## Advanced SSR Controls
+
+### Headers & Status Codes
+
+- Per‑route headers and HTTP status:[2]
+  ```ts
+  { path: 'profile',
+    renderMode: RenderMode.Server,
+    headers: { 'X-My-Custom-Header': 'some-value' },
+    status: 201,
+  }
+  ```
+
+### Redirects
+
+- SSR: real HTTP redirects (301/302) via server route handling.  
+- Prerender: **soft redirects** using `<meta http-equiv="refresh">` in static HTML (no server logic at request time).[2]
+
+### Prerendering Parameterized Routes
+
+- For `RenderMode.Prerender` routes, use `getPrerenderParams` to generate parameter combinations:[2]
+  ```ts
+  { 
+    path: 'post/:id',
+    renderMode: RenderMode.Prerender,
+    async getPrerenderParams() {
+      const dataService = inject(PostService);
+      const ids = await dataService.getIds(); // e.g. ['1','2','3']
+      return ids.map(id => ({ id }));
+    },
+  }
+  ```
+- Works for catch‑all `/**` params as well; function runs **at build‑time only** and must not depend on browser/server‑specific APIs beyond Angular DI.[2]
+
+### Prerender Fallback Strategies
+
+- For `RenderMode.Prerender` you can specify `fallback`:[2]
+  - `Server` (default): fall back to SSR for not‑prebuilt paths.  
+  - `Client`: fall back to CSR.  
+  - `None`: no fallback; non‑prerendered paths are unhandled by Angular.  
+
+***
+
+## Authoring Server‑Compatible Code & DI Patterns
+
+### Avoid Browser Globals on Server
+
+- `window`, `document`, `navigator`, `location`, certain `HTMLElement` props are **not available** during SSR; guard or isolate browser‑only code.[2]
+- Use **browser‑only lifecycle hooks** `afterEveryRender` / `afterNextRender` to run DOM‑dependent code only in browser:[2]
+  ```ts
+  afterNextRender(() => {
+    // Runs only in browser after render, safe for DOM access
+  });
+  ```
+
+### Providers per Request
+
+- Top‑level `useValue` providers in server app are **singleton across requests**.[2]
+- For per‑request values (e.g., request ID, user context) use `useFactory` providers so factory runs for each request.[2]
+
+### Document Access via DI
+
+- Use Angular’s `DOCUMENT` token instead of direct `document`:[2]
+  ```ts
+  import { inject, DOCUMENT } from '@angular/core';
+
+  const doc = inject(DOCUMENT);
+  const link = doc.createElement('link');
+  link.rel = 'canonical';
+  link.href = href;
+  doc.head.appendChild(link);
+  ```
+- Use `Meta` service for meta tags.[2]
+
+***
+
+## HttpClient Transfer Cache (SSR + Hydration)
+
+- On server, `HttpClient` caches outgoing requests; cache is serialized into initial HTML. In browser, `HttpClient` reuses cache on first render instead of re‑fetching, then stops using it once app becomes stable.[2]
+- Configure via `withHttpTransferCacheOptions` inside `provideClientHydration()`:[2]
+  ```ts
+  provideClientHydration(
+    withHttpTransferCacheOptions({
+      includeHeaders: ['ETag', 'Cache-Control'],
+      filter: req => !req.url.includes('/api/profile'),
+      includePostRequests: true,
+      includeRequestsWithAuthHeaders: false,
+    }),
+  )
+  ```
+
+***
+
+## Server Configuration (Node & Non‑Node)
+
+### Node.js
+
+- `@angular/ssr/node` provides Node‑specific helpers:[2]
+  ```ts
+  import { AngularNodeAppEngine,
+           createNodeRequestHandler,
+           writeResponseToNodeResponse } from '@angular/ssr/node';
+  import express from 'express';
+
+  const app = express();
+  const angularApp = new AngularNodeAppEngine();
+
+  app.use('*', (req, res, next) => {
+    angularApp.handle(req)
+      .then(response => {
+        if (response) writeResponseToNodeResponse(response, res);
+        else next();
+      })
+      .catch(next);
+  });
+
+  export const reqHandler = createNodeRequestHandler(app);
+  ```
+
+### Non‑Node
+
+- `@angular/ssr` uses standard Web `Request`/`Response`, so SSR can run on other platforms:[2]
+  ```ts
+  import { AngularAppEngine, createRequestHandler } from '@angular/ssr';
+
+  const angularApp = new AngularAppEngine();
+
+  export const reqHandler = createRequestHandler(async (req: Request) => {
+    const res: Response | null = await angularApp.render(req);
+    // …
+  });
+  ```
+
+***
+
+## Hydration (angular.dev/guide/hydration)
+
+### What is Hydration & Why It Matters
+
+- Hydration = restoring a **server‑rendered app on the client**, reusing DOM, state, and transferred data instead of re‑creating nodes.[3]
+- Benefits:
+  - No flicker from destroying/re‑rendering DOM.  
+  - Better CWV: improved LCP, FID/INP, and CLS because DOM is reused and layout is stable.  
+  - Direct SEO benefit from SSR plus better UX metrics.[3]
+
+### Enabling Hydration
+
+- Requires SSR first.  
+- CLI‑based SSR setup (`ng add @angular/ssr` or `--ssr`) usually wires hydration automatically.[3]
+- Manual:
+  ```ts
+  import { bootstrapApplication,
+           provideClientHydration } from '@angular/platform-browser';
+
+  bootstrapApplication(AppComponent, {
+    providers: [provideClientHydration()],
+  });
+  ```
+- For NgModules, add `provideClientHydration()` to root module providers. Ensure same provider set is used in both browser and server bootstrap.[3]
+
+### Verifying Hydration
+
+- In dev mode, console logs hydration stats (components, nodes hydrated).[3]
+- Angular DevTools exposes hydration status per component and overlay for hydrated sections; also highlights mismatch errors.[3]
+
+***
+
+## Event Replay (User Interactions Before Hydration Completes)
+
+- Problem: SSR HTML is visible before event handlers are attached; user can click before hydration is done.[3]
+- **Event Replay** captures native events pre‑hydration and replays them when hydration finishes:[3]
+  ```ts
+  import { provideClientHydration, withEventReplay }
+    from '@angular/platform-browser';
+
+  bootstrapApplication(AppComponent, {
+    providers: [provideClientHydration(withEventReplay())],
+  });
+  ```
+- Phases:
+  - Capture interactions before hydration.  
+  - Store them (event contract).  
+  - Re‑emit once hydrated.[3]
+- Supports native events such as `click`, `mouseover`, `focusin`. Backed by JSAction library.[3]
+- With **incremental hydration** enabled, event replay is auto‑enabled.[4]
+
+***
+
+## Hydration Constraints & Pitfalls
+
+### DOM Parity
+
+- Server and client must produce the **same DOM structure** (including Angular‑generated whitespace and comments). HTML must not be altered between server and client; mismatches break hydration.[3]
+
+### Direct DOM Manipulation
+
+- Components that:
+  - Use `document` queries, `innerHTML`/`outerHTML`, `appendChild`, move/detach nodes, etc., can cause DOM mismatch.[3]
+- Best: refactor to Angular templates & APIs; if not possible yet, mark component to skip hydration.  
+
+### Valid HTML Structure
+
+- Invalid or auto‑corrected structures cause server vs client DOM differences:
+  - `<table>` without explicit `<tbody>`.  
+  - `<div>` in `<p>`.  
+  - Nested `<a>`.[3]
+- Always include `<tbody>` explicitly; validate templates with an HTML validator.[3]
+
+### `preserveWhitespaces` & Zone.js
+
+- Recommended: `preserveWhitespaces: false` (default); mismatched values between `tsconfig.server.json` and `tsconfig.app.json` break hydration.[3]
+- Custom/noop Zone.js is **not supported** for hydration; Angular relies on Zone “stable” events to know when to serialize/cleanup.[3]
+
+### Hydration Errors & Skipping
+
+- Typical error: DOM mismatch from DOM manipulation or invalid structure.[3]
+- **Skip per component**:
+  ```html
+  <app-example ngSkipHydration></app-example>
+  ```
+  or:
+  ```ts
+  @Component({
+    host: { ngSkipHydration: 'true' },
+  })
+  class ExampleComponent {}
+  ```
+- Skipping means that component (and children) behave as in non‑hydrated CSR (destroy/re‑render). Use as last‑resort; treat as tech debt to fix.[3]
+
+### Hydration Timing & Stability
+
+- Hydration and post‑hydration cleanup run once app is **stable** (no pending timers, unresolved promises, microtasks).[3]
+- If app stays unstable >10s you may see “Application remains unstable” and delayed/no hydration; refactor to avoid long‑running async tasks on startup.[3]
+
+### i18n & Third‑Party Libraries
+
+- By default, components using Angular i18n blocks are skipped from hydration; enable with `withI18nSupport()` inside `provideClientHydration()`.[3]
+- Libraries that manipulate DOM (e.g., D3 charts) or third‑party scripts (ads, analytics) can break hydration; either:
+  - Add `ngSkipHydration` to wrapper component, or  
+  - Defer script execution until after hydration (e.g., use `afterNextRender`).[3]
+
+***
+
+## Incremental Hydration (angular.dev/guide/incremental-hydration, overview)
+
+### Why Incremental Hydration
+
+- Full hydration hydrates entire SSR page at once; incremental hydration **keeps sections dehydrated** and hydrates them later based on triggers.[4]
+- Benefits:
+  - Smaller initial JS bundle (non‑critical code deferred).  
+  - Less main‑thread work at startup, better INP/FID and TTI.  
+  - Lower CLS by eliminating placeholder reflows and gradually activating sections.[5][4]
+
+### Enabling Incremental Hydration
+
+- Requires SSR + hydration already configured.[4]
+- Add `withIncrementalHydration()` to `provideClientHydration`:[6][4]
+  ```ts
+  import {
+    bootstrapApplication,
+    provideClientHydration,
+    withIncrementalHydration,
+  } from '@angular/platform-browser';
+
+  bootstrapApplication(AppComponent, {
+    providers: [
+      provideClientHydration(withIncrementalHydration()),
+    ],
+  });
+  ```
+
+### How It Works (High‑Level)
+
+- Builds on:
+  - Full hydration.  
+  - **Deferrable views (`@defer` blocks)**.  
+  - Event replay.[7][4]
+- `@defer` defines **incremental hydration boundaries**; adding `hydrate` triggers tells Angular:
+  - Preload & SSR those blocks, but **skip hydrating** them initially.  
+  - Hydrate lazily when a trigger fires.[7][4]
+
+### Hydrate Triggers (Conceptual)
+
+- Types (from guide & ecosystem articles):[8][9][6][4]
+  - `hydrate on …`: event‑based triggers:
+    - `interaction` (click, input, etc.).  
+    - `hover`.  
+    - `viewport` (when enters viewport).  
+    - `idle`.  
+    - `timer(ms)` (after delay).  
+    - `immediate`.  
+  - `hydrate when <condition>`: condition‑based (works when containing component is already hydrated).  
+  - `hydrate never`: leave component permanently static (no hydration).  
+- Example (syntax from RFC & articles):[8][7]
+  ```html
+  <example-cmp />
+
+  @defer (on immediate; hydrate on interaction) {
+    <deferred-cmp />
+    <another-deferred-cmp />
+  }
+  ```
+- For nested `@defer` blocks, hydrating an inner block forces hydration to start at the **top‑most dehydrated ancestor** (hierarchical tree).[4]
+
+***
+
+## Design Patterns & Best Practices (Architect Level)
+
+- **Per‑route render strategy**:
+  - Static marketing/docs → `Prerender` (+ SSG/CDN).  
+  - Authenticated dashboards → SSR for shell + CSR for highly interactive inner views.  
+  - SPA‑style flows with offline → CSR + Service Worker; maybe SSR for initial route only.[2]
+
+- **SSR + Hydration**:
+  - Use SSR for key routes to improve CWV/SEO; add hydration for DOM reuse.  
+  - Guard browser‑only logic and DOM deps via `afterNextRender`/`afterEveryRender`.  
+  - Leverage HttpClient transfer cache to avoid double fetch.[2][3]
+
+- **Incremental Hydration & Deferrable Views**:
+  - SSR big page but hydrate only above‑the‑fold or high‑priority components upfront; defer non‑critical components with `@defer` and targeted `hydrate` triggers.[5][4]
+  - Combine with event replay so early interactions on dehydrated parts are not lost.[4][3]
+
+- **Operational considerations**:
+  - SSR: factor server CPU and scaling; prefer SSG/CDN for high‑traffic static routes.[2]
+  - Complex SSR/hydration requires strong error telemetry (DOM mismatch, unstable app errors) and testing on varied devices/browsers.  
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Why would you introduce SSR + hydration into an Angular app instead of staying CSR‑only?**  
+A: SSR delivers fully rendered HTML for faster first paint and better SEO; hydration reuses that DOM on the client instead of re‑rendering, avoiding flicker and improving CWV (LCP, FID/INP, CLS), while still enabling a full SPA experience once bootstrapped.[3][2]
+
+**Q2: Compare CSR, SSR, and Prerender (SSG) in Angular and when you’d use each.**  
+A: CSR is simplest and cheapest to serve but slower initially and weaker for SEO; SSR trades more server cost and browser‑agnostic coding constraints for better initial performance and SEO; Prerender generates static HTML at build‑time for routes whose content is static per user, giving fastest per‑request performance and ideal CDN caching but cannot personalize by user and lengthens build/deploy times.[2]
+
+**Q3: What constraints does hydration impose on Angular component code?**  
+A: Client and server must generate identical DOM trees; DOM must not be mutated between SSR and hydration; direct DOM manipulation (`document`, `innerHTML`, manual node moving) and invalid HTML structures (`<table>` without `<tbody>`, nested `<a>`) can cause DOM mismatch errors; browser‑only logic should run only in browser‑only hooks like `afterNextRender`.[3]
+
+**Q4: How does Angular’s HttpClient transfer cache help SSR/hydration performance?**  
+A: During SSR, HttpClient caches GET/HEAD responses and serializes them into the HTML; on the client, HttpClient reads that cache and reuses data instead of re‑fetching during initial render, avoiding duplicate network calls and speeding up hydration; behavior is configurable via `withHttpTransferCacheOptions`.[2]
+
+**Q5: What is incremental hydration, and how does it differ from full hydration?**  
+A: Full hydration activates the entire SSR page at once; incremental hydration leaves `@defer` sections dehydrated and hydrates them later based on triggers (interaction, viewport, idle, timer, etc.), reducing initial JS and main‑thread work while still giving a comparable UX where only visible/critical parts hydrate immediately.[7][4]
+
+**Q6: How do you enable hydration and incremental hydration in Angular?**  
+A: Enable SSR, then add `provideClientHydration()` in bootstrap providers for hydration; to enable incremental hydration, wrap it with `withIncrementalHydration()` (`provideClientHydration(withIncrementalHydration())`) and use `@defer` blocks with `hydrate on/when/never` triggers to mark boundaries.[4][3]
+
+**Q7: How would you handle third‑party DOM‑heavy libraries (like D3) in an SSR + hydration Angular app?**  
+A: Prefer wrapping them in components that either delay DOM manipulation until after hydration (using `afterNextRender`) or mark them with `ngSkipHydration` temporarily; treat DOM mismatch errors from such libs as tech debt and aim to refactor or encapsulate them to be hydration‑safe.[3]
+
+***
+
+## Important Terms & Keywords
+
+1. CSR, SSR, Prerender / SSG, Hybrid rendering  
+2. `RenderMode.Client`, `RenderMode.Server`, `RenderMode.Prerender`  
+3. `ServerRoute[]`, `provideServerRendering`, `withRoutes`, `withAppShell`  
+4. `getPrerenderParams`, `PrerenderFallback` (`Server`, `Client`, `None`)  
+5. Hydration, Event Replay (`withEventReplay`), application stability  
+6. `provideClientHydration`, `withHttpTransferCacheOptions`, Http transfer cache  
+7. Browser‑safe vs server‑safe code, `afterNextRender`, `afterEveryRender`  
+8. `DOCUMENT` token, `Meta` service, per‑request providers with `useFactory`  
+9. `ngSkipHydration`, valid HTML structure (`<tbody>`), `preserveWhitespaces`, Zone.js constraints  
+10. Incremental hydration, `withIncrementalHydration`, `@defer` blocks  
+11. Hydration triggers: `hydrate on` (interaction, hover, viewport, idle, timer, immediate), `hydrate when <condition>`, `hydrate never`
+
+[1](https://angular.dev/guide/performance)
+[2](https://angular.dev/guide/ssr)
+[3](https://angular.dev/guide/hydration)
+[4](https://angular.dev/guide/incremental-hydration)
+[5](https://push-based.io/article/incremental-hydration-in-angular-introduction-part-1-3)
+[6](https://www.telerik.com/blogs/incremental-hydration-angular)
+[7](https://github.com/angular/angular/discussions/57664)
+[8](https://houseofangular.io/optimizing-angular-ssr-with-incremental-hydration-experimental/)
+[9](https://www.thisdot.co/blog/incremental-hydration-in-angular)
+[10](https://blog.nashtechglobal.com/incremental-hydration-angular-19/)
+[11](https://www.angularminds.com/blog/understanding-angular-hydration-how-it-works-and-its-benefits)
+[12](https://www.youtube.com/watch?v=I4n1IcZ3vRs)
+[13](https://www.youtube.com/watch?v=IwGRsUJ_muY)
+[14](https://houseofangular.io/angular-19-top-4-features-to-improve-app-performance/)
+[15](https://www.youtube.com/watch?v=v5KTJGEYLsM)
+[16](https://labs.thisdot.co/blog/incremental-hydration-in-angular)
+[17](https://www.bacancytechnology.com/blog/angular-hydration)

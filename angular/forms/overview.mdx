@@ -25,7 +25,7 @@ Angular forms build an AbstractControl tree (FormControl/FormGroup/FormArray) sy
   ```
   Validators.compose([directiveVal, classVal])
   ↓
-  _executeValidators → _mergeErrors {required: true, minlength: {actual:2}}
+  _executeValidators → _mergeErrors `{required: true, minlength: {actual:2}}`
   ```
 
 ## Important Classes/Interfaces
@@ -47,7 +47,7 @@ Angular forms build an AbstractControl tree (FormControl/FormGroup/FormArray) sy
 - **Template-Driven**: Simple forms (ngModel/ngModelGroup/ngForm)
 - **Custom Validators**: Directive + NG_VALIDATORS multi-provider
 - **Dynamic Validators**: registerOnValidatorChange(fn) for [required]="expr"
-- **Standalone Controls**: ngModelOptions="{standalone: true}"
+- **Standalone Controls**: ngModelOptions="`{standalone: true}`"
 
 ## Advanced Topics
 
@@ -70,10 +70,10 @@ A: Template: builds tree during view parse; Reactive: model pre-built
 A: Merges validators, wires CVA pipelines (view↔model sync) 
 
 **Q: Custom CVA registration?**  
-A: providers: [{provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(MyCmp), multi:true}] 
+A: providers: [`{provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(MyCmp), multi:true}`] 
 
 **Q: Validator composition?**  
-A: Validators.compose() → _mergeErrors() accumulates {required:{}, min:{}} 
+A: Validators.compose() → _mergeErrors() accumulates `{required:{}, min:{}}` 
 
 **Q: formControlName path?**  
 A: Nested containers build path ['address','street'] via controlPath() 

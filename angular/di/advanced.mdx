@@ -29,9 +29,9 @@ Angular Dependency Injection (DI) eliminates code duplication by extracting comm
 
 ## Important Classes/Interfaces
 
-- **InjectionToken<T>**: Opaque token for factories/observables (APP_SOME_ID)
+- **InjectionToken&lt;T&gt;**: Opaque token for factories/observables (APP_SOME_ID)
 - **DestroyRef**: v16+ auto-takeUntil(destroyed$) replacement
-- **Provider**: {provide: Token, useFactory: fn, deps: [deps]}[2]
+- **Provider**: `{provide: Token, useFactory: fn, deps: [deps]}`[2]
 
 ## Design Patterns
 
@@ -71,10 +71,10 @@ A: Scoped (destroyed with component); avoids global state leakage[2]
 A: Auto-injection; no Subject boilerplate; v16+ standard[2]
 
 **Q: Test factory provider?**  
-A: TestBed.overrideProvider(APP_SOME_ID, {useValue: of('test')})[2]
+A: TestBed.overrideProvider(APP_SOME_ID, `{useValue: of('test')}`)[2]
 
 **Q: Generic route param token?**  
-A: InjectionToken<Observable<string>> + factory(param: string)[2]
+A: `InjectionToken<Observable<string>> + factory(param: string)`[2]
 
 ## Error Patterns & Fixes
 

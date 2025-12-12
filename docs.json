@@ -20,6 +20,127 @@
             ]
           },
           {
+            "group": "Angular Forms",
+            "pages": [
+                "angular/forms/validation",
+                "angular/forms/reactive",
+                "angular/forms/overview",
+                "angular/forms/signal-forms-generator",
+                "angular/forms/signal-forms",
+                "angular/forms/control-value-accessor",
+                "angular/forms/advanced",
+                "angular/forms/strongly-typed"
+            ]
+          },
+          {
+            "group": "Angular CD",
+            "pages": [
+                "angular/cd/onpush",
+                "angular/cd/introduction",
+                "angular/cd/zoneless",
+                "angular/cd/ngDoCheck",
+                "angular/cd/overview"
+            ]
+          },
+          {
+            "group": "Angular Lifecycle",
+            "pages": [
+                "angular/lifecycle/hooks",
+                "angular/lifecycle/destroy-ref",
+                "angular/lifecycle/constructor-ngonint"
+            ]
+          },
+          {
+            "group": "Angular Security",
+            "pages": [
+                "angular/security/tokens",
+                "angular/security/overview"
+            ]
+          },
+          {
+            "group": "Angular Components",
+            "pages": [
+                "angular/component/overview",
+                "angular/component/testing"
+            ]
+          },
+          {
+            "group": "Angular RxJS",
+            "pages": [
+                "angular/rxjs/best-practice",
+                "angular/rxjs/caching"
+            ]
+          },
+          {
+            "group": "Angular http",
+            "pages": [
+                "angular/http/resource-api",
+                "angular/http/client"
+            ]
+          },
+          {
+            "group": "Angular State",
+            "pages": [
+                "angular/state/ngrx"
+            ]
+          },
+          {
+            "group": "Angular SSR",
+            "pages": [
+                "angular/ssr/overview"
+            ]
+          },
+          {
+            "group": "Angular Misc",
+            "pages": [
+                "angular/misc/accessibility-tools",
+                "angular/misc/accessibility",
+                "angular/misc/ddd",
+                "angular/misc/module-standalone-migration",
+                "angular/misc/control-flow",
+                "angular/misc/shopping-cart",
+                "angular/misc/directive-composition",
+                "angular/misc/coding-style",
+                "angular/misc/mistakes-to-avoid",
+                "angular/misc/app-at-scale"
+            ]
+          },
+          {
+            "group": "Angular DI",
+            "pages": [
+                "angular/di/singleton",
+                "angular/di/introduction",
+                "angular/di/advanced"
+            ]
+          },
+          {
+            "group": "Angular Signals",
+            "pages": [
+                "angular/signals/rules",
+                "angular/signals/resource-api",
+                "angular/signals/overview",
+                "angular/signals/streaming-resource",
+                "angular/signals/input",
+                "angular/signals/options",
+                "angular/signals/push-pull",
+                "angular/signals/effective-use",
+                "angular/signals/component-communication",
+                "angular/signals/effects"
+            ]
+          },
+          {
+            "group": "Angular Routing",
+            "pages": [
+              "angular/routing/summary",
+              "angular/routing/lazy-loading",
+              "angular/routing/lazy-loading-defer",
+              "angular/routing/deep-dive",
+              "angular/routing/overview",
+              "angular/routing/standalone-api",
+              "angular/routing/lazy-loading-standalone"
+            ]
+          },
+          {
             "group": "Design Patterns",
             "pages": [
               "patterns/anti-corruption",

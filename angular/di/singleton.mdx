@@ -1,4 +1,4 @@
-Angular services create multiple instances across lazy-loaded modules when added to @NgModule.providers, breaking singleton state like app config. Use `@Injectable({providedIn: 'root'})` or `forRoot()` static methods for true singletons, with tree-shaking and runtime guards preventing duplication.
+Angular services create multiple instances across lazy-loaded modules when added to @NgModule.providers, breaking singleton state like app config. Use @Injectable(`{providedIn: 'root'}`) or `forRoot()` static methods for true singletons, with tree-shaking and runtime guards preventing duplication.
 
 ## Core Mechanism
 
@@ -9,11 +9,11 @@ Angular services create multiple instances across lazy-loaded modules when added
   
 - **Singleton Solutions**
   ```
-  @Injectable({ providedIn: 'root' })  // Tree-shakeable, root lookup
+  @Injectable(`{ providedIn: 'root' }`)  // Tree-shakeable, root lookup
   ↓
-  static forRoot(): ModuleWithProviders {  // AppModule only
-    return { ngModule: MyModule, providers: [Service] }
-  }
+  static forRoot(): ModuleWithProviders `{  // AppModule only
+    return `{ ngModule: MyModule, providers: [Service] }`
+  }`
   ```
   
 - **Resolution Hierarchy Override**
@@ -44,11 +44,11 @@ Angular services create multiple instances across lazy-loaded modules when added
 - Prefer providedIn: 'root' over forRoot (tree-shaking + testing)
 - AppModule.forRoot() only; lazy modules import without providers
 - Guard critical services: extends RootInjectorGuard(MyService)
-- InjectionToken: {providedIn: 'root', factory: () => new Service()}
+- InjectionToken: `{providedIn: 'root', factory: () => new Service()}`
 
 ## Advanced Topics
 
-- **InjectionToken Singletons**: Second arg {providedIn: 'root', factory()}
+- **InjectionToken Singletons**: Second arg `{providedIn: 'root', factory()}`
 - **forRoot + providedIn**: Both work (root wins); no duplication
 - **providedIn: 'any'**: Per lazy module singleton (not app-wide)
 - **TestBed Compatibility**: providedIn services auto-resolve in tests
@@ -70,7 +70,7 @@ A: providedIn tree-shakeable; forRoot conventional (RouterModule style)
 A: @Optional/@SkipSelf parent check → throw Error 
 
 **Q: InjectionToken singleton?**  
-A: new Token('name', {providedIn: 'root', factory: () => new Service()}) 
+A: new Token('name', `{providedIn: 'root', factory: () => new Service()}`) 
 
 **Q: providedIn: 'any' use case?**  
 A: Per-lazy-module singleton (not app-wide) 
