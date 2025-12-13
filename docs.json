@@ -427,21 +427,24 @@
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Resume",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Product",
             "pages": [
-              "api-reference/introduction"
+              "work/product/product",
+              "work/product/portfolio-safekeeping"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Portfolio",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "work/highlights-summary",
+              "work/highlights",
+              "work/skills-hybrid",
+              "work/skills-frontend",
+              "work/skills-fullstack",
+              "work/resume-format"
             ]
           }
         ]
