@@ -1,0 +1,113 @@
+# RxJS BehaviorSubject
+
+**BehaviorSubject** = Subject + **current value** + **seed required**. Late subscribers get **latest emission immediately** + future values.[1]
+
+## Key Topics Section-wise
+
+### Constructor & Methods
+**Requires seed value:**
+```typescript
+import { BehaviorSubject } from 'rxjs';
+const bs = new BehaviorSubject(42);  // Seed: 42
+```
+
+**Complete API:**
+| Method | Purpose |
+|--------|---------|
+| `new BehaviorSubject(initial)` | **Seed value** required |
+| `next(value)` | Emit + update current |
+| `getValue()` | **Read current value** |
+| `complete()` | Terminate |
+
+### Emission Behavior
+**Timeline:**
+```
+1. bs = new BehaviorSubject(42)        // Seed: 42
+2. bs.subscribe(v => log(v))           // Immediately: 42
+3. bs.next(1)                          // Emits: 1
+4. bs.getValue()                       // Returns: 1
+5. bs.next(2); bs.next(3)              // Emits: 2, 3
+```
+
+## Key Classes/Interfaces
+
+| Component | Extends | Constructor | Unique Feature |
+|-----------|---------|-------------|---------------|
+| `BehaviorSubject<T>` | `Subject<T>` | `new BehaviorSubject(initial: T)` | `getValue(): T` |
+| **Seed Value** | Required | `initial: T` | **Immediate emission** |
+
+## Design Patterns
+
+- **State Holder**: `userState$ = new BehaviorSubject<User>(null)`
+- **Form Value**: `formValue$ = new BehaviorSubject<FormData>(initialForm)`
+- **Current Value Service**:
+```typescript
+@Injectable()
+class UserService {
+  private currentUser$ = new BehaviorSubject<User | null>(null);
+  user$ = this.currentUser$.asObservable();
+  setUser(user: User) { this.currentUser$.next(user); }
+  getCurrentUser() { return this.currentUser$.getValue(); }
+}
+```
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **`asObservable()`** | Hide `next()`, `getValue()` |
+| **Null/undefined seed** | Handle loading states |
+| **`getValue()` for sync** | Current state without subscribe |
+| **Service encapsulation** | Single state source |
+
+**Read-only Pattern:**
+```typescript
+// ✅ Public read-only
+public readonly user$ = this._user$.asObservable();
+private _user$ = new BehaviorSubject<User | null>(null);
+```
+
+## Advanced Topics
+
+**vs ReplaySubject Comparison:**
+```
+BehaviorSubject(42):   Seed + future [1,2,3]
+ReplaySubject(3):     Last 3 + future [1,2,3] (no seed)
+```
+
+**Memory**: Always holds exactly **1 value** (latest)
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: BehaviorSubject constructor requirement?**  
+A: **Seed value** mandatory - `new BehaviorSubject(initial)`[1]
+
+**Q: Late subscriber gets what?**  
+A: **Current value immediately** + future emissions
+
+**Q: `getValue()` purpose?**  
+A: **Synchronous current value** without subscription
+
+**Q: vs Subject difference?**  
+A: **Current value** + immediate emission; Subject loses pre-subscribe
+
+**Q: vs ReplaySubject(1)?**  
+A: **Requires seed**; Replay no seed but same effect
+
+**Q: State service pattern?**  
+A: `private bs = new BS(initial); public readonly bs$ = bs.asObservable()`
+
+## Important Terms & Keywords
+
+- **BehaviorSubject** - Subject + current value
+- **Seed Value** - Required constructor param
+- **getValue()** - Sync current value access
+- **Immediate Emission** - Late subs get current instantly
+- **State Holder** - Perfect for app state
+- **asObservable()** - Read-only public stream
+- **Short-term Memory** - Holds exactly 1 value
+- **Service Encapsulation** - Private BS, public Observable
+- **Form State** - `new BS(initialFormData)`
+- **Null Seed** - Loading state handling[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

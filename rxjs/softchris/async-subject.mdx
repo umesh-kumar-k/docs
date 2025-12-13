@@ -1,0 +1,119 @@
+# RxJS AsyncSubject
+
+**AsyncSubject** emits **ONLY final state** (last `next()` OR error) **on complete**. Promise-like: single value after completion.[1]
+
+## Key Topics Section-wise
+
+### Emission Rules
+**Strict behavior:**
+1. **Multiple `next()` calls**: Ignored until `complete()`
+2. **`complete()`**: Emits **last `next()` value**
+3. **`error()`**: Emits **error** (skips complete)
+
+**Timeline:**
+```
+sub1.subscribe()  // Nothing yet
+as.next(1)        // Buffered
+as.next(2)        // Buffered (last)
+as.complete()     // Emits: 2 to ALL subscribers
+```
+
+### Error Handling
+**Error overrides completion:**
+```typescript
+as.next(1); as.next(2);
+as.error('boom');  // Emits: 'boom' (no complete)
+as.complete();     // Ignored
+```
+
+## Key Classes/Interfaces
+
+| Component | Extends | Constructor | Emission Rule |
+|-----------|---------|-------------|---------------|
+| `AsyncSubject<T>` | `Subject<T>` | `new AsyncSubject()` | **Final state only** |
+
+**Complete API:**
+```typescript
+as.next(value);     // Buffer last value
+as.error(err);      // Emit error immediately
+as.complete();      // Emit last buffered value
+```
+
+## Design Patterns
+
+- **Promise Replacement**: Single final value after async work
+- **Final State Capture**: "Result after computation complete"
+- **Deferred Emission**: Buffer → emit on completion
+
+**Use Case Example:**
+```typescript
+const computation = new AsyncSubject();
+heavyAsyncWork().then(result => {
+  computation.next(result);
+  computation.complete();
+});
+return computation.asObservable();  // Promise → Observable
+```
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **`complete()` always** | Without it → no emission |
+| **Single responsibility** | Final result only |
+| **Error before complete** | Proper error propagation |
+| **`asObservable()`** | Hide emission methods |
+
+**Anti-pattern:**
+```typescript
+// ❌ Never emits
+as.next(42);
+return as.asObservable();  // Missing complete()
+```
+
+## Advanced Topics
+
+**vs Other Subjects:**
+| Subject | Pre-subscribe | Late Subscribe |
+|---------|---------------|----------------|
+| **Subject** | Lost | Future only |
+| **BehaviorSubject** | Seed | Current + future |
+| **ReplaySubject** | Buffer | Buffer + future |
+| **AsyncSubject** | Last on complete | **Final state only** |
+
+**Memory**: Minimal - buffers **only last value**
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: AsyncSubject emission timing?**  
+A: **Only on `complete()`** - last `next()` value[1]
+
+**Q: Multiple `next()` calls?**  
+A: **Only last value** emitted on complete
+
+**Q: `error()` vs `complete()`?**  
+A: `error()` emits immediately; `complete()` emits last value
+
+**Q: Promise replacement?**  
+A: **Yes** - single final value after async completion
+
+**Q: Without `complete()`?**  
+A: **Never emits** - hangs forever
+
+**Q: Memory usage?**  
+A: **Minimal** - only last value buffered
+
+## Important Terms & Keywords
+
+- **AsyncSubject** - Final state Subject
+- **Final State Only** - Last value OR error
+- **complete() Required** - Triggers emission
+- **Last next() Value** - Only final buffered value
+- **Error Overrides** - `error()` skips complete
+- **Promise Replacement** - Single value after async
+- **Deferred Emission** - Buffer until complete
+- **Minimal Memory** - Only 1 value buffered
+- **Deferred Subject** - Emits on completion
+- **State Before Closing** - Last value pre-complete[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

@@ -1,0 +1,110 @@
+# RxJS Subject
+
+**Subject** = **Observable + Observer**. Can **emit** (`next()`) AND **subscribe**. Hot, multicast proxy for cross-component communication.[1]
+
+## Key Topics Section-wise
+
+### Dual Nature
+**Both roles simultaneously:**
+```typescript
+const subject = new Subject();
+subject.next(1);  // Emit (Observer role)
+subject.subscribe(v => console.log(v));  // Subscribe (Observable role)
+subject.next(2);  // Logs: 2
+```
+
+**Complete API:**
+```
+subject.next(value)    // Emit value
+subject.error(err)     // Emit error
+subject.complete()     // Complete stream
+subject.subscribe()    // Consume values
+subject.unsubscribe()  // Cleanup
+```
+
+### Proxy Pattern
+**Bridge between streams:**
+```typescript
+const source$ = interval(500).pipe(take(3));  // 0,1,2
+const proxySubject = new Subject();
+source$.subscribe(proxySubject);  // source → proxy
+
+proxySubject.subscribe(v => console.log('proxy', v));  // proxy: 0,1,2
+proxySubject.next(3);  // proxy: 3 (manual emission)
+```
+
+**GOTCHA**: Pre-subscription `next()` calls **lost**.
+
+## Key Classes/Interfaces
+
+| Method | Role | Signature |
+|--------|------|-----------|
+| `next(value)` | **Observer** | `next(T)` |
+| `error(err)` | **Observer** | `error(any)` |
+| `complete()` | **Observer** | `complete()` |
+| `subscribe(fn)` | **Observable** | `subscribe(observer)` |
+| `unsubscribe()` | Cleanup | `unsubscribe()` |
+
+## Design Patterns
+
+- **Event Bus**: `sharedService.dispatch(value); sharedService.getDispatcher()`
+- **Proxy Bridge**: `source$.subscribe(subject); subject.subscribe(consumer)`
+- **Component Communication**: Cross-component state sharing
+- **Manual Emission**: `subject.next(manualValue)` + source emissions
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **`subject.asObservable()`** | Hide `next()` from consumers |
+| **Proxy pattern** | Bridge incompatible streams |
+| **Component bus** | Decouple Angular components |
+| **Handle lost emissions** | Subscribe early or use BehaviorSubject |
+
+**Service Pattern:**
+```typescript
+@Injectable()
+class SharedService {
+  private subject = new Subject<string>();
+  dispatch = (value: string) => this.subject.next(value);
+  getDispatcher = () => this.subject.asObservable();  // Read-only
+}
+```
+
+## Advanced Topics
+
+- **Lost Emissions**: `subject.next()` before subscribe → dropped
+- **Multicasting**: Multiple subscribers share emissions
+- **Hot Observable**: Emits regardless of subscribers
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Subject dual nature?**  
+A: **Observable + Observer** - can `next()` AND `subscribe()`[1]
+
+**Q: Pre-subscribe `next()` behavior?**  
+A: **Lost** - late subscribers miss prior emissions
+
+**Q: Component communication pattern?**  
+A: `sharedService.dispatch(value); sharedService.getDispatcher().subscribe()`
+
+**Q: Proxy use case?**  
+A: `source$.subscribe(subject); subject.subscribe(consumer)`
+
+**Q: Hide emission capability?**  
+A: `subject.asObservable()` - read-only proxy
+
+## Important Terms & Keywords
+
+- **Subject** - Observable + Observer hybrid
+- **Dual Nature** - Emit + subscribe capabilities
+- **Proxy Pattern** - `source.subscribe(subject)`
+- **Event Bus** - Cross-component communication
+- **Lost Emissions** - Pre-subscribe `next()` dropped
+- **Multicasting** - Multiple shared subscribers
+- **asObservable()** - Read-only Subject proxy
+- **Manual Emission** - `subject.next(manualValue)`
+- **Hot Observable** - Independent of subscribers
+- **Component Dispatcher** - Service-based Subject sharing[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

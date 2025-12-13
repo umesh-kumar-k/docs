@@ -1,0 +1,161 @@
+# RxJS Core Concepts: Official Guide Summary
+
+RxJS official documentation covers foundational concepts for reactive programming in Angular/web apps, enabling performant async handling and UX optimization through streams.[1]
+
+## Page-wise Summary
+
+### 1. Observable Guide (rxjs.dev/guide/observable)
+**Key Concepts:**
+- **Definition**: Observable represents future values over time (0-N values, cancellable)
+- **Creation**: `new Observable(observer => {...})`, static `of()`, `from()`, `fromEvent()`
+- **Lazy**: Execution only starts on `.subscribe()`
+- **Teardown**: Returns unsubscribe function
+
+**Code Pattern:**
+```typescript
+const ticks = new Observable(subscriber => {
+  let i = 0;
+  const id = setInterval(() => subscriber.next(i++), 1000);
+  return () => clearInterval(id);
+});
+```
+
+### 2. Observer Guide (rxjs.dev/guide/observer)
+**Key Concepts:**
+- **Interface**: `{ next(v), error(e), complete() }`
+- **Methods**: `next()` emits value, `error()` terminates with error, `complete()` terminates successfully
+- **Partial**: Can omit methods - defaults to no-op
+
+**Usage:**
+```typescript
+obs.subscribe({
+  next: v => console.log(v),
+  error: e => console.error(e),
+  complete: () => console.log('done')
+});
+```
+
+### 3. Operators Guide (rxjs.dev/guide/operators)
+**Key Categories:**
+| Category | Examples | Purpose |
+|----------|----------|---------|
+| **Creation** | `of()`, `from()`, `interval()` | Generate Observables |
+| **Transformation** | `map()`, `pluck()`, `scan()` | Modify values |
+| **Filtering** | `filter()`, `debounceTime()`, `distinctUntilChanged()` | Control emissions |
+| **Combination** | `merge()`, `combineLatest()`, `withLatestFrom()` | Join streams |
+| **Utility** | `tap()`, `finalize()` | Side effects |
+
+**Pipeable Style:**
+```typescript
+source$.pipe(
+  map(x => x * 2),
+  filter(x => x > 5),
+  debounceTime(300)
+);
+```
+
+### 4. Subscription Guide (rxjs.dev/guide/subscription)
+**Key Concepts:**
+- **Subscription Object**: Returned by `.subscribe()`, manages lifecycle
+- **Unsubscribe**: `subscription.unsubscribe()` stops execution
+- **Subscription Tracking**: `Subscription.add()` for grouping
+
+**Memory Management:**
+```typescript
+const sub1 = source$.subscribe();
+const sub2 = other$.subscribe();
+const group = new Subscription();
+group.add(sub1).add(sub2);
+group.unsubscribe(); // Cleans all
+```
+
+### 5. Subject Guide (rxjs.dev/guide/subject)
+**Key Types:**
+| Subject Type | Hot/Cold | Multicast | Use Case |
+|--------------|----------|-----------|----------|
+| `Subject` | Hot | Yes | Manual push |
+| `BehaviorSubject` | Hot | Yes | Current + future values |
+| `ReplaySubject` | Hot | Yes | Replay N values |
+| `AsyncSubject` | Hot | Yes | Last value on complete |
+
+**Example:**
+```typescript
+const subject = new BehaviorSubject(0);
+subject.next(1); // All subscribers get 1
+```
+
+### 6. Scheduler Guide (rxjs.dev/guide/scheduler)
+**Key Concepts:**
+- **Control Execution Context**: When/where Observable work happens
+- **Types**: `asyncScheduler`, `asapScheduler`, `queueScheduler`
+
+**Usage:**
+```typescript
+range(1, 3).observeOn(asyncScheduler).subscribe();
+```
+
+## Key Classes/Interfaces
+
+| Component | Type | Key Methods |
+|-----------|------|-------------|
+| `Observable<T>` | Class | `subscribe()`, `pipe()` |
+| `Observer<T>` | Interface | `next(v: T)`, `error(e)`, `complete()` |
+| `Subscription` | Class | `unsubscribe()`, `add(sub)` |
+| `Subject<T>` | Class | `next(v)`, `complete()`, `error()` |
+| `PipeableOperator` | Type | Transformation functions |
+
+## Design Patterns
+
+- **Observer Pattern**: Core - producers push to subscribers
+- **Subscription Tracking**: Group related subscriptions for lifecycle management
+- **Pipeable Operators**: Composition via `.pipe(map(), filter())`
+- **Hot/Cold Observable**: Control sharing vs fresh execution
+
+## Best Practices & Trade-offs
+
+| Practice | ✅ Pros | ❌ Cons |
+|----------|---------|---------|
+| **Always unsubscribe** | Prevents leaks | Manual management |
+| **Use `takeUntil()`** | Auto-cleanup | Extra operator |
+| **Pipeable operators** | Tree-shakable, composable | Learning curve |
+| **Subjects for sharing** | Multicast efficiency | Hot by default (memory) |
+| **`asyncScheduler`** | Non-blocking UI | Execution control complexity |
+
+## Advanced Topics
+
+- **Scheduler Strategies**: `async` (setTimeout), `asap` (microtask), `queue` (synchronous)
+- **Marble Diagrams**: Visual operator testing (rxjs.dev/marble-testing)
+- **Custom Operators**: `createOperator()` for reusable logic
+- **Backpressure**: `observeOn()` for slow consumers
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Observable vs Promise?**  
+A: Observable: 0-N values, lazy, cancellable; Promise: 1 value, eager, non-cancellable
+
+**Q: Why `.pipe()` over chaining?**  
+A: Tree-shakable, interceptable, consistent with functional programming
+
+**Q: Subject vs Observable?**  
+A: Subject: both Observable + Observer (can `.next()`); Observable: read-only
+
+**Q: Memory leak prevention?**  
+A: `takeUntil(destroy$)`, `AsyncPipe`, `Subscription` grouping
+
+**Q: Cold vs Hot Observable?**  
+A: Cold: per-subscriber execution; Hot: shared execution (Subjects)
+
+## Important Terms & Keywords
+
+- **Observable** - Lazy, cancellable value stream
+- **Observer** - `{next, error, complete}` handler
+- **Subscription** - Lifecycle manager
+- **Subject** - Hot, multicast Observable+Observer
+- **Pipeable Operator** - `.pipe(transform)`
+- **Scheduler** - Execution context control
+- **Teardown** - Cleanup logic
+- **Hot/Cold** - Sharing behavior
+- **Marble Diagram** - Visual testing
+- **Backpressure** - Slow consumer handling[1]
+
+[1](https://ultimatecourses.com/blog/rxjs-observables-observers-operators)

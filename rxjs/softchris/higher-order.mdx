@@ -1,0 +1,103 @@
+# RxJS Higher-Order Operators (Observable-in-Observable)
+
+Higher-order operators flatten **nested Observables** (metastreams). `flatMap()` merges all inner streams; `switchMap()` cancels previous inner streams.[1]
+
+## Key Topics Section-wise
+
+### The Problem: Observable in Observable
+**Nested Streams Issue:**
+```
+of(1,2,3)
+ .map(id => ajax(`/user/${id}`))  // ❌ Returns Observable<Observable<User>>
+```
+**Result**: `[Observable, Observable, Observable]` - metastream, no flattening
+
+### Solution: Higher-Order Operators
+**flatMap() Pattern:**
+```typescript
+import { of } from 'rxjs';
+import { ajax } from 'rxjs/ajax';
+import { flatMap, map } from 'rxjs/operators';
+
+let users$ = of(1,2,3).pipe(
+  flatMap(id => ajax(`/user/${id}`).pipe(map(r => r.response)))
+);
+// Emits: {id:1,...}, {id:2,...}, {id:3,...}
+```
+
+**Marble Diagram:**
+```
+--1-----2-----3----->    (outer)
+  |     |     |
+  v     v     v
+json--json--json-->      (flatMap flattens)
+```
+
+## Key Classes/Interfaces
+
+| Operator | Purpose | Behavior |
+|----------|---------|----------|
+| **`flatMap()`** | Flatten all inner Observables | All inner streams emit |
+| **`switchMap()`** | Cancel previous inner stream | Only latest inner stream emits |
+| **`map()`** | ❌ Creates metastream | Returns Observable<Observable<T>> |
+
+## Design Patterns
+
+- **Higher-Order Mapping**: `flatMap(id => ajax(id))` - async transformation
+- **Cascading Calls**: ID → HTTP → User data
+- **Metastream Flattening**: Observable<Observable<T>> → Observable<T>
+
+## Best Practices
+
+| Practice | ✅ Use Case | ❌ Avoid |
+|----------|------------|---------|
+| **`flatMap()`** | All inner results needed | Latest result only |
+| **`switchMap()`** | Search-as-you-type, latest HTTP | All results needed |
+| **Never `map()` to Observable** | ❌ `[obs, obs, obs]` metastream | Always flatten |
+
+**Anti-pattern:**
+```typescript
+// ❌ Metastream
+of(1,2,3).pipe(map(id => ajax(id)))
+
+// ✅ Flattened
+of(1,2,3).pipe(flatMap(id => ajax(id)))
+```
+
+## Advanced Topics
+
+- **Concurrency**: `flatMap(maxConcurrency)` limits parallel inner streams
+- **switchMap()**: Cancels previous HTTP requests (search optimization)
+- **mergeMap()**: Alias for `flatMap()`
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `map(id => ajax(id))` result?**  
+A: **Metastream** `Observable<Observable<User>>` - no flattening[1]
+
+**Q: `flatMap()` vs `map()`?**  
+A: `flatMap()` **flattens** inner Observables; `map()` creates metastream
+
+**Q: Search input → HTTP calls?**  
+A: **`switchMap()`** - cancel previous requests, emit only latest
+
+**Q: Multiple parallel HTTP calls?**  
+A: **`flatMap()`** - all responses emit
+
+**Q: `flatMap()` marble diagram?**  
+A: `--1--2--3--> → --json--json--json-->`
+
+## Important Terms & Keywords
+
+- **Higher-Order Operator** - Handles Observable<Observable<T>>
+- **flatMap()** - Flattens nested Observables
+- **switchMap()** - Latest inner Observable only
+- **Metastream** - Observable<Observable<T>>
+- **Observable-in-Observable** - Nested stream problem
+- **Cascading Calls** - ID → HTTP → Data
+- **Concurrency Limit** - `flatMap(3)` max parallel
+- **mergeMap()** - `flatMap()` alias
+- **Flattening** - Nested → single stream
+- **Search Optimization** - `switchMap()` use case[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

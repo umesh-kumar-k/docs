@@ -1,0 +1,122 @@
+# RxJS Higher-Order Operators
+
+Higher-order operators flatten **Observable<Observable>** (metastreams): **concatMap** (sequential), **switchMap** (cancel previous), **mergeMap** (parallel), **exhaustMap** (ignore new while busy).[1]
+
+## Key Topics Section-wise
+
+### Higher-Order Observable Definition
+- **Problem**: `map(x => ajax(x))` → `Observable<Observable<T>>` (metastream)
+- **Solution**: Higher-order operators **flatten** to `Observable<T>`
+
+### concatMap() - Sequential Execution
+**Signature**: `concatMap(project, resultSelector)`
+```typescript
+from(['id1','id2','id3']).pipe(
+  concatMap(id => ajax(`/api/${id}`))
+);
+// id1 complete → id2 → id3 (waits for each)
+```
+
+**Use Case**: API calls preserving order (orders → details)
+
+### switchMap() - Cancel Previous
+**Signature**: `switchMap(project)`
+```typescript
+input$.pipe(
+  debounceTime(400),
+  distinctUntilChanged(),
+  switchMap(term => http.get(`/search?q=${term}`))
+);
+// Cancels previous search on new input
+```
+
+**Use Cases**: Route params, Angular forms `valueChanges`, typeahead
+
+### mergeMap() - Parallel Execution
+**Signature**: `mergeMap(project)`
+```typescript
+posts$.pipe(
+  mergeMap(post => getComments(post.id))
+);
+// All posts → comments in parallel
+```
+
+**Use Case**: Multiple posts → parallel comments
+
+## Key Classes/Interfaces
+
+| Operator | Behavior | Signature | Imports |
+|----------|----------|-----------|---------|
+| `concatMap(fn)` | **Sequential** | `concatMap(x => Observable)` | `rxjs/operators` |
+| `switchMap(fn)` | **Cancel prev** | `switchMap(x => Observable)` | `rxjs/operators` |
+| `mergeMap(fn)` | **Parallel** | `mergeMap(x => Observable)` | `rxjs/operators` |
+| `exhaustMap(fn)` | **Ignore while busy** | `exhaustMap(x => Observable)` | `rxjs/operators` |
+
+## Design Patterns
+
+- **Search Typeahead**: `input → debounce → distinct → switchMap(searchAPI)`
+- **Route Params**: `params → switchMap(id => getDetail(id))`
+- **Form Validation**: `form.valueChanges → switchMap(validateForm)`
+- **Nested Subscriptions**: Replace `subscribe → subscribe` anti-pattern
+
+## Best Practices
+
+| Operator | ✅ Use When | ❌ Avoid |
+|----------|-------------|---------|
+| **`concatMap()`** | Order matters | High concurrency |
+| **`switchMap()`** | **Latest result** (search, routes) | Need all results |
+| **`mergeMap()`** | **Parallel APIs** | Order critical |
+| **`exhaustMap()`** | Button spam protection | Need responses |
+
+**Anti-pattern Fixed:**
+```typescript
+// ❌ Nested subscribe
+http.getPosts().subscribe(posts => 
+  posts.forEach(post => 
+    http.getComments(post.id).subscribe(...)
+  )
+);
+
+// ✅ Higher-order
+http.getPosts().pipe(
+  mergeMap(posts => from(posts)),
+  mergeMap(post => http.getComments(post.id))
+);
+```
+
+## Advanced Topics
+
+- **Typeahead Optimization**: `debounceTime(400) + distinctUntilChanged() + switchMap()`
+- **Angular Forms**: `form.valueChanges.pipe(startWith(form.value), switchMap(validate))`
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `map()` vs `switchMap()`?**  
+A: `map()` → **metastream**; `switchMap()` → **flattened + cancels previous**[1]
+
+**Q: Search input pattern?**  
+A: `input.pipe(debounceTime(400), distinctUntilChanged(), switchMap(api))`
+
+**Q: `concatMap` vs `mergeMap`?**  
+A: `concatMap`: **sequential** (waits); `mergeMap`: **parallel** (interleaved)
+
+**Q: Route param → API?**  
+A: **`switchMap()`** - cancels stale requests
+
+**Q: Nested subscribe fix?**  
+A: `mergeMap()` or `switchMap()` instead of inner `.subscribe()`
+
+## Important Terms & Keywords
+
+- **Higher-Order Operator** - Flattens Observable<Observable>
+- **concatMap()** - Sequential flattening
+- **switchMap()** - Cancel previous + flatten
+- **mergeMap()** - Parallel flattening
+- **exhaustMap()** - Ignore new while busy
+- **Metastream** - Observable<Observable<T>>
+- **Typeahead Pattern** - debounce + distinct + switchMap
+- **Nested Subscribe** - Anti-pattern to avoid
+- **Route Params** - switchMap use case
+- **Angular Forms** - valueChanges + switchMap[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

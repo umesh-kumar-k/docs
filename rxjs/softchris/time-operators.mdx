@@ -1,0 +1,133 @@
+# RxJS Time Operators
+
+Control timing: **interval/timer** (creation), **delay/debounceTime/sampleTime** (emission control), **buffer()** (time windowing).[1]
+
+## Key Operators by Category
+
+| Category | Operator | Purpose | Use Case |
+|----------|----------|---------|----------|
+| **Creation** | `interval(ms)` | Regular ticks | Polling, counters |
+| **Creation** | `timer(delay1, delay2)` | Delayed emission | One-off, repeating |
+| **Delay** | `delay(ms)` | Shift all values | Error retry delay |
+| **Sampling** | `sampleTime(ms)` | Emit at intervals | "Talk to the hand" |
+| **Debounce** | `debounceTime(ms)` | Last value after silence | Search autocomplete |
+| **Buffering** | `buffer(trigger$)` | Group by time windows | Double-click detection |
+
+## Key Topics Section-wise
+
+### interval() & timer()
+**interval(ms)**: Infinite regular emissions
+```typescript
+interval(1000).pipe(take(3));  // 0,1,2 (every sec)
+```
+
+**timer(delay1, [delay2])**:
+- `timer(1000)`: One-off after 1s → `0`
+- `timer(2000, 500).pipe(take(3))`: 0@2s, 1@2.5s, 2@3s
+
+### delay(ms)
+**Shifts entire stream:**
+```typescript
+interval(500).pipe(take(3), delay(300));  
+// 0@800ms, 1@1300ms, 2@1800ms
+```
+
+### sampleTime(ms)
+**"Talk to the hand" - emit only at intervals:**
+```typescript
+fromEvent(btn, 'click').pipe(sampleTime(2000));  
+// Ignores clicks except every 2s
+```
+
+### debounceTime(ms)
+**Emit after silence:**
+```typescript
+fromEvent(input, 'keyup').pipe(
+  map(e => e.target.value),
+  debounceTime(500)  // Search after 500ms pause
+);
+```
+
+### buffer(trigger$)
+**Time windowing with scissor stream:**
+```typescript
+const clicks$ = fromEvent(btn, 'click');
+const scissor$ = interval(300);
+clicks$.pipe(buffer(scissor$));  // Groups clicks every 300ms
+```
+
+## Double/Triple Click Pattern
+```typescript
+clicks$.pipe(
+  buffer(interval(300)),
+  filter(arr => arr.length >= 2)  // Double+ clicks only
+).subscribe(arr => {
+  if(arr.length === 2) console.log('double');
+  if(arr.length === 3) console.log('triple');
+});
+```
+
+## Key Classes/Interfaces
+
+| Operator | Signature | Return |
+|----------|-----------|---------|
+| `interval(ms)` | `interval(1000)` | `Observable<number>` |
+| `timer(delay1, [delay2])` | `timer(1000, 500)` | `Observable<number>` |
+| `delay(ms)` | `.pipe(delay(300))` | `Observable<T>` |
+| `debounceTime(ms)` | `.pipe(debounceTime(500))` | `Observable<T>` |
+| `sampleTime(ms)` | `.pipe(sampleTime(2000))` | `Observable<T>` |
+| `buffer(trigger$)` | `.pipe(buffer(interval(300)))` | `Observable<T[]>` |
+
+## Design Patterns
+
+- **Scissor Pattern**: `buffer(fast$, interval(slow$))` - time slicing
+- **Search Autocomplete**: `keyup → debounceTime → HTTP`
+- **Double-Click**: `clicks → buffer(time) → filter(count >= 2)`
+- **Retry Backoff**: `retryWhen(err$ → err$.delay(1000))`
+
+## Best Practices
+
+| Operator | ✅ Use Case | ❌ Avoid |
+|----------|------------|----------|
+| `debounceTime()` | User input | Real-time data |
+| `sampleTime()` | High-frequency events | Precise timing |
+| `buffer(interval())` | Click grouping | Memory-intensive |
+| `interval().take(n)` | **Always limit** infinite streams | Memory leaks |
+
+## Advanced Topics
+
+- **Nested Timing**: `buffer(interval(500), interval(100))`
+- **Double-click Elegance**: No state variables needed
+- **Error Retry**: `retryWhen(err$ → err$.delay(1000))`
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `interval()` vs `timer()`?**  
+A: `interval()`: regular forever; `timer()`: configurable one-off/repeating[1]
+
+**Q: `debounceTime()` search use case?**  
+A: Emit **after typing stops** 500ms - reduces HTTP calls
+
+**Q: `sampleTime()` "talk to the hand"?**  
+A: Ignores events except **sampling intervals**
+
+**Q: Double-click without state?**  
+A: `clicks.pipe(buffer(interval(300)), filter(arr => arr.length >= 2))`
+
+**Q: `delay()` vs `retryWhen().delay()`?**  
+A: `delay()`: shift stream; `retryWhen.delay()`: retry backoff
+
+## Important Terms & Keywords
+
+- **interval(ms)** - Regular ticker
+- **timer(delay1, delay2)** - Flexible timer
+- **delay(ms)** - Shift entire stream
+- **debounceTime(ms)** - Emit after silence
+- **sampleTime(ms)** - Periodic sampling
+- **buffer(trigger$)** - Time windowing
+- **Scissor Stream** - `interval()` as buffer trigger
+- **Double/Triple Click** - `buffer().filter(count)`
+- **Search Autocomplete** - `debounceTime()` pattern
+- **Retry Backoff** - `retryWhen().delay()`[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

@@ -1,0 +1,101 @@
+# RxJS Observable vs Promise
+
+Observables extend Promises: **multiple values**, **cancellable**, **retryable**, composable. Promises limited to **single value**, **non-cancellable**.[1]
+
+## Key Comparison Table
+
+| Feature | Promise | Observable | Winner |
+|---------|---------|------------|--------|
+| **Values** | 1 value | 0-N values | Observable |
+| **Cancellation** | ❌ No | ✅ `unsubscribe()` | Observable |
+| **Retry** | Manual | `retry()`, `retryWhen()` | Observable |
+| **Composition** | `.then()` chains | `.pipe(map, filter)` | Observable |
+| **Lazy** | ❌ Eager | ✅ Lazy execution | Observable |
+
+## Code Examples
+
+### Promise (Single Value)
+```typescript
+const promise = new Promise(resolve => {
+  setTimeout(() => resolve([1,2,3]), 1000);
+});
+promise.then(data => console.log('Value', data));  // [1,2,3]
+```
+
+### Observable (Multiple Values)
+```typescript
+import { from } from 'rxjs';
+const stream$ = from([1,2,3]);
+stream$.subscribe(value => console.log('Value', value));  // 1, 2, 3
+```
+
+## Key Classes/Interfaces
+
+| Type | Promise | Observable |
+|------|---------|------------|
+| **Creation** | `new Promise()` | `new Observable()`, `from()`, `of()` |
+| **Consumption** | `.then().catch()` | `.subscribe().pipe()` |
+| **Operators** | Limited | 100+ (`map`, `filter`, `merge`, `retry`) |
+
+## Design Patterns
+
+- **Promise Chain**: `.then(getMore).then(transform)` - linear
+- **Observable Pipeline**: `.pipe(map(), filter(), retry(3))` - composable
+- **Event Stream**: Observable handles continuous events; Promise doesn't
+
+## Best Practices & Trade-offs
+
+| Use Case | Promise ✅ | Observable ✅ |
+|----------|-----------|---------------|
+| **Single HTTP** | Simple API calls | Overkill |
+| **Event Streams** | ❌ Impossible | Click, resize, websocket |
+| **Retry Logic** | Manual loops | `retry(3)`, `retryWhen()` |
+| **Multiple Values** | ❌ Array hack | Natural N-value emission |
+
+**Decision Matrix:**
+```
+Single value + no retry? → Promise
+Multiple values/events? → Observable
+Complex async flows? → Observable
+```
+
+## Advanced Topics
+
+- **Conversion**: `from(promise)` → Observable, `toPromise()` → Promise (deprecated)
+- **Cold vs Hot**: Observables support both; Promises always "cold"
+- **Backpressure**: Observables handle fast producers; Promises don't
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Core difference values?**  
+A: Promise: **1 value**; Observable: **0-N values**[1]
+
+**Q: Can you cancel Promise?**  
+A: ❌ No; Observable: ✅ `subscription.unsubscribe()`
+
+**Q: Promise operators?**  
+A: `.then/.catch` only; Observable: 100+ pipeable operators
+
+**Q: Lazy execution?**  
+A: Promise: ❌ eager; Observable: ✅ lazy until `.subscribe()`
+
+**Q: Event streams?**  
+A: Promise: ❌ impossible; Observable: ✅ `fromEvent()`, websockets
+
+**Q: Retry single API call?**  
+A: Promise: manual loop; Observable: `pipe(retry(3))`
+
+## Important Terms & Keywords
+
+- **Single Value** - Promise limitation
+- **Multiple Values** - Observable strength (0-N)
+- **Cancellation** - `unsubscribe()` only in Observable
+- **Lazy Execution** - Observable waits for `.subscribe()`
+- **Pipeable Operators** - Observable composition
+- **Eager Execution** - Promise starts immediately
+- **Cold Observable** - Per-subscriber execution (like Promise)
+- **Hot Observable** - Shared execution (unlike Promise)
+- **Backpressure** - Observable handles fast producers
+- **Conversion** - `from(promise)`, `firstValueFrom()`[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

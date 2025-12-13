@@ -1,0 +1,127 @@
+# RxJS Mathematical Operators
+
+Perform calculations on streams: **max/min** (extremes), **reduce** (aggregation), **average** (reduce + map). Custom comparators for objects.[1]
+
+## Key Operators & Examples
+
+### max() / min()
+**Purpose**: Find extreme values
+```typescript
+import { of } from 'rxjs';
+import { max } from 'rxjs/operators';
+
+of(5,4,7,-1).pipe(max());  // Emits: 7
+```
+
+**Custom Comparer:**
+```typescript
+function comparer(x,y) {
+  return x.age > y.age ? 1 : x.age < y.age ? -1 : 0;
+}
+of({name:'chris', age:37}, {name:'chross', age:32})
+  .pipe(max(comparer))  // {name:'chris', age:37}
+```
+
+### reduce() - Replacement for sum()
+**Purpose**: Aggregate values
+```typescript
+import { reduce } from 'rxjs/operators';
+of(1,2,3,4).pipe(
+  reduce((acc, curr) => acc + curr, 0)  // 10
+);
+```
+
+**Object Merging:**
+```typescript
+of({name:'chris'}, {age:11}).pipe(
+  reduce((acc, curr) => ({...acc, ...curr}), {})
+);  // {name:'chris', age:11}
+```
+
+### average() - Manual Implementation
+```typescript
+import { map } from 'rxjs/operators';
+of(3,6,9).pipe(
+  map(x => ({sum: x, counter: 1})),
+  reduce((acc,curr) => ({
+    sum: acc.sum + curr.sum,
+    counter: acc.counter + curr.counter
+  }), {sum:0, counter:0}),
+  map(x => x.sum / x.counter)  // 6
+);
+```
+
+## Key Classes/Interfaces
+
+| Operator | Input | Output | Key Param |
+|----------|--------|---------|-----------|
+| `max([comparer])` | `Observable<T>` | `Observable<T>` | `comparer(x,y): number` |
+| `min([comparer])` | `Observable<T>` | `Observable<T>` | Same |
+| `reduce(fn, seed)` | `Observable<T>` | `Observable<T>` | `(acc, curr) => T` |
+
+**Comparer Signature:**
+```typescript
+(x: T, y: T) => 1 | 0 | -1  // Sort-like comparison
+```
+
+## Design Patterns
+
+- **Custom Sorting**: Comparer functions for complex objects
+- **Object Aggregation**: `reduce()` merges stream objects
+- **Statistical Pipeline**: `map → reduce → map` for derived metrics
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **Always seed `reduce()`** | Prevents undefined errors |
+| **Custom comparers** | Object property sorting |
+| **`Object.assign()` / spread** | Immutable object merging |
+| **Pipeline for derived** | `map → reduce → map(average)` |
+
+**Seed Importance:**
+```typescript
+// ✅ Safe
+reduce((acc, curr) => acc + curr, 0)
+
+// ❌ Unsafe
+reduce((acc, curr) => acc + curr)  // acc=undefined
+```
+
+## Advanced Topics
+
+- **RxJS 5 Changes**: `sum()`, `average()` → `reduce()`
+- **Complex Comparers**: Multi-property sorting
+- **Memory Efficient**: Single-pass aggregation
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `max()` vs `min()` difference?**  
+A: **Direction only** - same API, opposite result[1]
+
+**Q: `sum()` operator exists?**  
+A: ❌ Removed - use `reduce((acc,curr) => acc + curr, 0)`
+
+**Q: Custom object `max()`?**  
+A: `max((x,y) => x.age > y.age ? 1 : -1)`
+
+**Q: `average()` implementation?**  
+A: `map(sum/counter) → reduce(sum+curr) → map(sum/counter)`
+
+**Q: `reduce()` seed purpose?**  
+A: **Initial accumulator** - prevents undefined errors
+
+## Important Terms & Keywords
+
+- **max()** - Maximum value
+- **min()** - Minimum value
+- **reduce()** - Aggregation/reduction
+- **Comparer Function** - `(x,y) => 1|0|-1`
+- **Seed Value** - `reduce(fn, initialValue)`
+- **Object Merging** - `{...acc, ...curr}`
+- **Statistical Pipeline** - Average/sum calculations
+- **Single-pass Aggregation** - Memory efficient
+- **RxJS 5 Changes** - Removed `sum()`, `average()`
+- **Immutable Accumulation** - Spread operator usage[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

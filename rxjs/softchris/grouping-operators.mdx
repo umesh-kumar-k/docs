@@ -1,0 +1,112 @@
+# RxJS Grouping Operators
+
+**buffer()** groups values until **closing trigger**. **bufferTime()** uses fixed time windows. Perfect for autocomplete, double-click, user analytics.[1]
+
+## Key Operators & Patterns
+
+| Operator | Signature | Use Case | Output |
+|----------|-----------|----------|---------|
+| `buffer(closing$)` | `buffer(trigger$)` | Dynamic grouping | `T[]` arrays |
+| `bufferTime(ms)` | `bufferTime(1000)` | Fixed time slices | `T[]` every ms |
+
+## Key Topics Section-wise
+
+### buffer(closingTrigger$)
+**Waits for closing Observable to emit:**
+```typescript
+interval(200).pipe(
+  buffer(timer(1000))  // Groups 0,1,2,3 → emits [0,1,2,3]
+);
+```
+
+### Autocomplete Pattern
+**Capture typing history + search:**
+```typescript
+input$.pipe(
+  map(e => e.key),
+  buffer(debounceTime(2000, input$)),
+  switchMap(keys => ajax(`search/${input.value}`))
+);
+```
+**Result**: `["a","a","Backspace","b",...]` → HTTP search
+
+### Double/Triple Click Detection
+**Elegant state-less clicks:**
+```typescript
+btn$.pipe(
+  buffer(btn$.pipe(debounceTime(300))),
+  map(arr => arr.length),
+  filter(count => count >= 2)  // 2+, 3+
+);
+```
+
+### bufferTime(ms)
+**Fixed time windowing:**
+```typescript
+input$.pipe(
+  map(e => e.key),
+  bufferTime(1000)  // Groups every second
+);
+// ["a","s","d","f"] every 1s
+```
+
+## Key Classes/Interfaces
+
+| Operator | Params | Return | Imports |
+|----------|---------|---------|---------|
+| `buffer(trigger$)` | `Observable` | `Observable<T[]>` | `rxjs/operators` |
+| `bufferTime(ms)` | `number` | `Observable<T[]>` | `rxjs/operators` |
+
+## Design Patterns
+
+- **Scissor Pattern**: `fast$.buffer(slow$)` - time slicing
+- **Click Analytics**: `buffer(debounceTime()) → count → filter(n>=2)`
+- **Typing History**: `keyup → buffer(debounce) → ajax(finalValue)`
+- **User Session Replay**: `bufferTime(1000)` for socket emission
+
+## Best Practices
+
+| Pattern | ✅ Perfect For | ❌ Avoid When |
+|---------|----------------|---------------|
+| **`buffer(debounceTime())`** | Double-click, autocomplete | Memory-sensitive |
+| **`bufferTime(1000)`** | Analytics, "user typing" | Real-time needs |
+| **`map(e.key)` before buffer** | Extract data | Raw events only |
+| **Combine with `filter(count)`** | Multi-click detection | Single events |
+
+## Advanced Topics
+
+- **"Autocomplete on Steroids"**: Buffer typing history + final search
+- **Socket Replay**: `bufferTime()` → emit user session
+- **Nested Buffering**: `bufferTime(1000, interval(500))`
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `buffer()` waits for what?**  
+A: **Closing trigger Observable** emission[1]
+
+**Q: Double-click without state vars?**  
+A: `clicks.pipe(buffer(clicks.debounceTime(300)), map(arr=>arr.length), filter(n>=2))`
+
+**Q: `bufferTime()` vs `buffer(debounceTime())`?**  
+A: `bufferTime()`: **fixed windows**; `buffer(debounce)`: **dynamic silence**
+
+**Q: Typing analytics pattern?**  
+A: `keyup.map(key) → buffer(debounceTime(2000)) → ajax(input.value) → history`
+
+**Q: Memory concern?**  
+A: **Array growth** - use `take()`, `filter()`, time limits
+
+## Important Terms & Keywords
+
+- **buffer(closing$)** - Trigger-based grouping
+- **bufferTime(ms)** - Fixed time windows
+- **Scissor Pattern** - `fast.buffer(slow$)`
+- **Double/Triple Click** - `buffer(debounceTime(300)).map(length)`
+- **Autocomplete Steroids** - Buffer history + final search
+- **Typing Analytics** - `keyup → buffer → ajax`
+- **User Session Replay** - `bufferTime()` for sockets
+- **Dynamic Windows** - `buffer(debounceTime())`
+- **Array Emission** - Groups emit `T[]`
+- **Silence Trigger** - `debounceTime()` as buffer closer[1]
+
+[1](https://softchris.github.io/books/rxjs/operators-grouping/)

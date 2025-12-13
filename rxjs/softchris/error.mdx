@@ -1,0 +1,134 @@
+# RxJS Error Handling
+
+**Retry** (`retry()`, `retryWhen()`) vs **Transform** (`catchError()`, `onErrorResumeNext()`). Critical for production resilience.[1]
+
+## Error Strategies Comparison
+
+| Strategy | Operators | Use Case | Stream Fate |
+|----------|-----------|----------|-------------|
+| **Retry** | `retry(n)`, `retryWhen()` | Temporary failures | Restarts |
+| **Transform** | `catchError()`, `onErrorResumeNext()` | Graceful degradation | Survives |
+
+## Key Topics Section-wise
+
+### retry() - Simple Retries
+**Fixed attempts:**
+```typescript
+of(1,2,3).pipe(
+  map(v => { if(v>2) throw 'err'; }), 
+  retry(5)  // 6 total attempts
+);
+```
+
+### retryWhen() - Custom Logic
+**With delay + counter:**
+```typescript
+.retryWhen(err$ => err$.pipe(
+  scan((count, err) => {
+    if(count >= 3) throw err;  // Fail after 3
+    return count + 1;
+  }, 0),
+  delay(1000)  // 1s backoff
+))
+```
+
+### catchError() - Transform Errors
+**Error → Value:**
+```typescript
+throwError('crash').pipe(
+  catchError(err => of(`Patched: ${err}`))
+);  // Emits "Patched: crash"
+```
+
+### Merge Error Handling
+**GOTCHA - Position matters:**
+```typescript
+// ❌ Error kills merge
+merge(bad$, good$)
+
+// ✅ Patch individually
+merge(
+  bad$.pipe(catchError(err => of(err))),
+  good$
+)
+```
+
+### onErrorResumeNext() - Ignore Failures
+**"Survival of the fittest":**
+```typescript
+onErrorResumeNext(bad1$, bad2$, good$)
+// Emits only: good$ values
+```
+
+## Key Classes/Interfaces
+
+| Operator | Signature | Behavior |
+|----------|-----------|----------|
+| `retry(n)` | `retry([times])` | Fixed retries |
+| `retryWhen(fn)` | `retryWhen(err$ => Observable)` | Custom retry logic |
+| `catchError(fn)` | `catchError(err => Observable)` | Error → fallback |
+| `onErrorResumeNext(...obs$)` | Static | Skip failed streams |
+
+## Design Patterns
+
+- **Exponential Backoff**: `retryWhen(err$ => err$.delayWhen(i => timer(i*1000)))`
+- **Individual Patching**: `merge(stream1$.catchError(), stream2$)`
+- **Graceful Degradation**: `catchError(() => of(defaultData))`
+- **Circuit Breaker**: `retryWhen()` with failure threshold
+
+## Best Practices & Trade-offs
+
+| Practice | ✅ Pros | ❌ Cons |
+|----------|---------|---------|
+| **`retryWhen().scan().delay()`** | Backoff + limit | Complex |
+| **Pre-merge `catchError()`** | Granular control | Verbose |
+| **`onErrorResumeNext()`** | Clean survivors | Swallows errors |
+| **Always log errors** | Debugging | N/A |
+
+**Position Critical:**
+```
+merge(bad$, good$)              // ❌ Kills all
+merge(bad$.catchError(), good$) // ✅ Patch before merge
+```
+
+## Advanced Topics
+
+**Functional Retry Counter:**
+```typescript
+retryWhen(err$ => err$.pipe(
+  scan((count, err) => count >= 3 ? throwError(err) : count + 1, 0),
+  delay(1000)
+))
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `retry(3)` vs `retryWhen()`?**  
+A: `retry(3)`: **fixed attempts**; `retryWhen()`: **custom logic/delay**[1]
+
+**Q: Why `merge(bad$, good$)` fails?**  
+A: **Error kills entire merge** - patch individually first
+
+**Q: Functional retry counter?**  
+A: `retryWhen(err$.scan(count => count<3 ? count+1 : throw err, 0))`
+
+**Q: `catchError()` vs `onErrorResumeNext()`?**  
+A: `catchError()`: **transform error**; `onErrorResumeNext()`: **skip failures**
+
+**Q: Exponential backoff?**  
+A: `retryWhen(err$ => err$.delayWhen((_, i) => timer(i * 1000)))`
+
+## Important Terms & Keywords
+
+- **retry(n)** - Fixed retry attempts
+- **retryWhen(fn)** - Custom retry stream
+- **catchError(fn)** - Error → Observable
+- **onErrorResumeNext(...)** - Skip failed streams
+- **scan() counter** - Functional retry tracking
+- **delay() backoff** - Retry spacing
+- **Pre-merge patching** - Individual error handling
+- **Exponential backoff** - Increasing delays
+- **Stream death** - Error terminates execution
+- **Graceful degradation** - Error → fallback data[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

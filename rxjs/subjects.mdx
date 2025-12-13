@@ -1,0 +1,142 @@
+# RxJS Subjects: Complete Reference Guide
+
+RxJS Subjects enable multicasting (hot observables) where multiple subscribers share one execution path, critical for state management and cross-component communication in Angular apps.[1]
+
+## Subject Types Comparison
+
+| Subject Type | Hot/Cold | Initial Value | Late Subscribers Get | Buffer Size | Use Case |
+|--------------|----------|---------------|---------------------|-------------|----------|
+| **Subject** | Hot | No | Only future values | None | Live events, simple multicast |
+| **BehaviorSubject** | Hot | **Required** | Current value + future | Last 1 value | State holders, current value needed |
+| **ReplaySubject** | Hot | Optional | Last N values + future | Configurable (default ∞) | Chat history, late joiners |
+| **AsyncSubject** | Hot | Optional | Last value on complete | Last 1 value | Promise-like, single final value |
+
+## Key Topics by Subject Type
+
+### Subject (learnrxjs.io/subjects/subject)
+**Key Points:**
+- Bridge between Observable/Observer - both subscribable AND emits values
+- **Multicasts**: Single execution path to multiple observers
+- Late subscribers miss prior emissions (live broadcast)
+
+**Example:**
+```typescript
+const subject = new Subject();
+subject.next(1); // No subscribers yet
+subject.subscribe(a => console.log('A', a)); // A misses 1
+subject.next(2); // A: 2
+subject.subscribe(b => console.log('B', b)); 
+subject.next(3); // A:3, B:3
+```
+
+### BehaviorSubject (learnrxjs.io/subjects/behaviorsubject)
+**Key Points:**
+- **Requires seed value** on creation
+- New subscribers **immediately** get current/latest value
+- Always has a "current value"
+
+**Example:**
+```typescript
+const subject = new BehaviorSubject(123); // Seed
+subject.subscribe(console.log); // 123
+subject.next(456); // 456
+subject.subscribe(console.log); // 456 (latest)
+```
+
+### ReplaySubject (learnrxjs.io/subjects/replaysubject)
+**Key Points:**
+- **Buffers** last N emissions (default all)
+- New subscribers get **replayed** buffer + future values
+- `new ReplaySubject(bufferSize, windowTime?)`
+
+**Example:**
+```typescript
+const subject = new ReplaySubject(3); // Last 3 values
+subject.next(1); subject.next(2);
+subject.subscribe(a => console.log(a)); // 1,2
+subject.next(3); subject.next(4); // a:3,4
+subject.subscribe(b => console.log(b)); // b:2,3,4
+```
+
+## Key Classes/Interfaces
+
+| Class | Extends | Constructor | Key Methods |
+|-------|---------|-------------|-------------|
+| `Subject<T>` | `Observable<T>` | `new Subject()` | `next(v)`, `error(e)`, `complete()` |
+| `BehaviorSubject<T>` | `Subject<T>` | `new BehaviorSubject(initial: T)` | Same + `.value` getter |
+| `ReplaySubject<T>` | `Subject<T>` | `new ReplaySubject(bufferSize?, windowTime?)` | Same + buffer config |
+| `AsyncSubject<T>` | `Subject<T>` | `new AsyncSubject()` | Emits last value on complete |
+
+## Design Patterns
+
+- **Publish-Subscribe (PubSub)**: Subjects as central event bus
+- **State Container**: BehaviorSubject for component/service state
+- **Service Locator**: Subjects coordinate across Angular services
+- **Facade Pattern**: Subject hides complex Observable chains
+
+## Best Practices & Trade-offs
+
+| Practice | ✅ Pros | ❌ Cons/Risks |
+|----------|---------|---------------|
+| **BehaviorSubject for state** | Instant value to new subs, seed value | Memory if never completes |
+| **ReplaySubject(1) over Behavior** | No seed required | Slightly more memory |
+| **Complete Subjects** | Proper teardown | Breaks late subscribers |
+| **Guard `next()` calls** | `if(!this.closed)` check | Error if completed |
+| **Avoid infinite ReplaySubject** | `ReplaySubject(10)` limits | Memory leaks with ∞ buffer |
+
+**Trade-offs:**
+```
+Subject: Fastest, no memory overhead ❌ No history
+Behavior: Perfect state holder ❌ Requires seed
+Replay: Late subscriber friendly ❌ Memory usage
+```
+
+## Advanced Topics
+
+- **Type Safety**: `Subject<string>` vs `Subject<any>`
+- **Error Handling**: `subject.error(err)` completes + errors all subs
+- **Memory Management**: `ReplaySubject` buffer grows until configured limit
+- **Angular Services**: 
+```typescript
+@Injectable()
+class StateService {
+  private state$ = new BehaviorSubject<State>(initialState);
+  public readonly state$ = this.state$.asObservable(); // Read-only
+  update(newState: State) { this.state$.next(newState); }
+}
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Subject vs Observable?**  
+A: Subject **multicasts** (multiple subs share execution) AND can `.next()`; Observable is unicast/read-only
+
+**Q: When use BehaviorSubject vs ReplaySubject(1)?**  
+A: Behavior **requires seed**, cleaner API (`.value`); Replay no seed but same effect
+
+**Q: Memory leak risk with Subjects?**  
+A: Uncompleted Subjects + infinite ReplaySubject buffer; always `complete()` or limit buffer
+
+**Q: Late subscriber gets what?**  
+A: Subject: nothing past; Behavior: current; Replay: buffer; Async: last on complete
+
+**Q: Cross-service state sync?**  
+A: Share BehaviorSubject via service injection - single source of truth
+
+**Q: Safe to `.next()` after `.complete()`?**  
+A: No - throws error. Check `!subject.closed`
+
+## Important Terms & Keywords
+
+- **Subject** - Hot, multicast Observable+Observer
+- **BehaviorSubject** - Subject with current value + seed required
+- **ReplaySubject** - Subject with configurable emission buffer
+- **AsyncSubject** - Emits last value on complete only
+- **Multicasting** - Multiple subscribers share one execution
+- **Hot Observable** - Shared execution across subscribers
+- **Seed Value** - Initial value for BehaviorSubject
+- **Buffer Size** - ReplaySubject emission history limit
+- **`.asObservable()`** - Hide `.next()` from consumers
+- **Closed State** - Subject can't emit after complete/error[1]
+
+[1](https://www.learnrxjs.io/learn-rxjs/subjects/subject)

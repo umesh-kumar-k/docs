@@ -1,0 +1,112 @@
+# RxJS Observer Fundamentals
+
+Observer is an object with `next()`, `error()`, `complete()` methods passed to Observable constructor. Foundation of reactive push-based communication.[1]
+
+## Key Topics Section-wise
+
+### Observer Creation
+**Observable Constructor Pattern:**
+```typescript
+import { Observable } from 'rxjs';
+
+let stream$ = Observable.create((observer) => {
+  observer.next(4);     // Emit value
+  // observer.error('err');  // Terminate + error
+  // observer.complete();    // Terminate successfully
+});
+```
+
+### Observer Methods
+| Method | Purpose | Effect on Stream |
+|--------|---------|------------------|
+| `observer.next(value)` | Emit value | Continues stream |
+| `observer.error(err)` | Signal error | **Terminates** stream |
+| `observer.complete()` | Signal end | **Terminates** stream |
+
+## Key Classes/Interfaces
+
+| Component | Type | Methods |
+|-----------|------|---------|
+| `Observer<T>` | **Interface** | `next(v: T)`, `error(e: any)`, `complete(): void` |
+| `Observable.create()` | Factory | `(observer: Observer<T>) => teardownFn` |
+| `Teardown Function` | Return Type | Cleanup logic |
+
+**Interface Definition:**
+```typescript
+interface Observer<T> {
+  next: (value: T) => void;
+  error: (err: any) => void;
+  complete: () => void;
+}
+```
+
+## Design Patterns
+
+- **Observer Pattern**: Producer (`observer.next()`) → Consumer (callbacks)
+- **Push-based Communication**: Observable pushes values to passive observer
+- **Lazy Subscription**: Observer methods execute only on `.subscribe()`
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **Call methods in constructor** | Defines stream behavior |
+| **`next()` multiple times** | Emit sequence of values |
+| **Error/Complete terminate** | Proper lifecycle |
+| **Return teardown** | Memory management |
+
+**Complete Example:**
+```typescript
+const ticks$ = new Observable(observer => {
+  let i = 0;
+  const id = setInterval(() => {
+    observer.next(i++);
+    if(i > 5) {
+      observer.complete();  // End after 5 ticks
+      clearInterval(id);
+    }
+  }, 1000);
+  return () => clearInterval(id);  // Cleanup
+});
+```
+
+## Advanced Topics
+
+- **Partial Observers**: Omit `error/complete` - defaults to no-op
+- **Operator Forwarding**: Custom operators create internal observers
+- **Subscription Lifecycle**: `next()`* → `complete()` OR `error()`
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Observer interface methods?**  
+A: `next(value)`, `error(err)`, `complete()`[1]
+
+**Q: Observable constructor parameter?**  
+A: `Observer<T>` object with 3 methods
+
+**Q: What terminates Observable execution?**  
+A: `observer.error()` or `observer.complete()`
+
+**Q: Multiple `next()` calls allowed?**  
+A: Yes - emits sequence until termination
+
+**Q: Factory method for Observables?**  
+A: `Observable.create(observer => {...})`
+
+**Q: Error vs Complete difference?**  
+A: Both terminate; error skips `complete()` handler
+
+## Important Terms & Keywords
+
+- **Observer** - `{next(), error(), complete()}` object
+- **Observable.create()** - Factory with observer param
+- **observer.next(value)** - Emit/push value
+- **observer.error(err)** - Terminate with error
+- **observer.complete()** - Terminate successfully
+- **Push Communication** - Observable → Observer
+- **Teardown Function** - Cleanup from constructor
+- **Stream Termination** - Error or complete ends execution
+- **Partial Observer** - Missing methods = no-op
+- **Lazy Execution** - Runs only on subscribe[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

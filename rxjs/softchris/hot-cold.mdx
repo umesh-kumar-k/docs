@@ -1,0 +1,107 @@
+# RxJS Hot vs Cold Observables
+
+**Cold**: Fresh execution per subscriber. **Hot**: Shared execution - late subscribers miss prior emissions.[1]
+
+## Observable Temperature Spectrum
+
+| Type | Emission Timing | Subscriber Behavior | Example |
+|------|----------------|-------------------|---------|
+| **Cold** | On each `.subscribe()` | Gets full sequence from start | `of(1,2,3)`, `ajax()` |
+| **Hot** | Immediately, regardless of subscribers | Gets values from subscription moment | `publish().connect()`, `mousemove` |
+| **Warm** | Starts on first subscriber, shares after | First gets full, late get current | `publish().refCount()` |
+
+## Key Examples
+
+### Cold Observable (Independent Execution)
+```typescript
+const cold$ = of(1,2,3);
+cold$.subscribe(a => console.log('A',a));  // A:1,2,3
+cold$.subscribe(b => console.log('B',b));  // B:1,2,3 (fresh execution)
+```
+
+### Hot Observable (Shared Execution)
+```typescript
+const hot$ = interval(1000).pipe(take(5), publish());
+hot$.connect();  // Starts execution
+hot$.subscribe(a => console.log('A',a));  // A:0,1,2,3,4
+setTimeout(() => hot$.subscribe(b => console.log('B',b)), 3000);  // B:3,4
+```
+
+### Warm Observable (refCount)
+```typescript
+const warm$ = interval(1000).pipe(take(3), publish(), refCount());
+setTimeout(() => warm$.subscribe(a => console.log('A',a)), 1100);  // A:0,1,2
+setTimeout(() => warm$.subscribe(b => console.log('B',b)), 2100);  // B:1,2
+```
+
+## Key Classes/Interfaces
+
+| Operator | Purpose | Hot/Cold |
+|----------|---------|----------|
+| `publish()` | Multicasts via Subject | Makes Cold → Hot |
+| `connect()` | Starts shared execution | Required after `publish()` |
+| `refCount()` | Auto connect/disconnect | Cold → Warm |
+| `share()` | `publish().refCount()` shorthand | Cold → Warm/Hot |
+
+## Design Patterns
+
+- **Live Stream**: `publish().connect()` - football game analogy
+- **Lazy Sharing**: `share()` - hot only with active subscribers
+- **Resource Efficiency**: `refCount()` - starts/stops on demand
+
+## Best Practices & Trade-offs
+
+| Pattern | ✅ Use When | ❌ Avoid When |
+|---------|------------|---------------|
+| **`share()`** | Multiple subscribers, HTTP | Single subscriber |
+| **`publish().connect()`** | Manual control needed | Simple cases |
+| **`refCount()`** | First subscriber starts | Frequent subscribe/unsubscribe |
+| **Cold Observables** | Pure functions, idempotent | Expensive operations |
+
+**Memory Trade-off:**
+```
+Cold: Multiple executions = CPU waste
+Hot: Shared execution = Memory (Subject buffer)
+```
+
+## Advanced Topics
+
+**share() Conditions:**
+1. **Hot**: Active + subscribers > 0 when new sub joins
+2. **Cold**: Subscribers drop to 0 before new subscription
+3. **Cold**: Completed before new subscription
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Cold Observable behavior?**  
+A: **Fresh execution per subscriber** - each gets full sequence[1]
+
+**Q: Hot Observable behavior?**  
+A: **Shared execution** - late subscribers miss prior emissions
+
+**Q: `publish()` without `connect()`?**  
+A: No execution - just prepares multicasting
+
+**Q: Warm Observable?**  
+A: `publish().refCount()` - starts on first sub, shares after
+
+**Q: `mousemove` example?**  
+A: **Naturally hot** - emits regardless of subscribers
+
+**Q: `share()` vs `publishReplay(1)`?**  
+A: `share()` = `publish().refCount()`; `publishReplay()` buffers values
+
+## Important Terms & Keywords
+
+- **Cold Observable** - Per-subscriber execution
+- **Hot Observable** - Shared execution, timing matters
+- **Warm Observable** - `refCount()` hybrid
+- **`publish()`** - Multicasting preparation
+- **`connect()`** - Start hot execution
+- **`refCount()`** - Auto connect/disconnect
+- **`share()`** - `publish().refCount()` shorthand
+- **Live Stream Analogy** - Hot observable behavior
+- **Late Subscriber** - Misses prior emissions
+- **Execution Sharing** - Multiple subs, one producer[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

@@ -1,0 +1,126 @@
+# RxJS Combinational Operators
+
+Combine multiple Observables into one. **combineLatest** (latest values), **concat** (sequential), **merge** (parallel), **zip** (position-based).[1]
+
+## Operators Comparison
+
+| Operator | Emission Strategy | Order Preserved | Example Output |
+|----------|-------------------|-----------------|---------------|
+| **`combineLatest()`** | Latest from each | No | `[s1:0,s2:0], [s1:0,s2:1], [s1:1,s2:1]...` |
+| **`concat()`** | First complete → next | Yes | All s1 → All s2 |
+| **`merge()`** | Parallel interleaving | No | Values as they complete |
+| **`zip()`** | Nth position match | Yes | `[1,2,7], [5,3,9]` |
+
+## Key Topics Section-wise
+
+### combineLatest()
+**Signature**: `combineLatest([source1, source2, ...])`
+- Emits **array of latest values** from each source
+- **Continues** even if source completes (reuses last value)
+```typescript
+combineLatest(
+  interval(100).pipe(map(v => `s1:${v}`), take(5)),
+  interval(50).pipe(map(v => `s2:${v}`), take(2))
+);
+// [s1:0,s2:0], [s1:0,s2:1], [s1:1,s2:1], [s1:2,s2:1]...
+```
+
+### concat()
+**Signature**: `concat(source1, source2, ...)`
+- **Sequential**: Completes first → emits second
+- **Order matters** - source1 fully emits first
+```typescript
+concat(
+  interval(100).pipe(take(5)),  // All first
+  interval(50).pipe(take(2))    // Then all second
+);
+// 0,1,2,3,4 (s1), 0,1 (s2)
+```
+
+### merge()
+**Signature**: `merge(source1, source2, ...)`
+- **Parallel emission** as sources complete
+- Respects timing operators (`delay()`)
+```typescript
+merge(
+  of(1).pipe(delay(500)),
+  of(3,2,5)
+);
+// 3,2,5,1 (interleaved)
+```
+
+### zip()
+**Signature**: `zip(source1, source2, ...)`
+- **Position-based pairing** (Nth values together)
+- Takes **shortest length**, ignores extras
+```typescript
+zip(
+  of(1,5),
+  of(2,3,4),  // 4 ignored
+  of(7,9)
+);
+// [1,2,7], [5,3,9]
+```
+
+## Key Classes/Interfaces
+
+| Operator | Input | Output | Imports |
+|----------|--------|---------|---------|
+| `combineLatest()` | `Observable[]` | `Observable<any[]>` | `rxjs` |
+| `concat()` | `...Observable[]` | `Observable<T>` | `rxjs` |
+| `merge()` | `...Observable[]` | `Observable<T>` | `rxjs` |
+| `zip()` | `...Observable[]` | `Observable<any[]>` | `rxjs` |
+
+## Design Patterns
+
+- **Latest State**: `combineLatest(form1$, form2$, api$)` - all current values
+- **Sequential Loading**: `concat(login$, fetchUser$, fetchPosts$)`
+- **Parallel Requests**: `merge(api1$, api2$, api3$)`
+- **Fixed Position**: `zip(headers$, body$, footer$)` - UI sections
+
+## Best Practices
+
+| Operator | ✅ Use When | ❌ Avoid When |
+|----------|------------|---------------|
+| `combineLatest()` | Need latest from all | One source completes early |
+| `concat()` | Strict ordering | Parallelism needed |
+| `merge()` | Independent streams | Order matters |
+| `zip()` | Position alignment | Different lengths |
+
+## Advanced Topics
+
+- **Promise Mixing**: `zip(promise, observable)` - auto-conversion
+- **Dynamic Sources**: `combineLatest(sources$)` where `sources$` emits arrays
+- **Error Propagation**: Error in any source kills entire combination
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `combineLatest()` behavior when source completes?**  
+A: **Reuses last value** - continues emitting[1]
+
+**Q: `concat()` order dependency?**  
+A: **Source order matters** - first completes → second emits
+
+**Q: `zip()` shortest array rule?**  
+A: **Ignores extra values** from longer sources
+
+**Q: `merge()` timing respect?**  
+A: ✅ Respects `delay()`, runs **parallel**
+
+**Q: Form validation pattern?**  
+A: `combineLatest(email$, password$).pipe(map(([e,p]) => validate(e,p)))`
+
+## Important Terms & Keywords
+
+- **combineLatest()** - Latest values array
+- **concat()** - Sequential complete-first
+- **merge()** - Parallel interleaving
+- **zip()** - Position-based pairing
+- **Shortest Length** - `zip()` behavior
+- **Last Value Reuse** - `combineLatest()` completed source
+- **Source Order** - `concat()` dependency
+- **Dynamic Sources** - Array of Observables
+- **Promise Conversion** - Auto-handling in combinators
+- **Error Propagation** - Kills entire combination[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

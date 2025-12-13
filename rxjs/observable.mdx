@@ -1,0 +1,128 @@
+# RxJS Observables: Observers & Operators Deep Dive
+
+Observables are lazy functions implementing the Observer pattern, producing values asynchronously through chained operators.[1]
+
+## Key Sections & Concepts
+
+### What is an Observable?
+- Function taking `subscribe` callback, connects **producer** (events/API) to **observer** (consumer)
+- **Lazy Execution**: Only runs when `.subscribe()` called
+- Example: `Rx.Observable.fromEvent(input, 'input')` creates DOM event stream
+
+### What is an Observer?
+- **Object Literal**: `{ next(value), error(err), complete() }` passed to `.subscribe()`
+- **Lifecycle**: `next()` for values, `error()` for failures, `complete()` signals end
+- Syntax: `.subscribe(next, error, complete)` or object form
+
+### Observable Sequence (Operators)
+- **Chain Pattern**: Each operator returns **new Observable** subscribing to previous
+- **Flow**: `input$ → .map() → .filter() → .subscribe()`
+- **Value Propagation**: Each `.next(value)` triggers next operator in chain
+
+## Custom Observable Implementation
+
+### Observable Constructor
+```typescript
+function Observable(subscribe) {
+  this.subscribe = subscribe;  // Producer logic stored here
+}
+```
+
+### fromEvent Static Method
+```typescript
+Observable.fromEvent = (element, name) => 
+  new Observable(observer => {
+    const handler = e => observer.next(e);
+    element.addEventListener(name, handler);
+    return () => element.removeEventListener(name, handler);  // Teardown
+  });
+```
+
+### Custom map Operator
+```typescript
+Observable.prototype.map = function(mapFn) {
+  const self = this;
+  return new Observable(observer => 
+    self.subscribe({
+      next: v => observer.next(mapFn(v)),
+      error: observer.error.bind(observer),
+      complete: observer.complete.bind(observer)
+    })
+  );
+};
+```
+
+## Key Classes/Interfaces
+
+| Component | Purpose | Signature |
+|-----------|---------|-----------|
+| `Observable` | Producer function | `new Observable(subscribe)` |
+| `Observer` | Consumer object | `{ next(v), error(e), complete() }` |
+| `fromEvent()` | DOM event stream | `fromEvent(element, eventName)` |
+| `map()` | Transform values | `.map(fn: (v) => T)` |
+| `subscribe()` | Execute + teardown | Returns `unsubscribe` function |
+
+## Design Patterns
+
+- **Observer Pattern**: Core RxJS foundation - producers push to subscribers
+- **Stream Chaining**: Each operator creates new Observable, propagates via internal subscriptions
+- **Lazy Evaluation**: No computation until `.subscribe()` - memory efficient
+- **Teardown Pattern**: Return cleanup function from `subscribe` callback
+
+## Best Practices
+
+- ✅ **Chain operators** before final `.subscribe()` for composability
+- ✅ **Always handle teardown** - use returned unsubscribe function
+- ✅ **Use object literal observers** for clarity over tuple syntax
+- ✅ **Keep operators pure** - no side effects in transformation logic
+- ❌ **Avoid**: Direct mutation in operators, infinite streams without teardown
+
+## Advanced Topics
+
+### Operator Internals
+```
+input$ → [subscribe] → map$ → [subscribe] → filter$ → [subscribe] → final$
+```
+Each operator subscribes to previous, creating **subscription chain** with cascading teardown.
+
+### Cold vs Hot Observables
+- **Cold**: Fresh execution per subscriber (default `fromEvent`)
+- **Hot**: Shared execution across subscribers (Subjects, multicasting)
+
+### Memory Management
+```typescript
+const unsub = input$.subscribe(...);
+setTimeout(unsub, 5000);  // Chain teardown propagates automatically
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: How does `.map()` actually work internally?**  
+A: Returns new Observable subscribing to source, transforms via `mapFn`, forwards via `observer.next()`
+
+**Q: When does Observable execution begin?**  
+A: Only when `.subscribe()` called - lazy by design
+
+**Q: Explain subscription chain teardown**  
+A: Outer unsubscribe → map unsubscribes from source → source teardown cascades
+
+**Q: Difference between Observable & Promise?**  
+A: Observable: 0-N values, cancellable; Promise: 1 value, non-cancellable
+
+**Q: How to implement custom `fromEvent`?**  
+A: `new Observable(obs => { addEventListener(fn); return removeEventListener })`
+
+## Important Terms & Keywords
+
+- **Observable** - Lazy producer function
+- **Observer** - `{next, error, complete}` consumer
+- **Producer** - Value source (events, API, timers)
+- **Subscription Chain** - Operator → operator cascading
+- **Teardown** - Cleanup function from `subscribe`
+- **Lazy Execution** - Only runs on `.subscribe()`
+- **Operator** - Returns new Observable transforming source
+- **fromEvent** - DOM event Observable factory
+- **map/filter** - Core transformation operators
+- **Cold/Hot Observables** - Execution sharing behavior[1]
+
+[1](https://ultimatecourses.com/blog/rxjs-observables-observers-operators)

@@ -1,0 +1,123 @@
+# RxJS Testing with Marble Diagrams
+
+**Marble Testing** uses symbolic diagrams to test timing + values deterministically. `TestScheduler` controls virtual time avoiding async flakiness.[1]
+
+## Key Topics Section-wise
+
+### RxJS 4 Testing (Legacy)
+**TestScheduler Approaches:**
+```
+1. advanceBy(ms): Manual time progression
+testScheduler.advanceBy(1000); // assert(1)
+
+2. Hot Observables + startScheduler()
+input = createHotObservable(onNext(100,'abc'), ...)
+results = scheduler.startScheduler(algorithm, {created:50, subscribed:150})
+```
+
+### RxJS 5+ Marble Testing
+**Core Pattern:**
+```typescript
+const testScheduler = new TestScheduler((actual, expected) => expect(actual).toEqual(expected));
+
+const input$ = testScheduler.createHotObservable('-x-y-z|', {x:1, y:2, z:3});
+const expected = '-x-y-z|';
+
+testScheduler.expectObservable(input$).toBe(expected, {x:1,y:2,z:3});
+testScheduler.flush();  // Run test
+```
+
+### Marble Syntax
+| Symbol | Meaning |
+|--------|---------|
+| `-` | Time frame passes |
+| `x,y,z` | Values (mapped via `values` object) |
+| `#` | Error |
+| `|` | Complete |
+| `(ab)` | Synchronous emissions |
+
+**Filter Test Example:**
+```typescript
+// Input: '-x-y-z|' (1,2,3)
+// Expected: '---y-|' (only even 2)
+const expected = '---y-';
+```
+
+## Key Classes/Interfaces
+
+| Component | Purpose | Key Methods |
+|-----------|---------|-------------|
+| `TestScheduler` | Virtual time control | `createHotObservable()`, `expectObservable()`, `flush()` |
+| `HotObservable` | Shared timing | Marble → emissions |
+| `Marble Diagram` | Visual test spec | `-x-#-|` syntax |
+
+**TestScheduler Signature:**
+```typescript
+new TestScheduler(assertFn: (actual: T[], expected: T[]) => void)
+```
+
+## Design Patterns
+
+- **Marble → Test**: Visual diagram → `createHotObservable('-a-b-|')`
+- **Hot Observable Testing**: `createHotObservable()` for shared streams
+- **Cold Observable**: `createColdObservable()` for fresh executions
+- **Frame Assertions**: Time + value deep equality
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **`TestScheduler` constructor assert** | Custom matcher control |
+| **`flush()` last** | Runs all scheduled emissions |
+| **Hot for shared streams** | Realistic multicasting tests |
+| **Values object** | Symbolic → actual mapping |
+
+**Complete Test Structure:**
+```typescript
+it('filters even numbers', () => {
+  const scheduler = new TestScheduler((actual, expected) => expect(actual).toEqual(expected));
+  const input$ = scheduler.createHotObservable('-1-2-3-|');
+  const expected = '-x---|'; // x=2
+  
+  expectObservable(filterEven(input$)).toBe(expected, {x:2});
+  scheduler.flush();
+});
+```
+
+## Advanced Topics
+
+- **Cold Observables**: `createColdObservable()` - fresh per subscriber
+- **Nested Observables**: Auto-materialization support
+- **Error/Complete Symbols**: `#` error, `|` complete testing
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Marble `-x-y-|` meaning?**  
+A: **Timeframe → x → timeframe → y → complete**[1]
+
+**Q: `TestScheduler.flush()` purpose?**  
+A: **Executes** all scheduled emissions + assertions
+
+**Q: Hot vs Cold observables in tests?**  
+A: Hot: `createHotObservable()` shared; Cold: fresh execution
+
+**Q: Filter test marble pattern?**  
+A: Input `'-1-2-3-'` → Expected `'--2---'` (even only)
+
+**Q: Error symbol?**  
+A: **`#`** - `'-x-#'` → error after x
+
+## Important Terms & Keywords
+
+- **Marble Testing** - Symbolic stream testing
+- **TestScheduler** - Virtual time controller
+- **createHotObservable()** - Shared stream factory
+- **flush()** - Execute scheduled emissions
+- **Marble Syntax** - `-x-#-|` timing + events
+- **Hot Observable** - Multicasting test streams
+- **Cold Observable** - Fresh execution tests
+- **Frame Assertions** - Time + value equality
+- **`|` Complete** - Stream end symbol
+- **`#` Error** - Error termination symbol[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

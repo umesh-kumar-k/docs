@@ -20,6 +20,28 @@
             ]
           },
           {
+            "group": "Frontend",
+            "pages": [
+              "frontend/performance/critical-rendering-path",
+              "frontend/performance/service-worker",
+              "frontend/performance/best-practice-embed",
+              "frontend/performance/angular",
+              "frontend/performance/web-vitals",
+              "frontend/performance/css",
+              "frontend/performance/overview",
+              "frontend/performance/responsive",
+              "frontend/performance/best-practice-font",
+              "frontend/performance/core-web-vitals",
+              "frontend/layout/grid",
+              "frontend/layout/flexbox",
+              "frontend/mfe/module-federation-plugin",
+              "frontend/mfe/advanced-ng",
+              "frontend/mfe/angular",
+              "frontend/tools/linter",
+              "frontend/tools/bundler"
+            ]
+          },
+          {
             "group": "Angular Forms",
             "pages": [
                 "angular/forms/validation",
@@ -68,7 +90,34 @@
             "group": "Angular RxJS",
             "pages": [
                 "angular/rxjs/best-practice",
-                "angular/rxjs/caching"
+                "angular/rxjs/caching",
+                "rxjs/error-handling",
+                "rxjs/state-mgmt",
+                "rxjs/overview",
+                "rxjs/subjects",
+                "rxjs/rxjs-overview",
+                "rxjs/observable",
+                "rxjs/frequent-operators",
+                "rxjs/higher-order",
+                "rxjs/signals-interop",
+                "rxjs/softchris/bahaviour-subject",
+                "rxjs/softchris/combinational-operators",
+                "rxjs/softchris/replay-subject",
+                "rxjs/softchris/producer",
+                "rxjs/softchris/error",
+                "rxjs/softchris/observable-promise",
+                "rxjs/softchris/time-operators",
+                "rxjs/softchris/hot-cold",
+                "rxjs/softchris/mathematical-operators",
+                "rxjs/softchris/grouping-operators",
+                "rxjs/softchris/async-subject",
+                "rxjs/softchris/observables",
+                "rxjs/softchris/subject",
+                "rxjs/softchris/async",
+                "rxjs/softchris/testing",
+                "rxjs/softchris/observer",
+                "rxjs/softchris/higher-order",
+                "rxjs/softchris/basic-operators"
             ]
           },
           {

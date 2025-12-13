@@ -1,0 +1,115 @@
+# RxJS Basic Operators
+
+Operators transform Observables via `.pipe()`. **Creation** (`of()`), **Side-effect** (`tap()`), **Filtering** (`filter()`). Pipeable operators are tree-shakable.[1]
+
+## Key Operators by Category
+
+| Category | Operator | Purpose | Example |
+|----------|----------|---------|---------|
+| **Creation** | `of(1,2,3)` | Synchronous values | `of(1,2,3)` → 1,2,3 |
+| **Side-effect** | `tap(fn)` | Debug/logging | Logs every value |
+| **Filter** | `filter(predicate)` | Conditional emission | Even numbers only |
+
+## Code Examples
+
+### of() - Creation Operator
+```typescript
+import { of } from 'rxjs';
+let stream$ = of(1,2,3,4,5);  // Synchronous emission
+stream$.subscribe(console.log);  // 1,2,3,4,5
+```
+
+### tap() - Side Effect Operator
+```typescript
+import { tap } from 'rxjs/operators';
+let stream$ = of(1,2,3).pipe(
+  tap(value => console.log('emits every value'))  // Debug all values
+);
+```
+
+### filter() - Filtering Operator
+```typescript
+import { filter } from 'rxjs/operators';
+let stream$ = of(1,2,3,4,5).pipe(
+  filter(value => value % 2 === 0)  // Only even numbers
+);  // Emits: 2,4
+```
+
+### Combined Pipeline
+```typescript
+of(1,2,3,4,5).pipe(
+  tap(value => console.log('tap', value)),     // Logs: 1,2,3,4,5
+  filter(value => value % 2 === 0)             // Emits: 2,4
+).subscribe(value => console.log('value', value));
+```
+
+## Key Classes/Interfaces
+
+| Operator | Type | Signature | Return |
+|----------|------|-----------|--------|
+| `of(...values)` | **Creation** | `of(1,2,3)` | `Observable<T>` |
+| `tap(fn)` | **Side-effect** | `tap(v => console.log(v))` | `Observable<T>` |
+| `filter(fn)` | **Filter** | `filter(v => v % 2 === 0)` | `Observable<T>` |
+
+## Design Patterns
+
+- **Pipeline Pattern**: `.pipe(tap(), filter(), map())` composition
+- **Debug Sandwich**: `tap()` before/after operators for inspection
+- **Immutable Streams**: Operators return **new** Observables
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **Always use `.pipe()`** | Tree-shakable, interceptable |
+| **`tap()` for debugging** | Non-destructive logging |
+| **Pure filter functions** | No side effects |
+| **Operator chaining** | Readable left→right flow |
+
+**Debug Pattern:**
+```
+source$
+.pipe(
+  tap('before'),  // All values
+  filter(even),   // Filtered
+  tap('after')    // Filtered values
+)
+```
+
+## Advanced Topics
+
+- **60+ Operators**: Categories: Creation, Transform, Filter, Combine, Utility
+- **Pipeable Operators**: v5+ standard (vs dot-chaining)
+- **Lazy Creation**: `of()` synchronous; `fromEvent()` lazy
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Purpose of `tap()`?**  
+A: **Side-effect/debugging** - logs without changing values[1]
+
+**Q: `of(1,2,3)` vs `from([1,2,3])`?**  
+A: `of()` synchronous; `from()` async iteration
+
+**Q: Why `.pipe()` mandatory?**  
+A: Tree-shakable, consistent chaining, interceptable
+
+**Q: `filter()` position matters?**  
+A: Yes - early filtering saves downstream computation
+
+**Q: Operator return type?**  
+A: Always **new Observable** - immutable streams
+
+## Important Terms & Keywords
+
+- **Pipeable Operators** - `.pipe(map(), filter())`
+- **Creation Operator** - `of()`, `from()`, `interval()`
+- **Side-effect Operator** - `tap()` for debugging
+- **Filter Operator** - `filter(predicate)`
+- **Immutable Streams** - Operators return new Observable
+- **Tree-shakable** - Unused operators removed at build
+- **Operator Categories** - Creation/Transform/Filter/Combine
+- **Debug Sandwich** - `tap()` before/after operators
+- **60+ Operators** - Rich operator ecosystem
+- **Synchronous Creation** - `of()` immediate emission[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

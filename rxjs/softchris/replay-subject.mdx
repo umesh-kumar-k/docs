@@ -1,0 +1,108 @@
+# RxJS ReplaySubject
+
+**ReplaySubject** caches **last N emissions** for late subscribers. Unlike Subject (lost emissions), BehaviorSubject (last 1), caches configurable buffer.[1]
+
+## Key Topics Section-wise
+
+### Constructor Signature
+```typescript
+new ReplaySubject(bufferSize, windowSize, scheduler)
+```
+| Param | Purpose | Default |
+|-------|---------|---------|
+| `bufferSize` | **Max cached values** | ∞ |
+| `windowSize` | **Time to live** | ∞ |
+| `scheduler` | Execution context | `async` |
+
+### Buffer Behavior
+**Pre-subscription caching:**
+```typescript
+const replay = new ReplaySubject(2);  // Cache last 2
+replay.next(0); replay.next(1); replay.next(2);  // Cache: [1,2]
+
+replay.subscribe(v => console.log('first', v));  // first: 1, 2
+replay.next(3); replay.subscribe(v => console.log('second', v));  // second: 2, 3
+```
+
+## Key Classes/Interfaces
+
+| Component | Extends | Constructor | Cache Behavior |
+|-----------|---------|-------------|---------------|
+| `ReplaySubject<T>` | `Subject<T>` | `new ReplaySubject(2)` | Last N values |
+| **bufferSize** | N/A | `number` | **Max cached emissions** |
+| **windowSize** | N/A | `number \| null` | **TTL in ms** |
+
+## Design Patterns
+
+- **Cache Proxy**: `new ReplaySubject(5)` - recent API responses
+- **Late Subscriber Friendly**: Late components get history
+- **Temporary Cache**: `windowSize: 5000` - 5s TTL
+
+## Best Practices
+
+| Practice | ✅ Why | ❌ Risk |
+|----------|--------|---------|
+| **Limit `bufferSize`** | Memory control | ∞ buffer = leaks |
+| **`windowSize` for TTL** | Fresh data | Stale cache |
+| **`ReplaySubject(1)`** | BehaviorSubject alternative | N/A |
+| **Service caching** | Shared recent data | Over-caching |
+
+**Service Pattern:**
+```typescript
+@Injectable()
+class ApiCache {
+  private cache = new ReplaySubject<ApiResponse>(5, 30000);  // 5 items, 30s TTL
+  getCache() { return this.cache.asObservable(); }
+  set(data: ApiResponse) { this.cache.next(data); }
+}
+```
+
+## Advanced Topics
+
+**GOTCHA - Timing Critical:**
+```
+Emissions before subscribe → Cached (replayed)
+Cache full → Oldest dropped
+windowSize expired → Cleared
+```
+
+**Memory Management:**
+```typescript
+// ✅ Safe
+new ReplaySubject(10, 60000)  // 10 items, 1min TTL
+
+// ❌ Dangerous  
+new ReplaySubject()  // ∞ buffer, ∞ TTL
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: ReplaySubject vs Subject?**  
+A: **Replay caches N emissions** for late subs; Subject loses pre-subscribe[1]
+
+**Q: Constructor params order?**  
+A: `new ReplaySubject(bufferSize, windowSize, scheduler)`
+
+**Q: `ReplaySubject(2)` with 3 prior `next()`?**  
+A: **Replays last 2** to new subscriber
+
+**Q: BehaviorSubject alternative?**  
+A: `ReplaySubject(1)` - same effect, no seed required
+
+**Q: Memory leak risk?**  
+A: **∞ bufferSize** - always limit N + TTL
+
+## Important Terms & Keywords
+
+- **ReplaySubject** - Caching Subject
+- **bufferSize** - Max cached emissions
+- **windowSize** - Cache TTL (ms)
+- **Late Subscriber** - Gets replayed history
+- **Cache Proxy** - Recent data sharing
+- **Pre-subscribe Emissions** - Automatically replayed
+- **Memory Management** - Limit buffer + TTL
+- **BehaviorSubject Alternative** - `ReplaySubject(1)`
+- **Timing Critical** - Subscribe timing affects replay
+- **Infinite Cache Risk** - `bufferSize: undefined`[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

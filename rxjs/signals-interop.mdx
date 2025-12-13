@@ -1,0 +1,126 @@
+# Angular RxJS ↔ Signals Interop
+
+**Angular 16+** `@angular/core/rxjs-interop` bridges RxJS Observables ↔ Signals for hybrid reactive apps. **`toSignal()`**, **`toObservable()`**, **`rxResource()`** (exp). Auto lifecycle, zoneless perf gains.[1][2]
+
+## Page-wise Summary
+
+### 1. angular.dev/ecosystem/rxjs-interop (Official Docs)
+**Key Sections:**
+
+| Section | Key Points |
+|---------|------------|
+| **toSignal(obs$)** | Observable → Signal. Auto-subscribe/unsub on destroy. `{initialValue, requireSync, manualCleanup, equal(fn)}`[1] |
+| **toObservable(signal)** | Signal → Observable via `effect()` + `ReplaySubject`. Stabilizes rapid updates[1] |
+| **rxResource** | **Experimental**. `resource()` + RxJS: `{params, stream(params): Observable}`[1] |
+| **Error Handling** | `toSignal` throws on obs error when read; completed obs → last value[1] |
+
+**Code Pattern:**
+```typescript
+counter = toSignal(interval(1000), {initialValue: 0});  // UI ready
+query$ = toObservable(querySig).pipe(switchMap(apiSearch));
+userResource = rxResource({
+  params: () => ({id: userId()}),
+  stream: ({params}) => userService.load(params.id)
+});
+```
+
+### 2. angular.love/angular-signals-rxjs-interop (Practical Typeahead)
+**Key Sections:**
+- **toSignal**: `posts = toSignal(postsService.get(userId))`
+- **toObservable + RxJS**: `toObservable(userId).pipe(debounceTime(500), switchMap(api))`
+- **Two-way Binding**: `[ngModel]="userId()" (ngModelChange)="userId.set($event)"`
+- **Loading/Error**: `tap(() => isLoading.set(true))`, `catchError(() => of([]))`
+
+### 3. medium.com/netanelbasal (toSignal Deep Dive)
+**Key Sections:**
+- **Injection Context**: Requires `inject()` or `manualCleanup: true`
+- **requireSync: true**: For sync-emission obs (BehaviorSubject)
+- **Side Effects**: Subscribes **immediately** (unlike `*ngIf | async`)
+- **Error Throwing**: `signal()` throws on read if obs errors
+
+### 4. medium.com/@alex.g.petrakov (Angular 18 Changes)
+**Key Sections:**
+- **outputFromObservable()**: Child → parent Observable output
+- **Examples**: Parent reads child `myObservableChange` via signal/observable
+- **Firestore**: `collectionData().pipe(shareReplay(1)) → toSignal()`
+- **Performance**: Signals reduce subscription complexity vs Observables
+
+## Key Classes/Interfaces
+
+| Function | Direction | Options | Auto-cleanup |
+|----------|-----------|---------|--------------|
+| **`toSignal(obs$)`** | **Obs → Signal** | `{initialValue, requireSync, manualCleanup, equal, injector}` | ✅ DestroyRef |
+| **`toObservable(sig)`** | **Signal → Obs** | `{injector}` | ✅ Effect-based |
+| **`rxResource({params, stream})`** | **Obs Resource** | Experimental | ✅ Resource APIs |
+
+## Design Patterns
+
+| Pattern | Example | Benefit |
+|---------|---------|---------|
+| **Typeahead** | `toObservable(sig).pipe(debounceTime(500), switchMap(api)) → toSignal()` | Signal UI + RxJS perf |
+| **Component State** | `posts = toSignal(http.get().pipe(shareReplay(1)))` | Cached, reactive |
+| **Child→Parent** | `outputFromObservable(childObs)` → parent signal | Zoneless outputs |
+| **Firestore** | `collectionData().pipe(shareReplay()) → toSignal()` | Auto-cleanup |
+
+## Best Practices & Trade-offs
+
+| Feature | ✅ Pros | ❌ Cons |
+|---------|---------|---------|
+| **`initialValue`** | No undefined | Wrong initial guess |
+| **`requireSync: true`** | Type-safe (BS) | Errors on async obs |
+| **`manualCleanup: true`** | Self-completing obs | Manual unsub risk |
+| **`toObservable(sig)`** | RxJS composability | Effect overhead |
+| **`shareReplay(1)`** | Cached HTTP | Memory (small) |
+
+**Avoid**: Multiple `toSignal(sameObs)` calls → duplicate subs
+
+## Advanced Topics
+
+- **Custom Equal**: `{equal: (prev,curr) => prev.temp === curr.temp}` → perf
+- **Stabilization**: `toObservable()` batches rapid `sig.set()` → 1 emit
+- **Angular 18**: `outputFromObservable()` for child→parent streams
+- **rxResource**: `{stream(params): obs}` → loading/error/value signals
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `toSignal()` subscription timing?**  
+A: **Immediate** (unlike `*ngIf | async`)[1]
+
+**Q: `toObservable(signal)` emits?**  
+A: **Stabilized** final value (batches rapid sets)[1]
+
+**Q: `requireSync: true` for?**  
+A: **Sync obs** (BehaviorSubject) - no undefined[1]
+
+**Q: Error handling?**  
+A: **`toSignal()` throws** on read if obs errors[1]
+
+**Q: `manualCleanup` when?**  
+A: **Self-completing** obs (no destroy needed)[1]
+
+**Q: Typeahead pattern?**  
+A: `toObservable(sig).pipe(debounceTime(500), switchMap(api)) → toSignal()`[2]
+
+## Important Terms & Keywords
+
+- **toSignal(obs$)** - Observable → Signal
+- **toObservable(sig)** - Signal → Observable
+- **rxResource** - Experimental resource + RxJS
+- **initialValue** - Pre-emit default
+- **requireSync** - Sync emission guarantee
+- **manualCleanup** - Disable auto-unsub
+- **equal(fn)** - Custom equality (perf)
+- **outputFromObservable** - Child→parent output
+- **Injection Context** - `inject()` required
+- **Stabilization** - Batch rapid signal updates[3][4][2][1]
+
+[1](https://angular.dev/ecosystem/rxjs-interop)
+[2](https://www.youtube.com/watch?v=xQIOWkBe5wQ)
+[3](https://angular.dev/api/core/rxjs-interop/toObservable)
+[4](https://v18.angular.jp/guide/signals/rxjs-interop)
+[5](https://dev.to/cristiansifuentes/angular-rxjs-in-2025-the-experts-playbook-signals-rxjs-8-and-interop-28ed)
+[6](https://github.com/angular/angular/discussions/49681)
+[7](https://stackoverflow.com/questions/76856822/angular-tosignaltoobservable-does-return-undefined)
+[8](https://www.youtube.com/watch?v=5SD995zKvbk)
+[9](https://www.reddit.com/r/Angular2/comments/1g7ymmt/integrating_rxjs_with_signals_in_angular_18_for/)
+[10](https://angular.fr/signals/rxjs)

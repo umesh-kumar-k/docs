@@ -1,0 +1,301 @@
+# RxJS Error Handling with Async Pipe
+
+Reactive error handling in Angular uses separate error streams with `catchError` + `ignoreElements` to maintain clean templates and proper loading states.[1]
+
+## Step-by-Step Approach
+
+### Step 1: Error Behavior
+- **Problem**: `user$ | async` shows eternal loading on error (stream destroyed)
+- **Service Examples**:
+```typescript
+getUserWithError() {
+  return of('Josh').pipe(
+    delay(2000),
+    tap(() => throw new Error('Could not fetch user'))
+  );
+}
+```
+
+### Step 2: Separate Error Stream
+**Key Pattern:**
+```typescript
+user$ = this.userService.getUser();
+userError$ = this.user$.pipe(
+  ignoreElements(),  // Skip all values
+  catchError(err => of(err))  // Emit error as value
+);
+```
+- `ignoreElements()`: Ignores `next()` emissions, only passes `error`
+- `catchError()`: Returns fallback `of(error)` stream
+
+### Step 3: Template Integration
+**Unified ViewModel:**
+```html
+<ng-container *ngIf="{user: user$ | async, error: userError$ | async} as vm">
+  <ion-card *ngIf="!vm.error && vm.user as user; else loading">
+    <p>{{ user }}</p>
+  </ion-card>
+  
+  <ion-note *ngIf="vm.error as error">{{ error }}</ion-note>
+</ng-container>
+```
+
+### Step 4: Temporal Error Handling
+- **Challenge**: Previous successful values persist after error
+- **Solution**: `*ngIf="!vm.error && vm.user"` clears old data
+- **Note**: Error destroys source stream - no further emissions
+
+## Key Classes/Operators
+
+| Operator | Purpose | Signature |
+|----------|---------|-----------|
+| `catchError` | Catches error, returns fallback Observable | `catchError(fn: (err) => Observable)` |
+| `ignoreElements` | Ignores all `next()` emissions | `ignoreElements()` |
+| `of(error)` | Creates stream emitting error as value | `of(any)` |
+| `tap()` | Side-effect debugging (avoid in prod) | `tap(fn)` |
+
+## Design Patterns
+
+- **Error as Value**: Transform `Error` into stream emission
+- **Separate Concerns**: `data$` + `error$` streams
+- **ViewModel Object**: `*ngIf="{data, error} as vm"` unifies async pipes
+- **Reactive Template**: No imperative `try/catch`
+
+## Best Practices & Trade-offs
+
+| Practice | ✅ Benefits | ❌ Trade-offs |
+|----------|-------------|---------------|
+| **Separate error stream** | Clean templates, reactive | Extra subscription |
+| **`ignoreElements()`** | Error-only stream | Minor perf overhead |
+| **ViewModel pattern** | Single `ngIf`, type-safe | Template complexity |
+| **`catchError` first** | Prevents stream destruction | Swallows errors (log them) |
+
+**Template Anti-patterns:**
+```html
+<!-- ❌ BAD: Eternal loading -->
+<div *ngIf="user$ | async as user; else loading">{{ user }}</div>
+
+<!-- ✅ GOOD: Error-aware -->
+<div *ngIf="!error$ | async && user$ | async as user">{{ user }}</div>
+```
+
+## Advanced Topics
+
+- **Temporal Streams**: Error clears future emissions (stream destroyed)
+- **Multiple Retries**: Chain `retry(3)` before `catchError`
+- **Global Error Handler**:
+```typescript
+userError$ = user$.pipe(
+  retry(3),
+  ignoreElements(),
+  catchError(err => {
+    logError(err);  // Sentry/New Relic
+    return of(err);
+  })
+);
+```
+
+- **Component Extraction**:
+```typescript
+@Component({
+  template: `<app-user-card [user]="vm.user" [error]="vm.error"></app-user-card>`
+})
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Why does `user$ | async` show eternal loading on error?**  
+A: Error destroys Observable - `async` waits forever for emission[1]
+
+**Q: How does `catchError` prevent this?**  
+A: Returns fallback Observable (`of(error)`) - stream continues with error value
+
+**Q: Purpose of `ignoreElements()`?**  
+A: Filters out all `next()` values from error stream - only errors pass through
+
+**Q: Template pattern for data + error?**  
+A: `*ngIf="{data: data$|async, error: error$|async} as vm"` then `!vm.error && vm.data`
+
+**Q: Error + retry strategy?**  
+A: `pipe(retry(3), catchError(() => of('fallback')))`
+
+**Q: Memory implications?**  
+A: Two subscriptions but `AsyncPipe` handles cleanup automatically
+
+
+## Important Terms & Keywords
+
+- **Error as Value** - `catchError(err => of(err))`
+- **ignoreElements()** - Skip all `next()` emissions
+- **ViewModel Pattern** - `{data, error, loading} | async`
+- **Stream Destruction** - Error terminates Observable execution
+- **catchError** - Fallback Observable on error
+- **AsyncPipe Error** - Eternal loading without error handling
+- **Temporal Error** - Error after successful emissions
+- **Reactive Template** - Template-driven error states
+- **ng-container** - Structural wrapper for async objects
+- **ion-note/skeleton** - UI states (loading/error/success)[1]
+
+[1](https://modernangular.com/articles/handling-errors-reactively-with-async-pipe)
+
+# RxJS Error Handling Strategies
+
+Two approaches: **Retry** (restart stream) vs **Transform** (patch error into value). Critical for production Angular apps with unreliable APIs.[1]
+
+## Error Handling Approaches
+
+### 1. Retry Strategy (Temporary Failures)
+**Operators:** `retry()`, `retryWhen()`
+
+| Operator | Use Case | Signature |
+|----------|----------|-----------|
+| `retry(n)` | Fixed attempts | `retry([times])` |
+| `retryWhen(fn)` | Custom retry logic | `retryWhen(err$ => Observable)` |
+
+**retry() Example:**
+```typescript
+of(1,2,3).pipe(
+  map(v => { if(v>2) throw 'error'; }),
+  retry(5)  // Runs sequence 6x total
+).subscribe();
+```
+
+**retryWhen() with Delay:**
+```typescript
+.retryWhen(err$ => err$.delay(200))  // 200ms between retries
+```
+
+### 2. Transform Strategy (Error as Value)
+**Operators:** `catchError()`, `onErrorResumeNext()`
+
+**catchError() Example:**
+```typescript
+throwError('crash').pipe(
+  catchError(err => of('Patched: ' + err))
+).subscribe(console.log);  // "Patched: crash"
+```
+
+## Key Topics Section-wise
+
+### Retry Operators
+- **retry(n)**: Resubscribes N times on error
+- **retryWhen()**: Receives error stream, returns retry condition
+- **scan() for counting**: Tracks attempts functionally
+```typescript
+retryWhen(err$ => err$.pipe(
+  scan((count, err) => {
+    if(count >= 3) throw err;
+    return count + 1;
+  }, 0),
+  delay(1000)
+))
+```
+
+### Transform Operators
+- **catchError()**: Returns fallback Observable
+- **onErrorResumeNext()**: Ignores failed streams, continues with next
+
+**Merge Error Handling:**
+```typescript
+merge(
+  badStream$.pipe(catchError(err => of(err))),  // Patch individually
+  goodStream$
+)
+```
+
+## Key Classes/Interfaces
+
+| Operator | Category | Return Type |
+|----------|----------|-------------|
+| `retry(n)` | Retry | `Observable<T>` |
+| `retryWhen(fn)` | Retry | `Observable<T>` |
+| `catchError(fn)` | Transform | `Observable<T>` |
+| `onErrorResumeNext(...)` | Transform | `Observable<T>` |
+| `scan(acc, fn)` | Utility | Accumulator |
+
+## Design Patterns
+
+- **Retry with Backoff**: `retryWhen(err$ => err$.delayWhen(i => timer(i*100))`
+- **Error as Value**: `catchError(err => of({error: err, retry: true}))`
+- **Graceful Degradation**: `onErrorResumeNext(failed$, cached$)`
+- **Circuit Breaker**: Custom `retryWhen()` with failure thresholds
+
+## Best Practices & Trade-offs
+
+| Strategy | ✅ Pros | ❌ Cons |
+|----------|---------|---------|
+| **`retry(3)`** | Simple temp failures | Replays entire stream |
+| **`retryWhen()`** | Delay, conditions | Complex logic |
+| **`catchError(of(fallback))`** | Stream survives | Swallows errors |
+| **Individual patching** | Granular control | Operator positioning critical |
+| **`onErrorResumeNext()`** | Clean survivors | Ignores all errors |
+
+**GOTCHAs:**
+```
+merge(bad$, good$)                // ❌ Errors kill entire merge
+merge(bad$.catchError(), good$)   // ✅ Patch before merge
+```
+
+## Advanced Topics
+
+### retryWhen() with scan() Counter
+```typescript
+retryWhen(err$ => err$.pipe(
+  scan((acc, err) => {
+    if(acc >= MAX_RETRIES) throw err;
+    return acc + 1;
+  }, 0),
+  delay(BACKOFF_MS)
+))
+```
+
+### Exponential Backoff
+```typescript
+retryWhen(err$ => err$.pipe(
+  scan((acc, value, i) => i * 1000, 0),  // 1000,2000,3000...
+  switchMap(delay => timer(delay))
+))
+```
+
+### Multiple Stream Handling
+```
+merge(
+  stream1$.pipe(catchError(() => EMPTY)),  // Ignore errors
+  stream2$.pipe(catchError(err => of(err)))
+)
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `retry(3)` vs `retryWhen()`?**  
+A: `retry(3)`: fixed attempts; `retryWhen()`: custom logic (delay, conditions)
+
+**Q: Why does `merge(bad$, good$)` fail completely?**  
+A: Error kills entire merge - patch individually: `merge(bad$.catchError(), good$)`
+
+**Q: Track retry attempts functionally?**  
+A: `retryWhen(err$ => err$.scan((count, err) => count+1, 0).delay(1000))`
+
+**Q: `catchError` vs `onErrorResumeNext`?**  
+A: `catchError`: transform error; `onErrorResumeNext`: skip failed streams
+
+**Q: Memory leak risk with retry?**  
+A: Infinite retries without limits - always cap attempts
+
+**Q: Exponential backoff pattern?**  
+A: `scan((acc,i) => i*BASE_DELAY, 0)` in `retryWhen()`
+
+## Important Terms & Keywords
+
+- **retry(n)** - Fixed retry attempts
+- **retryWhen(fn)** - Custom retry logic
+- **catchError(fn)** - Transform error to Observable
+- **onErrorResumeNext(...)** - Skip failed streams
+- **scan() accumulator** - Retry attempt counter
+- **delay() in retryWhen** - Backoff between attempts
+- **Stream death** - Error terminates execution
+- **Pre-merge patching** - Individual error handling
+- **Exponential backoff** - Increasing retry delays
+- **Circuit breaker** - Failure threshold logic[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

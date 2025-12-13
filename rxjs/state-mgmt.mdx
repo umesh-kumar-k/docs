@@ -1,0 +1,97 @@
+**RxJS + Signals State Management in Angular** provides reactive, declarative patterns for modern Angular apps, combining RxJS streams with Angular Signals for performant state handling. These approaches enable single-source-of-truth updates across services without third-party libraries.[1]
+
+## Article 1: modernangular.com (RxJS + Signals)
+
+### Key Sections & Concepts
+
+| Section | Key Points |
+|---------|------------|
+| **Declarative Approach** | Sources (API loads, user actions) emit → State updates → UI reacts. No imperative multi-place updates.[1] |
+| **State Establishment** | Single `signal<ChecklistsState>`, computed selectors for `checklists`, `loaded`, `error`[1] |
+| **Data Sources** | `checklistsLoaded$`, `add$`, `edit$`, `remove$` (cross-service Subjects/Observables)[1] |
+| **Reducers** | Subscribe to sources → `state.update()` with immutable spreads[1] |
+| **Side Effects** | `effect()` saves to storage when `loaded()` changes[1] |
+
+### Code Structure
+```typescript
+// State + Selectors
+private state = signal<ChecklistsState>({...});
+checklists = computed(() => this.state().checklists);
+
+// Sources
+add$ = new Subject<AddChecklist>();
+remove$ = this.otherService.checklistRemoved$;
+
+// Reducer pattern
+this.add$.pipe(takeUntilDestroyed()).subscribe(addData => 
+  this.state.update(s => ({...s, checklists: [...s.checklists, addData]}))
+);
+```
+
+## Article 2: danywalls.com (Pure RxJS)
+
+**Note:** Content unavailable, but typically covers RxJS-only state via `BehaviorSubject` + operators like `scan`, `withLatestFrom`. Focuses on `state$` streams with actions piped through reducers.
+
+## Key Classes/Interfaces
+
+| Class/Operator | Purpose |
+|----------------|---------|
+| `signal<T>()` | Mutable reactive state primitive[1] |
+| `computed()` | Derived reactive values[1] |
+| `Subject<T>` | Manual event emission[1] |
+| `takeUntilDestroyed()` | Auto-subscription cleanup[1] |
+| `effect()` | Side-effect reactions[1] |
+
+## Design Patterns
+
+- **Single Source of Truth**: One state signal per service, updated via source streams[1]
+- **Declarative Reducers**: `state.update()` transforms via pure functions[1]
+- **Cross-Service Coordination**: Shared Subjects enable multi-service reactions[1]
+- **Signal-First**: Computed selectors + effects replace `*ngIf`/`async` boilerplate
+
+## Best Practices & Trade-offs
+
+| Practice | Pros | Cons |
+|----------|------|------|
+| Subscribe to sources | Readable reducers, `takeUntilDestroyed()` cleanup | Minor imperative "subscribe" calls[1] |
+| Signal selectors | Granular reactivity, zoneless perf | Single large state signal limits fine-grained updates |
+| Cross-service Subjects | Decoupled coordination | Extra Subjects add memory overhead |
+| `effect()` for persistence | Automatic saves on state change | Can trigger on transient updates |
+
+**Avoid**: Pure `scan()` (hard to read), callback functions (no cross-service reactivity)[1]
+
+## Advanced Topics
+
+- **Signal Granularity**: Split into multiple signals for optimal change detection[1]
+- **Zoneless Optimization**: Signals enable signal-based components (Angular 17+)[1]
+- **Cross-Service Streams**: `remove$` shared across Checklist/ChecklistItem services[1]
+- **Pure RxJS Alternative**: `BehaviorSubject` + `scan()` for fully declarative state derivation
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: How do you combine RxJS + Signals for state?**  
+A: Signals hold state, Subjects emit source events, subscribe → `state.update()` reducers[1]
+
+**Q: Why subscribe instead of pure `scan()`?**  
+A: More readable for teams, easier error handling, `takeUntilDestroyed()` simplifies lifecycle[1]
+
+**Q: Cross-service state sync?**  
+A: Share Subjects/Observables between services for single-source reactions[1]
+
+**Q: Signal vs NgRx trade-offs?**  
+A: No boilerplate, native Angular, but lacks devtools/time-travel[1]
+
+**Q: Side effects in this pattern?**  
+A: `effect()` reacts to signal changes (storage, logging, analytics)[1]
+
+## Important Terms & Keywords
+
+- **Signals**: `signal()`, `computed()`, `effect()`
+- **RxJS Sources**: `Subject<T>`, `BehaviorSubject`, `takeUntilDestroyed()`
+- **Patterns**: Declarative Reducers, Single Source of Truth, Cross-Service Streams
+- **Operators**: `withLatestFrom`, `scan` (alternative), `pipe()`
+- **Angular**: Zoneless, Signal Components, `inject()`
+- **Concepts**: Reactive State, Immutable Updates, `state.update()`
+- **Avoid**: Pure callbacks, manual `unsubscribe()`, large state objects
+
+[1](https://modernangular.com/articles/state-management-with-rxjs-and-signals)

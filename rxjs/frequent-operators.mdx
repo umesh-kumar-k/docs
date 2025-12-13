@@ -1,0 +1,251 @@
+# RxJS Most Frequently Used Operators
+
+Essential operators for Angular/React: **pipe**, **of/map**, **filter/first**, **combineLatest**, **switchMap/mergeMap**, **takeUntil**. Real-world use cases included.[1]
+
+## Key Operators & Use Cases
+
+| Operator | Purpose | Real-World Example |
+|----------|---------|-------------------|
+| **pipe()** | Chain operators | `.pipe(map(), filter(), switchMap())` |
+| **of/map** | Create/transform | Transform values to squares |
+| **filter** | Predicate filtering | Even numbers only |
+| **first()** | First emission | Signup form submit (once) |
+| **combineLatest** | Latest from all | Real-time product filters (category + color) |
+| **switchMap/mergeMap** | Flatten async | Product detail by route param |
+| **takeUntil** | Auto-unsubscribe | Component destroy cleanup |
+
+## Key Topics Section-wise
+
+### pipe() - Operator Chaining
+**Since RxJS 5.5 standard:**
+```typescript
+source$.pipe(
+  map(x => x * 2),
+  filter(x => x > 5),
+  switchMap(x => apiCall(x))
+);
+```
+
+### of() + map() - Creation & Transform
+```typescript
+of(1,2,3).pipe(
+  map(x => x * x)  // [1,4,9]
+);
+```
+
+### filter() & first()
+**Filter even + first match:**
+```typescript
+of(1,2,3,4).pipe(
+  filter(x => x % 2 === 0),  // 2,4
+  first()                    // 2
+);
+```
+**Signup use case**: `userService.post(user).pipe(first())`
+
+### combineLatest() - Real-time Filters
+**Multiple inputs → latest combo:**
+```typescript
+combineLatest([
+  categoryFilter$,   // BehaviorSubject
+  colorFilter$       // BehaviorSubject
+]).pipe(
+  switchMap(([cat, color]) => 
+    api.products({category: cat, color})
+  )
+);
+```
+
+### switchMap() vs mergeMap()
+**switchMap**: Cancels previous (product detail):
+```typescript
+route.params.pipe(
+  map(params => params.id),
+  switchMap(id => productService.get(id))
+);
+```
+
+**mergeMap**: All complete (parallel APIs)
+
+### takeUntil() - Component Cleanup
+**Auto-unsubscribe pattern:**
+```typescript
+// Component
+destroy$ = new Subject();
+data$ = api$.pipe(takeUntil(this.destroy$));
+
+ngOnDestroy() {
+  this.destroy$.next();
+  this.destroy$.complete();
+}
+```
+
+## Key Classes/Interfaces
+
+| Operator | Category | Input | Output |
+|----------|----------|-------|---------|
+| `pipe()` | **Utility** | `Observable` | `Observable` |
+| `of(values)` | **Creation** | `...T` | `Observable<T>` |
+| `map(fn)` | **Transform** | `T` | `U` |
+| `filter(predicate)` | **Filter** | `T` | `T` |
+| `first()` | **Selection** | `T` | `T` |
+| `combineLatest(...obs$)` | **Combination** | `Observable[]` | `Observable<any[]>` |
+| `switchMap(fn)` | **Flattening** | `T` | `Observable<U>` |
+| `takeUntil(notifier$)` | **Termination** | `Observable<T>` | `Observable<T>` |
+
+## Design Patterns
+
+- **Filter Pipeline**: `pipe(filter(), map(), first())`
+- **Real-time Filters**: `combineLatest(filters$).pipe(switchMap(apiCall))`
+- **Route → API**: `params.pipe(switchMap(id => getDetail(id)))`
+- **Component Lifecycle**: `takeUntil(destroy$)`
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **Always `pipe()`** | Tree-shakable, readable |
+| **`switchMap` for routes** | Cancels stale requests |
+| **`takeUntil(destroy$)** | Auto memory management |
+| **BehaviorSubject for filters** | Latest value sharing |
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `switchMap` vs `mergeMap`?**  
+A: **switchMap cancels previous**; mergeMap lets all complete[1]
+
+**Q: `combineLatest()` emission rule?**  
+A: **Latest from ALL sources** - waits for each to emit once
+
+**Q: Component unsubscribe pattern?**  
+A: **`takeUntil(destroy$)`** + `destroy$.next()` in `ngOnDestroy`
+
+**Q: `first()` signup use case?**  
+A: **Single HTTP response** - ignore subsequent emits
+
+**Q: Real-time product filters?**  
+A: `combineLatest(category$, color$).pipe(switchMap(filters => apiCall))`
+
+## Important Terms & Keywords
+
+- **pipe()** - Operator chaining
+- **of()** - Synchronous creation
+- **map()** - Value transformation
+- **filter(predicate)** - Conditional emission
+- **first()** - First matching value
+- **combineLatest()** - Latest from multiple sources
+- **switchMap()** - Cancel + flatten
+- **mergeMap()** - Parallel flatten
+- **takeUntil(destroy$)** - Lifecycle cleanup
+- **BehaviorSubject** - Filter state holder[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)
+
+# RxJS Top Frequently Used Operators
+
+**Core 15 operators** from 3 sources: **Creation** (`of/from`), **Transform** (`map/pluck`), **Filter** (`filter/first/distinctUntilChanged`), **Flatten** (`switchMap/mergeMap/concatMap`), **Utility** (`tap/debounceTime/throttleTime`).[1]
+
+## Operator Categories & Use Cases
+
+### Creation Operators
+| Operator | Use Case | Example |
+|----------|----------|---------|
+| **`of(...values)`** | Sync values | `of(1,2,3)` → 1,2,3 |
+| **`from(iterable)`** | Arrays/Promises | `from([1,2,3])` or `from(promise)` |
+
+### Transform/Filter Operators
+| Operator | Purpose | Real-World |
+|----------|---------|------------|
+| **`map(fn)`** | Transform values | Numbers → squares |
+| **`filter(predicate)`** | Conditional emit | Even numbers, `value > 10` |
+| **`pluck('path')`** | Nested property | `response.main.temp` |
+| **`first(predicate)`** | First match/default | Signup (once), first `>10` |
+| **`distinctUntilChanged()`** | No consecutive dups | Search duplicates |
+
+### Flattening Operators
+| Operator | Behavior | Use Case |
+|----------|----------|----------|
+| **`switchMap()`** | **Cancel previous** | Route params → API (latest) |
+| **`mergeMap()`** | **Parallel all** | Multiple users → posts |
+| **`concatMap()`** | **Sequential** | Orders → details (order preserved) |
+
+### Utility & Control
+| Operator | Purpose | Example |
+|----------|---------|---------|
+| **`tap({next,error})`** | Side effects/logging | Debug, state updates |
+| **`debounceTime(ms)`** | Emit after silence | Search input (300ms) |
+| **`throttleTime(ms)`** | Rate limiting | Button spam (2s cooldown) |
+| **`take(n)`** | Limit emissions | First 3 values |
+| **`takeUntil(notifier)`** | Lifecycle cleanup | Component destroy |
+| **`shareReplay(n)`** | Cache + share | Multiple components → 1 HTTP |
+| **`forkJoin({req1,req2})`** | All complete | Dashboard (profile + notifications) |
+
+## Key Classes/Interfaces
+
+| Category | Operators | Signature |
+|----------|-----------|-----------|
+| **Creation** | `of()`, `from()` | `of(1,2,3)` → `Observable<number>` |
+| **Transform** | `map()`, `pluck()` | `.pipe(map(x=>x*2))` |
+| **Filter** | `filter()`, `first()` | `filter(x=>x>10)` |
+| **Flatten** | `switchMap/mergeMap` | `switchMap(x=>ajax(x))` |
+| **Utility** | `tap()`, `debounceTime()` | `debounceTime(300)` |
+
+## Design Patterns
+
+- **Route → API**: `params.pipe(switchMap(id=>getProduct(id)))`
+- **Search Autocomplete**: `input → debounceTime(300) → distinctUntilChanged() → switchMap(search)`
+- **Component Cleanup**: `api.pipe(takeUntil(destroy$))`
+- **Dashboard Load**: `forkJoin({profile$, notifications$})`
+- **Multi-Component Cache**: `http.pipe(shareReplay(1))`
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **`pipe()` always** | Tree-shakable, readable |
+| **`switchMap` for routes/search** | Cancels stale requests |
+| **`takeUntil(destroy$)`** | Memory leak prevention |
+| **`shareReplay(1)`** | Single HTTP, multi-subscribers |
+| **`distinctUntilChanged()`** | Duplicate API prevention |
+| **`BehaviorSubject` for filters** | Latest state sharing |
+
+## Advanced Topics
+
+- **Weather API**: `http.pipe(pluck('main','temp'))` → nested extract
+- **Stock Dashboard**: `combineLatestAll(stockPrices$)` → real-time prices
+- **Timeout Protection**: `http.pipe(timeout(5000), catchError(()=>of([])))`
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `switchMap` vs `mergeMap` vs `concatMap`?**  
+A: **switch**: cancel previous (search); **merge**: parallel (user posts); **concat**: sequential (order details)[1]
+
+**Q: Component unsubscribe?**  
+A: **`takeUntil(destroy$)`** - `destroy$.next()` in `ngOnDestroy`
+
+**Q: Multiple components 1 HTTP?**  
+A: **`shareReplay(1)`** - caches last emission
+
+**Q: Search input optimization?**  
+A: `input.pipe(debounceTime(300), distinctUntilChanged(), switchMap(api))`
+
+**Q: Dashboard parallel APIs?**  
+A: **`forkJoin({profile$, notifications$})`** - all complete
+
+**Q: Nested JSON extract?**  
+A: **`pluck('main','temp')`** (deprecated v8 → `map(r=>r.main.temp)`)
+
+## Important Terms & Keywords
+
+- **Creation**: `of()`, `from()`
+- **Transform**: `map()`, `pluck()`
+- **Filter**: `filter()`, `first()`, `distinctUntilChanged()`
+- **Flatten**: `switchMap()`, `mergeMap()`, `concatMap()`
+- **Utility**: `tap()`, `debounceTime()`, `throttleTime()`, `take()`, `takeUntil()`
+- **Sharing**: `shareReplay()`, `forkJoin()`
+- **Component Cleanup**: `takeUntil(destroy$)`
+- **Search Pattern**: `debounce + distinct + switchMap`
+- **Dashboard Pattern**: `forkJoin()`
+- **Route Pattern**: `switchMap(route.params)`[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

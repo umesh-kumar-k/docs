@@ -1,0 +1,135 @@
+# RxJS Observable Anatomy
+
+Observable `subscribe()` signature: `stream.subscribe(fnValue, fnError, fnComplete)`. Returns teardown function for cleanup.[1]
+
+## Key Topics Section-wise
+
+### Subscribe Method Signature
+```
+stream$.subscribe(
+  fnValue,    // observer.next(value)
+  fnError,    // observer.error(err)
+  fnComplete  // observer.complete()
+)
+```
+
+### fnValue (Next Handler)
+**Purpose**: Receives emitted values
+```typescript
+const stream$ = new Observable(observer => {
+  observer.next(1);  // Triggers fnValue(1)
+});
+stream$.subscribe(data => console.log('Data', data));  // "Data 1"
+```
+
+### fnError (Error Handler)
+**Purpose**: Catches stream errors
+```typescript
+const stream$ = new Observable(observer => {
+  observer.error('error message');  // Triggers fnError
+});
+stream$.subscribe(
+  data => console.log('Data', data),
+  error => console.log('Error', error)  // "Error error message"
+);
+```
+
+### fnComplete (Completion Handler)
+**Purpose**: Signals stream end (no more values)
+```typescript
+const stream$ = new Observable(observer => {
+  observer.next(1);  // Multiple next() calls OK
+  observer.complete();  // Triggers fnComplete
+});
+```
+
+### Cleanup/Teardown
+**Responsible Observable**:
+```typescript
+const stream$ = new Observable(observer => {
+  let i = 0;
+  const id = setInterval(() => observer.next(i++), 1000);
+  return () => clearInterval(id);  // Teardown function
+});
+
+const subscription = stream$.subscribe(value => console.log(value));
+setTimeout(() => subscription.unsubscribe(), 3000);  // Cleanup
+```
+
+## Key Classes/Interfaces
+
+| Component | Purpose | Key Methods |
+|-----------|---------|-------------|
+| `Observable` | Producer | `new Observable(observer => {...})` |
+| `observer` | Internal | `next(v)`, `error(e)`, `complete()` |
+| `Subscription` | Consumer | `unsubscribe()` |
+| **Teardown Fn** | Cleanup | Returned from `subscribe` callback |
+
+## Design Patterns
+
+- **Observer Pattern**: `observer.next()` → subscriber callback
+- **Teardown Pattern**: Return cleanup from Observable constructor
+- **Lazy Execution**: No work until `.subscribe()`
+- **Resource Management**: Interval/timer cleanup on unsubscribe
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **Always return teardown** | Prevents memory leaks |
+| **`subscription.unsubscribe()`** | Explicit cleanup |
+| **Multiple `next()` calls** | Before `complete()` |
+| **Error before complete** | Stream terminates on first error |
+
+**Irresponsible vs Responsible:**
+```typescript
+// ❌ No cleanup
+new Observable(obs => setInterval(() => obs.next(i++)));
+
+// ✅ Proper cleanup
+new Observable(obs => {
+  const id = setInterval(() => obs.next(i++));
+  return () => clearInterval(id);
+});
+```
+
+## Advanced Topics
+
+- **Subscription Chaining**: Multiple Observables share one teardown
+- **Custom Operators**: Internal observers forward `next/error/complete`
+- **Hot vs Cold**: Teardown affects execution sharing
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Observable constructor signature?**  
+A: `new Observable(observer => { observer.next(v); return teardownFn })`
+
+**Q: What triggers `fnValue` callback?**  
+A: `observer.next(value)` inside Observable constructor
+
+**Q: Stream lifecycle order?**  
+A: `next()`* → `complete()` OR `error()` (stream dies)
+
+**Q: Memory leak prevention?**  
+A: Return cleanup function from constructor, call `subscription.unsubscribe()`
+
+**Q: Can Observable emit after `complete()`?**  
+A: No - stream terminated
+
+**Q: Error vs Complete behavior?**  
+A: Both terminate stream; error skips `complete()` handler
+
+## Important Terms & Keywords
+
+- **Observable Constructor** - `new Observable(observer => {...})`
+- **observer.next(value)** - Emit value
+- **observer.error(err)** - Terminate with error
+- **observer.complete()** - Terminate successfully
+- **Teardown Function** - Cleanup returned from constructor
+- **subscription.unsubscribe()** - Trigger teardown
+- **fnValue/fnError/fnComplete** - Subscribe callbacks
+- **Lazy Execution** - Only runs on subscribe
+- **Resource Cleanup** - `clearInterval()`, `removeEventListener()`
+- **Stream Termination** - `error()` or `complete()` ends execution[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)

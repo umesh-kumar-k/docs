@@ -1,0 +1,110 @@
+# RxJS Async Code Fundamentals
+
+Async code executes non-immediately via callbacks, Promises, or RxJS streams. RxJS excels at complex async flows avoiding "callback hell".[1]
+
+## Key Topics Section-wise
+
+### Async Code Definition
+- **Non-blocking execution**: Code runs "sometime in future"
+- **Examples**:
+  - `setTimeout(fn, 3000)` - Timer-based
+  - `doWork(callback)` - Custom async
+  - `input.on('click', fn)` - Event-driven
+
+### Readability Problems
+**Execution Order Issue:**
+```
+sync1()  // 1
+sync2()  // 2
+asyncX() // 3 (delayed)
+sync4()  // 4
+// Output: 1,2,4,3 ❌ Unpredictable
+```
+
+### Callback Hell
+**Nested Callbacks:**
+```javascript
+async1(() => {
+  async2(() => {
+    async3(() => {  // Pyramid of doom
+      // Business logic buried
+    })
+  })
+})
+```
+
+### Promise Improvement
+**Linear Chains:**
+```javascript
+getData()
+  .then(getMoreData)
+  .then(getEvenMoreData)  // Readable R/R pattern
+```
+
+## Key Classes/Interfaces
+
+| Async Type | Signature | Strengths | Weaknesses |
+|------------|-----------|-----------|------------|
+| **Callback** | `fn(callback)` | Simple | Callback hell |
+| **Promise** | `.then().catch()` | Linear chains | Single value |
+| **RxJS Observable** | `.pipe().subscribe()` | Complex flows, N values | Learning curve |
+
+## Design Patterns
+
+- **Callback Nesting**: Forces sequential async (callback hell)
+- **Promise Chaining**: Linear `.then()` for request/response
+- **RxJS Pipelines**: `.pipe(map, filter, merge)` for complex orchestration
+
+## Best Practices & Trade-offs
+
+| Approach | ✅ Pros | ❌ Cons |
+|----------|---------|---------|
+| **Promises** | Readable `.then()` chains | Single value only |
+| **RxJS** | Handles events + async + streams | Steeper learning curve |
+| **Avoid deep nesting** | Maintainable code | N/A |
+
+**Order Guarantee Pattern:**
+```javascript
+// ❌ Unpredictable
+sync1(); asyncX(); sync2();
+
+// ✅ Sequential
+asyncX(() => sync2());
+```
+
+## Advanced Topics
+
+- **Mixed Sync/Async**: Order breaks without coordination
+- **Event-Driven Async**: DOM events + AJAX + timers
+- **RxJS Superiority**: Handles "1 event → N async → events" scenarios
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: What creates "callback hell"?**  
+A: Deeply nested async callbacks hiding business logic[1]
+
+**Q: Promise limitation for complex async?**  
+A: Single value only, poor for continuous events/streams
+
+**Q: Why does `sync1(); async(); sync2()` reorder?**  
+A: Non-blocking async executes whenever ready, not sequentially
+
+**Q: RxJS advantage over Promises?**  
+A: N values, operators, cancellation, event streams
+
+**Q: Fix execution order imperatively?**  
+A: `asyncX(callback => sync2())` - callback hell
+
+## Important Terms & Keywords
+
+- **Async Code** - Non-immediate execution
+- **Callback Hell** - Deeply nested callbacks
+- **Non-blocking** - Doesn't halt execution flow
+- **Execution Order** - Unpredictable sync+async mix
+- **Promise Chaining** - `.then().then()` linear async
+- **setTimeout()** - Timer-based async
+- **Event Callbacks** - DOM event handlers
+- **RxJS Pipeline** - `.pipe()` operator chains
+- **Pyramid of Doom** - Callback nesting visual[1]
+
+[1](https://softchris.github.io/books/rxjs/error-handling/)
