@@ -1,0 +1,219 @@
+TypeScript basic types here cover **annotation vs inference**, the core primitives, object/array/tuple/enum, top/bottom/unsafe types (`any`, `unknown`, `void`, `never`), unions, string literals, and type aliases.[1][2][3][4]
+
+***
+
+## Type Annotations
+
+- Syntax: `identifier: type` after variables, params, returns, objects.[1]
+- Once annotated, only values of that type are assignable; others cause compile‑time errors.[1]
+
+Key topics:
+- Variables/constants: `let x: number; const name: string = 'John';`  
+- Arrays: `let names: string[];`  
+- Objects: `let person: { name: string; age: number };`  
+- Function types: `let greeting: (name: string) => string;`.[1]
+
+Best practice:
+- Prefer annotation for public APIs, boundaries, and complex objects; let inference work for obvious locals.[4]
+
+***
+
+## Type Inference
+
+- Type inference: compiler deduces type from value when no annotation is given.[5][2]
+- Examples: `let counter = 0;` → `number`; `const title = 'Hi';` → string literal type.[2]
+
+Key topics:
+- “Best common type” for array literals (e.g., `[1, 2, 3, null]`).[2]
+- Contextual typing: infers types from usage (callbacks, event handlers).[4][2]
+
+Trade‑off:
+- Too many explicit types reduce flexibility; too few reduce readability and can hide `any`.[4]
+
+***
+
+## Primitive Types: number, string, boolean
+
+- `number`: all JS numeric forms (decimal, hex, binary, octal); use for arithmetic, IDs.[4]
+- `string`: text data, template literals (`\`Hello ${name}\``).[4]
+- `boolean`: `true` / `false` only.[4]
+
+Best practice:
+- Prefer `number|string|boolean` over `any` or object‑ish primitives.  
+- Use literal types where applicable: `type Direction = 'north' | 'south'`.[4]
+
+***
+
+## Object Type
+
+- Form: `let user: { name: string; age: number };`  
+- Extra properties not declared generally rejected unless using index signatures.[4]
+- Often paired with interfaces or type aliases rather than inline everywhere.
+
+Advanced:
+- Structural typing: compatibility is based on shape, not nominal type name.[4]
+
+***
+
+## Array Type
+
+- Syntax: `T[]` or `Array<T>` (e.g., `string[]`, `Array<number>`).[4]
+- Mixed arrays often use unions: `(number | string)[]`.[4]
+
+Best practice:
+- Use readonly arrays when you don’t want mutation: `readonly string[]`.[4]
+
+***
+
+## Tuple Type
+
+- Fixed‑length, ordered arrays with specific types per index, e.g. `[string, number]`.[4]
+- Common usage: representing pairs, coordinates, key/value results.
+
+Trade‑off:
+- Great for small, well‑known positions; can hurt readability when tuples get longer or loosely documented.
+
+***
+
+## Enum
+
+- Group of named constants:  
+  `enum Direction { Up, Down, Left, Right }`.[3]
+- Members default to numeric (`0,1,2...`) but can be explicitly initialized.[6][3]
+
+Advanced:
+- Reverse mapping on numeric enums in emitted JS (value → name) with runtime object.[3][6]
+
+Best practice:
+- Prefer `const enum` or union string literals for tree‑shakability and better type safety in many FE codebases.[4]
+
+***
+
+## any, unknown, void, never
+
+### any
+- Opt‑out type: disables static checking on that value.[4]
+- Use sparingly (interop with 3rd‑party libs, gradual migration).
+
+### unknown
+- Safer alternative to `any`: must narrow before use.[4]
+- Forces runtime type checks (`typeof`, `in`, custom predicates).
+
+### void
+- “No value” return; typical for functions that don’t return anything (`() => void`).[4]
+
+### never
+- Type of values that never occur: functions that always throw or never return, exhaustive switches.[4]
+
+Best practice:
+- Avoid `any`; prefer `unknown` + narrowing.  
+- Use `never` to enforce exhaustiveness in discriminated unions.
+
+***
+
+## Union Types
+
+- Syntax: `type A = string | number;` or `let value: string | number;`.[7][8]  
+- Allows variables/params to be one of several types while maintaining type safety.
+
+Key topics:
+- Type guards to narrow unions (e.g., `typeof value === 'string'`).[7]
+- Common for flexible APIs, API responses, input props.
+
+***
+
+## String Literal Types
+
+- Single exact string values as types, e.g.:  
+  `type Status = 'success' | 'error' | 'loading';`.[4]  
+- Pairs naturally with unions and discriminated unions.
+
+Usage:
+- Component props, Redux action `type` fields, configuration keys.
+
+***
+
+## Type Aliases
+
+- Define names for complex types:  
+  `type Point = { x: number; y: number };`.[4]
+- Works with primitives, unions, intersections, functions, tuples.
+
+Best practice:
+- Use type aliases for unions and function types; interfaces for object shapes that may be extended.[4]
+
+***
+
+## Best Practices & Trade‑offs (Overall)
+
+- Prefer **inference for locals**, annotations for **public APIs and complex shapes**.[5][4]
+- Avoid `any` in shared libraries; `unknown` + narrowing is safer.  
+- Use **union + literal types** instead of enums where tree‑shaking and inline types are preferred.  
+- Use `never` + exhaustive `switch` for robust domain modeling.
+
+Big‑tech style notes:
+- TypeScript’s own handbook and many large FE codebases emphasize “maximize type inference, minimize `any`, design with unions and discriminated unions for domain models”.[7][5][4]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Difference between type annotation and inference?**  
+A: Annotation is explicit (`let x: number = 1`); inference is when TypeScript deduces the type from the value or context (`let x = 1`).[2][1]
+
+**Q2: When would you choose `unknown` over `any`?**  
+A: `unknown` forces consumers to perform type narrowing before use, preserving safety, while `any` disables checks.[4]
+
+**Q3: What is `never` used for?**  
+A: For functions that never return (always throw or loop) and for unreachable code paths; also for enforcing exhaustive checks in discriminated unions.[4]
+
+**Q4: Union vs string literal types vs enums?**  
+A: Union of string literals (`'success' | 'error'`) gives compile‑time safety, autocomplete, and no runtime cost; enums emit JS objects; plain unions have no runtime representation.[3][7][4]
+
+**Q5: How does “best common type” work for arrays?**  
+A: TypeScript analyzes all element types in an array literal and finds a type that can accommodate them all, e.g. `(number | null)[]` for `[1, 2, 3, null]`.[2]
+
+**Q6: When should you explicitly annotate function return types?**  
+A: Public APIs, library boundaries, over‑loaded signatures, or when relying on inference would make errors harder to see or widen types unintentionally.[4]
+
+**Q7: Give an example where `never` makes a refactor safer.**  
+A: In a `switch(action.type)` over a union of action types, having a default branch returning `never` forces TypeScript to error when a new action type isn’t handled.[7][4]
+
+***
+
+## Important Terms & Keywords (for quick skim)
+
+- `: type` (type annotation).[1]
+- Type inference, contextual typing, best common type.[5][2]
+- `number`, `string`, `boolean` (primitives).[4]
+- Object type `{ key: Type; }`.  
+- Array type `T[]`, `Array<T>`.  
+- Tuple `[T1, T2]`.  
+- `enum`, numeric/const enums.[6][3]
+- `any`, `unknown`, `void`, `never`.[4]
+- Union type `A | B`.  
+- String literal types `'foo' | 'bar'`.  
+- Type alias `type Name = ...`.  
+- Structural typing, type guards, exhaustive switch.[7][4]
+
+[1](https://www.typescripttutorial.net/typescript-tutorial/typescript-type-annotations/)
+[2](https://www.typescripttutorial.net/typescript-tutorial/typescript-type-inference/)
+[3](https://www.typescripttutorial.net/typescript-tutorial/typescript-enum/)
+[4](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)
+[5](https://www.typescriptlang.org/docs/handbook/type-inference.html)
+[6](https://www.typescriptlang.org/play/typescript/language-extensions/enums.ts.html)
+[7](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html)
+[8](https://hyperskill.org/university/typescript/typescript-union-types)
+[9](https://www.geeksforgeeks.org/typescript/typescript-inference/)
+[10](https://www.w3schools.com/typescript/typescript_type_inference.php)
+[11](https://www.geeksforgeeks.org/typescript/typescript-type-annotations-and-type-inference/)
+[12](https://www.devoreur2code.com/blog/type-inference-with-typescript)
+[13](https://www.geeksforgeeks.org/typescript/typescript-union/)
+[14](https://stackoverflow.com/questions/12687793/how-to-create-enum-like-type-in-typescript)
+[15](https://www.tutorialsteacher.com/typescript/type-inference)
+[16](https://www.geeksforgeeks.org/typescript/typescript-enums/)
+[17](https://www.w3schools.com/typescript/typescript_union_types.php)
+[18](https://www.geeksforgeeks.org/typescript/how-enums-works-in-typescript/)
+[19](https://www.youtube.com/watch?v=M9HxVB1TpP8)
+[20](https://www.codecademy.com/learn/learn-typescript/modules/learn-typescript-union-types/cheatsheet)
+[21](https://www.typescripttutorial.net)

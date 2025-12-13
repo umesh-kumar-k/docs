@@ -1,0 +1,182 @@
+# CSRF Attacks (Vercel Guide)
+
+**Cross-Site Request Forgery**: Tricks **authenticated users** into unwanted actions via **predictable URLs** + **browser cookies**. `<img src="bank.com/transfer?to=attacker">` steals money silently.[1]
+
+## Key Topics Section-wise
+
+### Attack Lifecycle (4 Steps)
+**Bank Transfer Example:**
+1. **Target**: `bank.com/transfer?amount=1000&toAccount=attacker`
+2. **Malicious Request**: Predictable state-changing GET
+3. **Social Engineering**: 
+   ```html
+   <!-- Invisible image trigger -->
+   <img src="bank.com/transfer?amount=1000&to=attacker" width="1" height="1">
+   
+   <!-- Auto-submit form -->
+   <form action="bank.com/transfer" method="POST">
+     <input type="hidden" name="amount" value="1000">
+   </form>
+   <script>document.forms[0].submit();</script>
+   ```
+4. **Execution**: **Browser auto-sends cookies** → legitimate request → money transferred
+
+### Why CSRF Dangerous
+| Risk | Impact |
+|------|--------|
+| **Silent Execution** | No user knowledge/trace |
+| **Authenticated Abuse** | Uses **existing session** |
+| **Predictable URLs** | Easy to guess endpoints |
+| **Scalable** | One malicious page → many victims |
+
+## Key Classes/Interfaces (Attack Vectors)
+
+| HTTP Method | CSRF Risk | Example |
+|-------------|-----------|---------|
+| **`GET`** | **Critical** | `bank.com/transfer?to=attacker` (image/link) |
+| **`POST`** | Medium | Auto-submit forms |
+| **Predictable URLs** | High | `/user/delete`, `/transfer` |
+
+## Prevention Strategies
+
+### 1. Anti-CSRF Tokens (Primary Defense)
+**Complete Flow:**
+```
+1. Login → Server generates unique token/session
+2. Render form: <input type="hidden" name="_csrf" value="abc123">
+3. POST includes token → Server verifies match
+4. Mismatch/missing → 403 Forbidden
+```
+
+**Implementation:**
+```javascript
+// Server (Next.js)
+app.post('/transfer', (req, res) => {
+  if (req.body._csrf !== req.session.csrfToken) {
+    return res.status(403).send('Invalid CSRF token');
+  }
+  // Process transfer
+});
+
+// Client form
+<form method="POST" action="/transfer">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+</form>
+```
+
+### 2. SameSite Cookies
+**Browser Blocks Cross-site:**
+```
+Set-Cookie: session=abc; SameSite=Strict  // Never cross-site
+Set-Cookie: session=abc; SameSite=Lax     // Safe methods only
+Set-Cookie: session=abc; SameSite=None    // Cross-site (needs Secure)
+```
+
+### 3. HTTP Method Discipline
+| Method | Use Case | CSRF Safe |
+|--------|----------|-----------|
+| **`GET`** | **Read-only** (idempotent) | ✅ |
+| **`POST/PUT/DELETE`** | **State-changing** | Requires tokens |
+
+**Never:** `GET /transfer?amount=1000`
+
+### 4. Additional Layers
+- **Referer Header**: Check `req.headers.referer` starts with trusted domain
+- **Custom Headers**: `X-Requested-With: XMLHttpRequest` (not auto-sent cross-site)
+
+## Design Patterns
+
+**1. Double Submit Cookies:**
+```javascript
+// 1. Set CSRF cookie on login
+res.cookie('csrfToken', generateToken());
+
+// 2. Form includes cookie value
+<input name="csrfToken" value="<%= req.cookies.csrfToken %>">
+
+// 3. Server: req.body.csrfToken === req.cookies.csrfToken
+```
+
+**2. SPA Token Pattern:**
+```javascript
+// Fetch CSRF token on app load
+const { csrfToken } = await fetch('/api/csrf').then(r => r.json());
+
+// Include in fetch headers
+fetch('/api/transfer', {
+  method: 'POST',
+  headers: { 'X-CSRF-Token': csrfToken },
+  body: JSON.stringify(data)
+});
+```
+
+## Best Practices & Trade-offs
+
+| Defense | ✅ Pros | ❌ Cons |
+|---------|---------|---------|
+| **CSRF Tokens** | **Complete protection** | Token management |
+| **`SameSite=Strict`** | Zero-config | Breaks 3rd-party |
+| **`SameSite=Lax`** | Good default | Allows safe GET cross-site |
+| **POST-only** | Simple | Legacy GET APIs |
+| **Referer Check** | Easy audit | Privacy concerns |
+
+## Advanced Topics
+
+**Token Lifecycle:**
+- **Per-form** (one-time use)
+- **Per-session** (reuse until logout)
+- **Short expiry** (5-15min)
+
+**Next.js Automatic:**
+```javascript
+// next.config.js
+const securityHeaders = [
+  {
+    key: 'Set-Cookie',
+    value: 'session=abc; HttpOnly; Secure; SameSite=Lax',
+  },
+];
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: CSRF vs XSS?**  
+A: **CSRF**: Tricks **browser** into sending **legitimate** requests; **XSS**: Injects **malicious** scripts[1]
+
+**Q: Why `<img src="evil.com/transfer">` works?**  
+A: **Browser auto-sends cookies** for same-site requests → legitimate authenticated transfer
+
+**Q: `SameSite=Strict` vs `Lax`?**  
+A: **Strict**: **Never** cross-site; **Lax**: Safe methods (GET) allowed
+
+**Q: Why no CSRF protection for read-only APIs?**  
+A: **Idempotent** - no state change harm
+
+**Q: Double Submit vs Session Token?**  
+A: **Double Submit**: Stateless (cookie=header); **Session**: Server stores token
+
+**Q: Can CSRF hit SPAs?**  
+A: **Yes** - if using cookies (not JWT Authorization header)
+
+## Important Terms & Keywords
+
+**Core Concepts:**
+- **CSRF** - Cross-Site Request Forgery
+- **Anti-CSRF Token** - Unique per-form/session validation
+- **SameSite Cookies** - `Strict|Lax|None` cross-site control
+
+**Attack Vectors:**
+- **GET State Changes** - Predictable URLs (`/transfer?to=attacker`)
+- **Auto-submit Forms** - Silent POST execution
+- **Image Src Tricks** - Invisible request triggers
+
+**Defenses:**
+- **Double Submit Cookies** - Cookie value = request param
+- **Referer Header** - Origin validation
+- **Custom Headers** - `X-CSRF-Token` (not auto-sent cross-site)
+
+**HTTP Best Practices:**
+- **`GET`**: Read-only, idempotent
+- **`POST/PUT/DELETE`**: State-changing, token-protected[1]
+
+[1](https://vercel.com/blog/understanding-csrf-attacks)

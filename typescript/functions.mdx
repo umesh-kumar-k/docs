@@ -1,0 +1,182 @@
+TypeScript functions here cover **typed parameters/returns, function types, optional & default & rest params, and overloads** as the core toolkit for safe, expressive APIs.[1][2][3][4]
+
+***
+
+## Core Function Syntax (page: Functions)
+
+### Basics
+- Standard syntax: `function name(param: Type): ReturnType { ... }` with all parameters and return types optionally annotated.[2][1]
+- Functions are first‑class values: can be assigned to variables, passed as args, and returned from other functions.[2]
+
+Key points:
+- If no return type is given, TypeScript infers it from `return` statements.[1]
+- Use `void` for functions that don’t return anything (e.g., loggers).[1]
+
+***
+
+## Function Types (page: Function Types)
+
+### Function type annotations
+- Explicit function type:  
+  `let add: (x: number, y: number) => number;`.[4][1]
+- You can assign any implementation matching that call signature.
+
+Key points:
+- Parameter names in the type can differ from implementation; only types must match.[1]
+- Useful for callbacks, higher‑order functions, and APIs accepting functions.[4]
+
+Best practices:
+- Use **type aliases** or interfaces for reusable function types:  
+  `type Predicate<T> = (value: T) => boolean;`.[5][1]
+
+***
+
+## Optional Parameters (page: Optional Parameters)
+
+### Syntax & rules
+- Add `?` after the parameter name: `function foo(x: number, y?: string) {}`.[1]
+- Optional parameters must **come after** required ones.[1]
+
+Key points:
+- Inside the function, the optional param type is `Type | undefined`.  
+- Use nullish checks or defaulting logic before using optional values.
+
+Trade‑off:
+- Too many optional params can be a smell; consider an options object for complex signatures.
+
+***
+
+## Default Parameters (page: Default Parameters)
+
+### Syntax
+- Provide a default value in the declaration:  
+  `function foo(x: number, y = 'default') {}`.[1]
+
+Key points:
+- If the argument is omitted or `undefined`, the default is used.  
+- Defaulted parameters can appear after required ones; TS infers their type from the default.[1]
+
+Best practices:
+- Prefer defaults instead of `y?: Type` when the function logic actually expects a usable value most of the time.
+
+***
+
+## Rest Parameters (page: Rest Parameters)
+
+### Syntax & constraints
+- Gather remaining args into an array:  
+  `function sum(...values: number[]) {}`.[6][3]
+- Rules:
+  - Only one rest parameter per function.  
+  - It must be the **last** parameter.  
+  - Its type is always an array type (`T[]`).[3][6]
+
+Usage:
+- Variadic APIs, aggregations, building lists, forwarding arguments.
+
+***
+
+## Function Overloading (page: Function Overloadings)
+
+### Concept
+- Multiple **overload signatures** for one implementation to express different allowed call patterns.[1]
+- Structure:
+  1. One or more **overload signatures** (only type).
+  2. A single **implementation signature** that is compatible with all overloads.[1]
+
+Example shape:
+```ts
+function fn(a: string): string;
+function fn(a: number): number;
+function fn(a: string | number): string | number {
+  // implementation
+}
+```
+
+Key points:
+- Only the overload signatures are exposed to callers; implementation signature may be broader (e.g., unions).[1]
+- Overloads are ideal when return type depends on parameter types.
+
+Trade‑off:
+- Overuse makes APIs harder to read and maintain; prefer unions and discriminated unions when possible.[7]
+
+***
+
+## Best Practices & Trade‑offs (Overall)
+
+- Always type **function parameters**; allow return type inference except in public APIs or complex cases.[5][1]
+- Use **function types / type aliases** for callbacks and HOFs instead of inline declarations everywhere.[1]
+- Prefer **optional + default parameters** over many distinct overloads for simple variations.  
+- Use **rest parameters** rather than `arguments` to retain type safety and clarity.[6][3]
+- Overloads:
+  - Good when output shape really changes with input type.  
+  - Otherwise, prefer single signature with unions and internal narrowing.[7]
+
+***
+
+## Advanced Topics (Architect Level)
+
+- **Higher‑order functions**:
+  - Functions returning functions or accepting them, typed via reusable function type aliases or generics (`<T, R>(fn: (arg: T) => R) => ...`).[7][1]
+- **Contextual typing**:
+  - Anonymous callbacks get types inferred from where they’re passed (e.g., array methods, event handlers), reducing boilerplate.[8][1]
+- **Overloads vs discriminated unions**:
+  - Many large codebases prefer union return types with discriminants over complex overload sets for better maintainability and editor support.[5][7]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: How do you declare a function type in TypeScript?**  
+A: Use a call signature: `(params) => ReturnType`, e.g. `let fn: (x: number, y: number) => number;`.[4][1]
+
+**Q2: What is the difference between optional and default parameters?**  
+A: Optional (`y?: string`) can be omitted and is `string | undefined`; default (`y = 'a'`) provides a fallback value when the argument is missing or `undefined`.[1]
+
+**Q3: What are the rules for rest parameters?**  
+A: Only one rest parameter, it must be last, and its type is an array (e.g. `...values: number[]`).[3][6]
+
+**Q4: How does function overloading work in TypeScript?**  
+A: Declare multiple overload signatures for different parameter/return combinations, then a single implementation with a compatible, usually broader, signature and runtime checks.[7][1]
+
+**Q5: When would you choose overloads versus unions in a single signature?**  
+A: Use overloads when you want callers to see distinct input→output mappings; use unions when a single flexible signature is sufficient and easier to maintain.[7]
+
+**Q6: Why explicitly annotate return types for public APIs?**  
+A: To prevent unintended return type widening during refactors and to document the contract clearly for consumers and tooling.[5][1]
+
+***
+
+## Important Terms & Keywords (quick skim)
+
+- `function name(param: Type): ReturnType {}`.[2][1]
+- Function type / call signature: `(arg: Type) => ReturnType`.[4]
+- Optional parameter: `param?: Type` (trailing only).[1]
+- Default parameter: `param: Type = value`.[1]
+- Rest parameter: `...args: Type[]` (single, last).[3]
+- `void` return type for no‑return functions.[1]
+- Function overloading: multiple signatures + one implementation.[7][1]
+- Higher‑order functions, callbacks, type aliases for function types.[9][1]
+
+[1](https://www.typescriptlang.org/docs/handbook/functions.html)
+[2](https://www.typescripttutorial.net/typescript-tutorial/typescript-functions/)
+[3](https://www.typescripttutorial.net/typescript-tutorial/typescript-rest-parameters/)
+[4](https://www.typescripttutorial.net/typescript-tutorial/typescript-function-types/)
+[5](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)
+[6](https://www.programiz.com/typescript/rest-parameters)
+[7](https://www.typescriptlang.org/docs/handbook/2/functions.html)
+[8](https://www.typescriptlang.org/docs/handbook/type-inference.html)
+[9](https://dev.to/clifftech123/mastering-functions-in-typescript-a-comprehensive-guide-4fmo)
+[10](https://www.w3schools.com/typescript/typescript_functions.php)
+[11](https://www.youtube.com/watch?v=s7kyOtFF120)
+[12](https://www.geeksforgeeks.org/typescript/typescript-functions-type/)
+[13](https://dmitripavlutin.com/typescript-function-type/)
+[14](https://www.tektutorialshub.com/typescript/rest-parameters-in-typescript/)
+[15](https://www.geeksforgeeks.org/typescript/typescript-function/)
+[16](https://www.dhiwise.com/post/in-depth-look-at-typescript-function-types-best-practices)
+[17](https://www.geeksforgeeks.org/typescript/typescript-tutorial/)
+[18](https://www.typescripttutorial.net/typescript-tutorial/typescript-types/)
+[19](https://www.geeksforgeeks.org/typescript/rest-parameters-in-typescript/)
+[20](https://stackoverflow.com/questions/29689966/how-to-define-type-for-a-function-callback-as-any-function-type-not-universal)
+[21](https://www.tutorialsteacher.com/typescript/rest-parameters)
+[22](https://www.codecademy.com/learn/learn-typescript-functions)

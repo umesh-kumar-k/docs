@@ -1,0 +1,262 @@
+# JavaScript Event Loop - **DETAILED** Page Analysis
+
+**Lydia Hallie's comprehensive visual guide**: Single-threaded JS handles async via **Call Stack** → **Web APIs** → **Task/Microtask Queues** → **Event Loop**. **Microtasks** (Promises) **always** execute **before** **Tasks** (callbacks). Critical for Angular/RxJS timing.
+
+## **DETAILED Section-wise Breakdown**
+
+### **1. Call Stack (Synchronous Foundation)**
+
+**LIFO Execution Model:**
+```
+Stack: []  →  functionA()  →  [functionA]  
+         →  functionB()  →  [functionA, functionB]  ← Executes
+         →  functionB()  →  [functionA]  
+         →  functionA()  →  []  ← Pops off
+```
+
+**Blocking Problem (Visualized):**
+```javascript
+function longRunningTask() {
+  // 5s heavy computation (blocks UI)
+  for(let i = 0; i < 1e9; i++) {}
+}
+
+console.log('start');
+longRunningTask();     // Blocks 5s
+console.log('important');  // Delayed 5s
+// UI FREEZES during computation
+```
+
+**Key Characteristics:**
+| Property | Behavior |
+|----------|----------|
+| **Single Thread** | One task at a time |
+| **LIFO** | Last in, first out |
+| **Blocking** | Long tasks freeze everything |
+| **Synchronous Only** | No async natively |
+
+### **2. Web APIs (Browser Offloading)**
+
+**Non-JS Browser Features:**
+| API Category | Examples | Async Type |
+|--------------|----------|------------|
+| **Network** | `fetch()`, `XMLHttpRequest` | Promise |
+| **Timers** | `setTimeout()`, `setInterval()` | Callback |
+| **DOM** | `MutationObserver` | Microtask |
+| **User Input** | `addEventListener()` | Callback |
+| **Sensors** | `navigator.geolocation` | Callback |
+
+**Async Hand-off Process (Geolocation Example):**
+```javascript
+// 1. Call Stack: getCurrentPosition(successCb, errorCb)
+navigator.geolocation.getCurrentPosition(
+  pos => console.log('Location:', pos),  // successCb
+  err => console.error('Error:', err)     // errorCb
+);
+// 2. Pops off Call Stack (non-blocking)
+// 3. Browser: User permission dialog (background)
+// 4. Callback → Task/Microtask Queue when ready
+```
+
+**Critical Insight:** Function call **registers callbacks** → **pops immediately** → browser handles async
+
+### **3. Task Queue (Callback Queue) - Lower Priority**
+
+**Sources & Timing:**
+| Source | When Queued | Example |
+|--------|-------------|---------|
+| `setTimeout(fn, ms)` | **After delay** (not immediate) | `setTimeout(fn, 0)` |
+| DOM Events | On event fire | `click` handler |
+| Legacy XHR | Response ready | `onload` callback |
+
+**setTimeout(0) Reality:**
+```javascript
+console.log('1');
+setTimeout(() => console.log('2'), 0);
+console.log('3');
+// Output: 1 → 3 → 2
+// setTimeout(0) = "next tick" (Task Queue), NOT immediate
+```
+
+**Execution Flow (Event Loop Check):**
+```
+Event Loop: Call Stack empty?
+  ↓ Yes
+→ Take FIRST Task → Call Stack → Execute → Pop
+→ Repeat
+```
+
+### **4. Microtask Queue (Higher Priority) - Promise World**
+
+**Microtask Sources (Priority Order):**
+| Source | Priority | Example |
+|--------|----------|---------|
+| **`.then()` / `.catch()`** | Highest | `fetch().then()` |
+| **`await`** | Same queue | `await fetch()` |
+| **`queueMicrotask()`** | Manual | `queueMicrotask(fn)` |
+| **`MutationObserver`** | DOM changes | `observe()` callback |
+
+**Microtask Execution Algorithm (DETAILED):**
+```
+1. Call Stack empty?
+2. → Process ALL microtasks (until queue empty)
+3. → Process 1 Task from Task Queue
+4. → Back to step 2 (check microtasks AGAIN)
+5. Repeat forever
+```
+
+**Complete Example:**
+```javascript
+console.log('1');                    // Sync: Call Stack
+
+Promise.resolve().then(() => {       // Microtask 1
+  console.log('2');
+  Promise.resolve().then(() => console.log('3'));  // Microtask 2
+});
+
+setTimeout(() => console.log('4'), 0);  // Task
+
+console.log('5');                    // Sync
+// Output: 1 → 5 → 2 → 3 → 4
+```
+
+### **5. Event Loop Full Cycle (Visualized)**
+
+**fetch() Complete Timeline:**
+```javascript
+console.log('Script start');           // 1. Call Stack (sync)
+
+fetch('/api/data')                     // 2. Web API (network)
+  .then(res => res.json())             // 3. PromiseReaction queued
+  .then(data => console.log(data));    // 4. Microtask queued later
+
+console.log('Script end');             // 5. Call Stack (sync)
+// Output so far: Script start → Script end
+
+// Later (network complete):
+// 6. Microtask: res.json() → data logged
+```
+
+**Phase Diagram:**
+```
+Call Stack: [empty]
+        ↓
+Microtasks: [.then1, .then2] ← ALL executed
+        ↓
+Tasks:     [setTimeout, click] ← 1 executed
+        ↓
+Microtasks: [new .then] ← ALL again
+        ↓ Repeat
+```
+
+### **6. Advanced: PromiseReaction Records**
+
+**Internal Promise Mechanics:**
+```
+fetch() → Promise {
+  [[PromiseStatus]]: 'pending',
+  [[PromiseResult]]: undefined,
+  PromiseFulfillReactions: [ { handler: res=>res.json() } ]
+}
+
+Network complete → 
+PromiseStatus = 'fulfilled'
+PromiseResult = Response
+
+→ PromiseReaction → Microtask Queue → .then() executes
+```
+
+## **Design Patterns (Production Use)**
+
+**1. Callback → Promise Wrapper:**
+```javascript
+// Legacy API
+function promisifyGeolocation() {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject);
+  });
+}
+
+// Usage
+async function getUserLocation() {
+  try {
+    const pos = await promisifyGeolocation();
+    return pos.coords;
+  } catch (err) {
+    console.error('Location failed');
+  }
+}
+```
+
+**2. setTimeout → Microtask Equivalent:**
+```javascript
+// Task Queue (slower)
+setTimeout(fn, 0);
+
+// Microtask Queue (faster)
+queueMicrotask(fn);
+// or
+Promise.resolve().then(fn);
+```
+
+## **Best Practices & Pitfalls**
+
+| Scenario | ✅ Correct | ❌ Wrong | Why |
+|----------|-----------|---------|-----|
+| **DOM Updates** | `queueMicrotask(updateUI)` | `setTimeout(updateUI, 0)` | Microtasks faster |
+| **Avoid Starvation** | Limit `.then()` depth | `while(1) Promise.resolve().then()` | Blocks Task Queue |
+| **Debug Timing** | `console.log` → `.then()` → `setTimeout` | Assume immediate | Understand queues |
+
+**Infinite Microtask (DEADLY):**
+```javascript
+// ❌ Freezes app
+function infiniteMicrotasks() {
+  Promise.resolve().then(infiniteMicrotasks);
+}
+infiniteMicrotasks();  // Never reaches setTimeout/DOM events
+```
+
+## **Interview Cheat Sheet (Q&A)**
+
+**Q: Predict output:**
+```javascript
+console.log('1');
+setTimeout(() => console.log('2'), 0);
+Promise.resolve().then(() => console.log('3'));
+console.log('4');
+```
+**A: `1 → 4 → 3 → 2`** (sync → microtasks → tasks)
+
+**Q: Why `setTimeout(fn, 0)` not immediate?**
+**A: Goes to Task Queue** (lowest priority). Microtasks execute first
+
+**Q: Execution order with nested microtasks?**
+**A: ALL microtasks complete before ANY tasks.** Nested `.then()` all run first
+
+**Q: `await` timing in async function?**
+**A: Pauses function → adds resumption to Microtask Queue**
+
+**Q: Can Event Loop starve Task Queue?**
+**A: YES** - infinite microtasks block `setTimeout`, events forever
+
+**Q: `fetch().then()` after `console.log('end')`?**
+**A: Sync completes → network async → Microtask when resolved**
+
+## **Important Terms & Keywords (Complete List)**
+
+**Core Architecture:**
+- **Call Stack** - LIFO synchronous execution (one task)
+- **Event Loop** - Monitors stack emptiness → queue coordinator
+- **Task Queue** (Callback Queue) - `setTimeout`, DOM events (lower priority)
+- **Microtask Queue** - Promises, `await`, `queueMicrotask` (higher priority)
+
+**Async Sources:**
+- **Web APIs** - Browser features: `fetch`, `setTimeout`, geolocation
+- **PromiseReaction** - Internal `.then()` handler record
+- **PromiseFulfillReactions** - Promise resolution queue
+
+**Execution Guarantees:**
+- **Microtask Priority** - ALL microtasks → 1 task → ALL microtasks
+- **Starvation Risk** - Infinite microtasks block Task Queue
+- **setTimeout(0)** - Minimum Task delay, never immediate
+- **Non-blocking** - Web APIs offload to browser

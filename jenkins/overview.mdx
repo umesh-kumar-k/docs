@@ -1,0 +1,255 @@
+# Jenkins CI/CD - **DETAILED Article-by-Article Breakdown**
+
+**Jenkins**: **Java-based open-source** automation server. **Controller** orchestrates **Agents** executing **Freestyle Jobs** or **Pipeline Jobs** (Declarative/Scripted). **2000+ plugins** enable Git→Maven→Docker→K8s flows.[-14][1][2]
+
+## **📋 COMPLETE PAGE-BY-PAGE SECTION BREAKDOWN**
+
+### **1. Jenkins Tutorial (Main Hub) **[1]
+**Prerequisites Section**:
+- **DevOps Lifecycle**: Plan→Code→Build→Test→Release→Deploy→Operate
+- **VCS**: Git/GitHub/GitLab (push→trigger Jenkins)
+- **Build Tools**: Maven/Gradle (JAR/WAR generation)
+- **Containers**: Docker/K8s deployment
+
+**Installation Sections**:
+```
+Windows: java -jar jenkins.war --httpPort=8080
+CentOS: yum install jenkins → systemctl start jenkins
+AWS EC2: AMI + Security Group (8080, 50000)
+Arch: pacman -S jenkins → systemctl enable jenkins
+```
+
+**Integration Sections**:
+- **Git Config**: Manage Jenkins → Global Tool → Git → Path to Git
+- **Maven Config**: Global Tool → Maven → Install automatically
+- **Docker Config**: Docker Pipeline plugin → docker.build/tag/push
+
+**Job Types**:
+- **Freestyle**: UI-based (Source→Build→Post-build)
+- **Pipeline**: Jenkinsfile (Declarative/Scripted)
+
+### **2. What is Jenkins? **[2]
+**Core Components Breakdown**:
+```
+Controller (Master): Plugin loader, job scheduler, agent manager
+├── Agents (Slaves):
+│   ├── Permanent: Always connected (dedicated VMs)
+│   └── Ephemeral: Spin-up/down (Docker/K8s pods)
+├── Nodes: Generic term (Controller + Agents)
+├── Jobs: Atomic tasks (build/test/deploy)
+└── Pipelines: Orchestrated job sequences
+```
+
+**Features Detailed**:
+- **Easy Setup**: Java anywhere (Win/Linux/macOS)
+- **Plugins**: 2000+ (Git/Docker/SonarQube/Slack)
+- **CI/CD Native**: Auto-build on commit
+- **Security**: MFA, RBAC, encrypted credentials
+
+### **3. Pipeline as Code (Jenkinsfile) **[3]
+**Why Jenkinsfile**:
+```
+✅ Version control (Git)
+✅ Peer review (PRs)
+✅ Reproducible (same env)
+❌ UI Freestyle (manual, non-versioned)
+```
+
+**Structure**:
+```groovy
+pipeline {        // Root
+  agent any       // Executor
+  tools { maven '3.8' }  // Env
+  stages {        // Workflow
+    stage('Build') {
+      steps { sh 'mvn clean package' }
+    }
+  }
+  post { cleanup } // Always runs
+}
+```
+
+### **4. Freestyle Projects **[4]
+**Step-by-Step Creation**:
+1. **Dashboard** → **New Item** → **Freestyle project** → **OK**
+2. **Source Code Management**:
+   ```
+   Git → Repository URL: https://github.com/user/repo
+   Credentials: Add → Username w/ password → ID: git-creds
+   ```
+3. **Build Triggers**: Build periodically (`H/5 * * * *`)
+4. **Build Steps**:
+   ```
+   Add build step → Invoke Maven → Goals: clean package
+   ```
+5. **Post-build Actions**:
+   ```
+   Archive artifacts: **/*.war
+   Publish JUnit: **/target/surefire-reports/*.xml
+   ```
+6. **Save** → **Build Now**
+
+### **5. Build Periodically **[5]
+**Cron Syntax Detailed**:
+```
+MINUTE(0-59) HOUR(0-23) DOM(1-31) MONTH(1-12) DOW(0-7)
+* = every    H = hash    / = interval  , = list  - = range
+```
+**Examples**:
+```
+H/5 * * * *     → Every 5 mins (load balanced)
+0 2 * * 1-5     → 2AM weekdays
+*/15 * * * *    → Every 15 mins
+0 0 1 * *       → Monthly 1st midnight
+```
+
+### **6. CI/CD Pipeline Stages **[6]
+**Detailed Stages**:
+```
+1. Checkout: git pull → workspace
+2. Build: mvn compile → target/classes
+3. Unit Test: mvn test → JUnit reports
+4. Integration: mvn verify → IT reports
+5. Static Analysis: SonarQube scan
+6. Package: mvn package → app.war
+7. Publish: Nexus artifact upload
+8. Deploy: scp/rsync → staging server
+9. Smoke Test: curl health endpoint
+10. Promote: Manual approval → prod
+```
+
+### **7. CI/CD Pipeline Creation **[7]
+**Manual Pipeline Steps**:
+1. **New Item** → **Pipeline** → **OK**
+2. **Pipeline Definition**: **Pipeline script from SCM**
+3. **SCM**: Git → URL → Credentials → Jenkinsfile
+4. **Branches**: */main, develop
+5. **Save** → **Build Now**
+
+### **8. Declarative Pipeline **[8]
+**Full Syntax Reference**:
+```groovy
+pipeline {
+  agent { docker 'maven:3.8' }  // Container agent
+  environment { VERSION = '1.0' }
+  options { timeout(time: 1, unit: 'HOURS') }
+  stages {
+    stage('Parallel Tests') {
+      parallel {
+        stage('Unit') { steps { sh 'mvn test' } }
+        stage('Lint') { steps { sh 'eslint .' } }
+      }
+    }
+  }
+  post {
+    always { junit '**/*.xml' }
+    success { slackSend 'Build passed!' }
+  }
+}
+```
+
+### **9. Jenkins Plugins **[9]
+**Top 10 Plugins Detailed**:
+| Plugin | Purpose | Integration |
+|--------|---------|-------------|
+| **Git** | SCM polling/webhooks | GitHub/GitLab |
+| **Kubernetes** | Dynamic pods per job | K8s cluster |
+| **Docker** | build/push/run images | Docker Hub |
+| **Jira** | Ticket linking | Atlassian |
+| **SonarQube** | Code quality gates | Static analysis |
+| **Maven** | Java builds | POM.xml |
+| **EC2** | Dynamic AWS agents | Spot instances |
+| **Pipeline** | Declarative syntax | Jenkinsfile |
+| **Metrics** | Prometheus export | Grafana |
+| **Blue Ocean** | Visual pipeline UI | Branch/PR views |
+
+### **10. Customize w/ Plugins **[10]
+**Installation Steps**:
+```
+1. Manage Jenkins → Manage Plugins → Available
+2. Filter: "Material Theme" → Install without restart
+3. Manage Jenkins → Configure System → Appearance
+4. Theme: Material Light/Dark → Apply
+```
+
+## **🚀 Best Practices & Trade-offs**
+
+| Category | ✅ Best Practice | ❌ Avoid | Trade-off |
+|----------|------------------|----------|-----------|
+| **Pipeline** | **Jenkinsfile in repo root** | UI Freestyle | Version control vs simplicity |
+| **Agents** | **Ephemeral Docker/K8s** | Permanent VMs | Cost vs spin-up time |
+| **Triggers** | **Webhooks > Poll SCM** | `H/1 * * * *` | Network vs polling load |
+| **Security** | **Credentials Plugin** | Plain passwords | Encrypted vs manual |
+| **Plugins** | **Pin versions** | Latest always | Stability vs features |
+
+## **🎯 Interview Cheat Sheet (Q&A)**
+
+**Q: Jenkins architecture?**  
+A: **Controller** orchestrates **Agents** (Permanent/Ephemeral). **Nodes** = either. **Jobs** execute on agents.[2]
+
+**Q: Declarative pipeline structure?**  
+A: `pipeline { agent stages post } stage { steps {} }`[8]
+
+**Q: Cron `H/15 * * * *` meaning?**  
+A: **Hash/15 minutes** - distributes load across 15-min windows[5]
+
+**Q: Poll SCM vs Webhook?**  
+A: **Poll**: Jenkins→Git (load-heavy); **Webhook**: Git→Jenkins (instant)
+
+**Q: Freestyle vs Pipeline pros/cons?**  
+A: **Freestyle**: Easy UI, no versioning; **Pipeline**: Git-controlled, visual stages[4]
+
+**Q: Ephemeral Agent advantages?**  
+A: **Clean slate** (no leftovers), **cost-effective** (spot/cloud), **scalable**[2]
+
+**Q: Top 3 plugins for Java CI/CD?**  
+A: **Git, Maven Integration, Pipeline** + **SonarQube, Docker, Kubernetes**[9]
+
+## **📚 Important Terms & Keywords**
+
+**Architecture (12)**:
+- **Controller/Master** - Orchestration hub
+- **Agent/Slave** - Build executor (**Permanent/Ephemeral**)
+- **Node** - Generic executor term
+- **Job** - Atomic task unit
+- **Pipeline** - Multi-stage workflow
+
+**Pipeline DSL (15)**:
+- **`pipeline{ agent tools stages post }`** - Declarative root
+- **`stage('Name'){ steps{} }`** - Workflow phase
+- **`agent any / docker / kubernetes`** - Executor types
+- **`steps{ sh bat git docker }`** - Actions
+- **`post{ always success failure }`** - Cleanup hooks
+
+**Triggers (6)**:
+- **`H/5 * * * *`** - Hash-based cron
+- **`pollSCM('schedule')`** - Git polling
+- **Webhook** - Git push → Jenkins
+- **Remote API** - `curl ?token=SECRET`
+
+**Plugins (10)**:
+- **Git, Kubernetes, Docker, Jira, SonarQube**
+- **Maven, EC2, Pipeline, Metrics, Blue Ocean**
+
+**Scaling (5)**:
+- **Multibranch Pipeline** - Auto-discover branches/PRs
+- **Kubernetes Plugin** - Pod-per-job
+- **Shared Libraries** - `@Library('lib')_`
+- **Blue-Green Deploy** - Zero-downtime
+
+**Security (4)**:
+- **Credentials Plugin** - Encrypted secrets
+- **RBAC** - Role-based access
+- **API Tokens** - Non-password auth
+- **MFA** - Multi-factor[-14][1][2]
+
+[1](https://www.geeksforgeeks.org/devops/jenkins-tutorial/)
+[2](https://www.geeksforgeeks.org/devops/what-is-jenkins/)
+[3](https://angular.dev/api/core/rxjs-interop/toObservable)
+[4](https://v18.angular.jp/guide/signals/rxjs-interop)
+[5](https://dev.to/cristiansifuentes/angular-rxjs-in-2025-the-experts-playbook-signals-rxjs-8-and-interop-28ed)
+[6](https://github.com/angular/angular/discussions/49681)
+[7](https://stackoverflow.com/questions/76856822/angular-tosignaltoobservable-does-return-undefined)
+[8](https://www.youtube.com/watch?v=5SD995zKvbk)
+[9](https://www.reddit.com/r/Angular2/comments/1g7ymmt/integrating_rxjs_with_signals_in_angular_18_for/)
+[10](https://angular.fr/signals/rxjs)

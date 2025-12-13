@@ -20,6 +20,27 @@
             ]
           },
           {
+            "group": "Docker",
+            "pages": [
+                "docker/angular",
+                "docker/overview"
+            ]
+          },
+           {
+            "group": "Jenkins",
+            "pages": [
+                "jenkins/overview"
+            ]
+          },
+          {
+            "group": "Git",
+            "pages": [
+                "git/advanced",
+                "git/overview",
+                "git/workflows"
+            ]
+          },
+          {
             "group": "Frontend",
             "pages": [
               "frontend/performance/critical-rendering-path",
@@ -39,6 +60,35 @@
               "frontend/mfe/angular",
               "frontend/tools/linter",
               "frontend/tools/bundler"
+            ]
+          },
+          {
+            "group": "Javascript",
+            "pages": [
+                "javascript/engine",
+                "javascript/promise",
+                "javascript/hoisting",
+                "javascript/closures",
+                "javascript/prototype",
+                "javascript/generators-iterators",
+                "javascript/xss",
+                "javascript/durable-functions",
+                "javascript/csrf",
+                "javascript/event-loop",
+                "javascript/streaming",
+                "javascript/async-await"
+            ]
+          },
+          {
+            "group": "Typescript",
+            "pages": [
+                "typescript/classes",
+                "typescript/interfaces",
+                "typescript/basic-type",
+                "typescript/advanced-type",
+                "typescript/modules",
+                "typescript/functions",
+                "typescript/generics"
             ]
           },
           {
@@ -151,7 +201,10 @@
                 "angular/misc/directive-composition",
                 "angular/misc/coding-style",
                 "angular/misc/mistakes-to-avoid",
-                "angular/misc/app-at-scale"
+                "angular/misc/app-at-scale",
+                "angular/misc/google-analytics",
+                "angular/misc/observability-practical-guide",
+                "angular/misc/telemetry"
             ]
           },
           {

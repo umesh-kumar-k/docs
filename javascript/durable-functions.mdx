@@ -1,0 +1,168 @@
+# JavaScript Durable Functions (Inngest)
+
+**Durable Functions** = **stateful workflows** with **automatic retries**, **pauses**, **resumability**. Replaces fragile cron/background jobs. **Engine + SDK** pattern: HTTP state sync, **memoized steps**, **guaranteed completion**.[1]
+
+## Key Topics Section-wise
+
+### Traditional Problems (Background/Cron Jobs)
+**E-commerce Order Flow Failures:**
+```
+order.placed → processPayment → checkInventory → scheduleShipment → notify
+                ↑ Cron failed @ 9:00 → oversell → UI broken til 10:00
+```
+
+**Core Issues:**
+| Problem | Impact |
+|---------|--------|
+| **No State** | Fail midway → restart from beginning |
+| **No Retries** | Server crash → manual intervention |
+| **Short-lived** | Hours/days workflows impossible |
+| **No Orchestration** | N jobs × N failure modes |
+
+### Durable Functions Core Concepts
+**"Durable" Definition:** Maintains **state + logic** through failures/retries/pauses. **Guaranteed completion** once started.
+
+**Modular Steps Pattern:**
+```javascript
+const workflow = inngest.createFunction(
+  { id: "order-processing" },
+  { event: "order.placed" },
+  async ({ step, event }) => {
+    const payment = await step.run("process-payment", () => 
+      processPayment(event.data.orderId)
+    );
+    const inventory = await step.run("check-inventory", () => 
+      checkInventory(event.data.items)
+    );
+    // ... continues
+  }
+);
+```
+
+**Key Benefits:**
+| Feature | vs Traditional |
+|---------|----------------|
+| **State Persistence** | Restart from failure point |
+| **Auto-retries** | Built-in (default: 4 retries) |
+| **Waits** | Event-driven pauses (no polling) |
+| **Scalability** | Independent steps |
+
+### Waits (Non-polling Pauses)
+**Event-driven Delays:**
+```javascript
+const shipment = await step.waitForEvent("shipment-confirm", {
+  event: "shipment.created",
+  timeout: "7d",                    // Max wait
+  if: "event.data.orderId == async.data.orderId"  // Match
+});
+if (shipment) {
+  await step.run("notify-shipped", () => sendEmail(...));
+}
+```
+**Zero Resource Usage** during wait (vs cron polling)
+
+### Engine + SDK Architecture
+**HTTP State Synchronization:**
+```
+1. Event "order.placed" → Inngest Platform
+2. Engine queues job → POST /api/inngest (step=1)
+3. SDK: run step 1 → respond {data, nextStep=2}
+4. Engine: stores state → POST step=2
+5. SDK: skip step 1 (memoized) → run step 2
+6. Repeat until 200 OK (complete)
+```
+
+**Error Flow:**
+```
+step.run("check-inventory") → throws
+SDK: {error, retryConfig} → Engine
+Engine: schedule retry (15s delay)
+SDK: skip prior steps → retry inventory → success
+```
+
+## Key Classes/Interfaces
+
+| Component | Purpose | Signature |
+|-----------|---------|-----------|
+| **`inngest.createFunction`** | Workflow def | `{id, event}, handler` |
+| **`step.run`** | Durable step | `step.run("name", asyncFn)` |
+| **`step.waitForEvent`** | Event pause | `{event, timeout, if: matchFn}` |
+
+## Design Patterns
+
+**1. Orchestrator Pattern:**
+```javascript
+// Single function orchestrates multiple services
+async ({ step }) => {
+  const [payment, inventory] = await Promise.all([
+    step.run("payment", processPayment),
+    step.run("inventory", checkInventory)
+  ]);
+  // Parallel steps with state
+}
+```
+
+**2. Saga Pattern (Compensating Actions):**
+```javascript
+try {
+  await step.run("charge", chargeCustomer);
+  await step.run("ship", shipOrder);
+} catch {
+  await step.run("refund", refundCustomer);  // Auto-compensation
+}
+```
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **Name every step** | `step.run(" descriptive-name ", fn)` - debugging |
+| **Small steps** | Single responsibility, easier retry |
+| **Event matching** | `if: "event.data.id == async.data.orderId"` |
+| **Timeouts** | `timeout: "7d"` prevents indefinite hangs |
+| **Idempotent steps** | Safe retries without duplication |
+
+## Advanced Topics
+
+**Memoization:** SDK caches prior step results → **re-run entire function**, skip completed steps
+**Retry Backoff:** Default 15s exponential (4 retries)
+**State Storage:** Engine persists full workflow state
+**Multi-step Retries:** Only failed step retries, prior steps skipped
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Durable Functions vs Background Jobs?**  
+A: **Durable**: stateful, resumable, auto-retry; **Jobs**: stateless, restart from beginning[1]
+
+**Q: How does `step.waitForEvent` avoid polling?**  
+A: **Event-driven** - pauses workflow, resumes on matching event (zero CPU)
+
+**Q: What happens on step failure?**  
+A: **Auto-retry** (4x default, 15s backoff). Prior steps memoized, only failed step retries
+
+**Q: Engine-SDK communication?**  
+A: **HTTP polling** - Engine → `/api/inngest` → incremental state updates
+
+**Q: Complete workflow guarantee?**  
+A: **Durable Execution** - once started, Engine ensures finish despite crashes
+
+## Important Terms & Keywords
+
+**Core Concepts:**
+- **Durable Functions** - Stateful, resilient workflows
+- **step.run()** - Memoized, retryable step
+- **step.waitForEvent()** - Event-driven pause
+- **Durable Execution Engine** - State management platform
+
+**Architecture:**
+- **Inngest Platform** - Hosts execution engine
+- **HTTP State Sync** - Engine ↔ SDK communication
+- **Memoization** - Skip completed steps on retry
+
+**Workflow Features:**
+- **Guaranteed Completion** - Once started = eventually finishes
+- **Automatic Retries** - 4x default exponential backoff
+- **Zero-resource Waits** - Event matching without polling
+- **Idempotent Steps** - Safe to retry[1]
+
+[1](https://www.inngest.com/blog/durable-functions-a-visual-javascript-primer)

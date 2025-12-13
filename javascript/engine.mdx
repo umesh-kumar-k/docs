@@ -1,0 +1,183 @@
+# JavaScript Engine (V8) - **DETAILED** Compilation Pipeline
+
+**V8 Engine**: **Byte stream** → **Tokens** → **AST** → **Bytecode** (interpreter) → **Optimized Machine Code**. **Pre-parser** lazy-parses non-executable code. **Deoptimization** on type changes.[1]
+
+## **DETAILED Processing Pipeline**
+
+### **1. Byte Stream → Tokens (Parsing Phase)**
+
+**Script Loading Flow:**
+```
+HTML <script src="app.js"> → Network/Cache/Service Worker
+↓ Bytes stream
+Byte Stream Decoder → UTF-8 → "function declaration"
+↓ Tokens
+"function" + "identifier" + "(" + ")" + "{" + ...
+```
+
+**Token Examples:**
+```
+0x0066 → 'f'    0x0075 → 'u'
+0x006e → 'n'    0x0063 → 'c'
+→ Token: FUNCTION_KEYWORD
+```
+
+### **2. Dual Parser System (Performance)**
+
+**Pre-parser vs Parser:**
+| Parser | Purpose | When Used |
+|--------|---------|-----------|
+| **`Pre-parser`** | **Lazy parse** (non-executable code) | Functions called later (button clicks) |
+| **`Parser`** | **Full parse** (immediate execution) | Top-level code, event handlers |
+
+**Lazy Loading Benefit:**
+```
+function later() { heavyCode(); }  // Pre-parsed (fast initial load)
+button.onclick = later;            // Full parse on demand
+```
+
+### **3. Parser → AST → Bytecode**
+
+**AST Generation:**
+```
+Tokens: function foo(a,b) { return a+b; }
+↓
+AST Nodes:
+  FunctionDeclaration
+    ├── Identifier: "foo"
+    ├── Parameters: [a,b]
+    └── BlockStatement
+         └── ReturnStatement: BinaryExpression(+)
+↓ Interpreter
+Bytecode: LoadArg0 + LoadArg1 + Add + Return
+```
+
+**Memory Cleanup:**
+```
+AST generated → Bytecode produced → AST deleted (GC)
+```
+
+### **4. Bytecode Execution + Optimization**
+
+**Runtime Feedback Loop:**
+```
+Bytecode runs → Type feedback collected
+↓ Hot code detected (>100 invocations?)
+Optimizing Compiler → Machine Code
+↓ Type change?
+Deoptimize → Back to Bytecode
+```
+
+**Example Optimization:**
+```javascript
+function sum(a, b) { return a + b; }  // Always numbers
+
+sum(1, 2);  // 100x → Optimize: assume number + number
+sum("1", "2");  // Type change → Deoptimize
+```
+
+## Key Classes/Interfaces (V8 Internals)
+
+| Component | Role | Input → Output |
+|-----------|------|---------------|
+| **Byte Stream Decoder** | UTF-8 decode | Bytes → Characters |
+| **Pre-parser** | Lazy analysis | Tokens → Parse tree (no AST) |
+| **Parser** | Full syntax | Tokens → **AST** |
+| **Interpreter (Ignition)** | Bytecode gen | AST → **Bytecode** |
+| **Optimizing Compiler (TurboFan)** | Machine code | Bytecode + type feedback → **Machine code** |
+
+## Design Patterns (Performance)
+
+**1. Hot Path Optimization:**
+```javascript
+// Engine optimizes frequently-called functions
+function hotPath(id) { return cache[id]; }  // Always string keys
+hotPath(123);  // Type mismatch → deopt
+```
+
+**2. Avoid Deoptimization:**
+```javascript
+// ✅ Stable types
+function process(users) {
+  return users.map(u => u.name.length);  // string.length
+}
+
+// ❌ Dynamic types
+function process(data) {
+  return data.map(d => d.value + 1);  // number? string?
+}
+```
+
+## Best Practices
+
+| Practice | ✅ Perf Impact |
+|----------|---------------|
+| **Consistent types** | Avoids deoptimization |
+| **Small functions** | Faster parsing/optimization |
+| **Avoid `eval()`** | Bypasses optimization |
+| **Declare before use** | Better hoisting behavior |
+
+**Anti-patterns:**
+```javascript
+// ❌ Deoptimizes on type change
+function add(a, b) { return a + b; }  // number → string?
+
+// ✅ Stable
+function addNumbers(a, b) { return a + b; }
+```
+
+## Advanced Topics
+
+**Inline Caching (Monomorphic):**
+```
+obj.x  // Cache: {property: 'x', type: Number}
+obj.x  // HIT: Reuse cache → 10x faster
+obj.y  // MISS: New cache entry
+```
+
+**Deoptimization Triggers:**
+- Type changes (number → string)
+- Function polymorphism (>1 arg type)
+- `arguments` object usage
+- `eval()` / `with` statements
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: V8 compilation stages?**  
+A: **Bytes → Tokens → AST → Bytecode → Machine Code** (Ignition + TurboFan)[1]
+
+**Q: Pre-parser vs Parser?**  
+A: **Pre-parser**: Lazy (non-executable); **Parser**: Full AST (immediate)
+
+**Q: What triggers optimization?**  
+A: **Hot code** (~100+ invocations) + **type feedback**
+
+**Q: Deoptimization cause?**  
+A: **Type change** (number → string), polymorphism
+
+**Q: Why `eval()` slow?**  
+A: **Bypasses optimization** - generates new bytecode at runtime
+
+**Q: Bytecode purpose?**  
+A: **Portable intermediate** between AST → machine code
+
+## Important Terms & Keywords
+
+**Pipeline Stages:**
+- **Byte Stream Decoder** - UTF-8 → tokens
+- **Pre-parser** - Lazy parsing
+- **Parser** - Tokens → **AST**
+- **Interpreter (Ignition)** - AST → **Bytecode**
+- **TurboFan** - Bytecode → **Machine Code**
+
+**Optimization:**
+- **Hot Code** - Frequently executed
+- **Type Feedback** - Runtime type info
+- **Deoptimization** - Type assumption failure
+- **Inline Caching** - Property access optimization
+
+**Memory:**
+- **AST Garbage Collection** - Deleted post-bytecode
+- **Monomorphic** - Single type optimization[1]
+
+[1](https://dev.to/lydiahallie/javascript-visualized-the-javascript-engine-4cdf)

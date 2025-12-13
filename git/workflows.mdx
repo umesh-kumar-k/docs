@@ -1,0 +1,137 @@
+# Git Workflows (Atlassian) - **COMPLETE 4-Article Breakdown**
+
+**Git Workflows**: **Remotes** for sync, **PRs** for review, **Branches** as pointers, **4 Workflows** (Centralized→Forking).[-4][1][2]
+
+## **📋 PAGE-BY-PAGE SECTION BREAKDOWN**
+
+### **1. Syncing (Git Remote) **[1]
+**Remote Concept**: Bookmarks to repos (stored in `.git/config`)
+```
+git remote -v              # List: origin (fetch/push URLs)
+git remote add john URL    # Add teammate repo
+git remote rm john         # Remove
+git remote rename old new  # Rename
+```
+
+**URLs**:
+- **HTTP**: Read-only (`http://host/repo.git`)
+- **SSH**: Read-write (`git@host:repo.git`)
+
+**Subcommands**:
+| Cmd | Effect |
+|-----|--------|
+| `show <name>` | Branches + push targets |
+| `prune <name>` | Delete stale remote branches |
+| `get-url <name>` | Fetch/push URLs |
+
+### **2. Making a Pull Request **[2]
+**Anatomy**: **Source Repo/Branch → Dest Repo/Branch**
+```
+Fork → feature branch → PR → Review → Merge → Delete
+```
+
+**Workflow Integration**:
+- **Feature Branch**: Same repo (feature→main)
+- **Gitflow**: feature→develop, release→main+develop
+- **Forking**: Your fork→Official main
+
+**Process**:
+1. `git checkout -b feature`
+2. Commit/push to fork
+3. File PR (title/desc/reviewers)
+4. Inline comments → Follow-up commits auto-add
+5. Merge → Close
+
+### **3. Using Branches **[3]
+**Branches = File Pointers** (`.git/refs/heads/`)
+```
+git branch feature        # Create
+git checkout -b feature   # Create+switch
+git checkout main         # Switch
+git branch -d feature     # Safe delete (-D force)
+git branch -a             # Local+remote (origin/...)
+```
+
+**Remote Sync**:
+```
+git push origin feature      # Create remote branch
+git push origin :feature     # Delete remote branch
+git push origin main         # Track (after -u)
+```
+
+**Detached HEAD**: `git checkout HEAD~2` (create branch before commit)
+
+### **4. Comparing Workflows **[4]
+| Workflow | Branches | Merge Strategy | Scale |
+|----------|----------|----------------|-------|
+| **Centralized** | main only | Direct push | Small teams |
+| **Feature Branch** | feature→main (PRs) | Merge/Rebase | Medium |
+| **Gitflow** | main/develop + feature/release/hotfix | Strict merges | Enterprise |
+| **Forking** | Fork→PR→main | External contribs | OSS/Large |
+
+**Evolution**:
+```
+Centralized → Feature (PRs) → Gitflow (releases) → Forking (external)
+```
+
+## **Best Practices & Trade-offs**
+
+| Practice | ✅ Pro | ❌ Con |
+|----------|--------|---------|
+| **Short-lived branches** | Fewer conflicts | Constant context switch |
+| **PRs > Direct merge** | Review/automation | Overhead |
+| **Rebase private branches** | Clean history | Never public |
+| **Multiple remotes** | Peer collab | Config complexity |
+| **Gitflow** | Release control | Branch explosion |
+
+## **Interview Cheat Sheet**
+
+**Q: `git remote` stores where?**  
+A: **`.git/config`** [remote "origin"] url=... fetch=...[1]
+
+**Q: PR Anatomy?**  
+A: **Source repo/branch → Dest repo/branch** (Bitbucket auto-defaults)[2]
+
+**Q: Safe branch delete?**  
+A: `git branch -d feature` (**-D force** unmerged)[3]
+
+**Q: Centralized vs Feature Branch?**  
+A: **Centralized**: SVN-like direct main; **Feature**: Isolation+PR review[4]
+
+**Q: Gitflow branches?**  
+A: **main/develop + feature/release/hotfix/support**[4]
+
+**Q: Forking Workflow PR?**  
+A: **Your fork/feature → Official main** (external contribs)[2][4]
+
+## **Important Terms & Keywords**
+
+**Remotes (4)**:
+- **git remote**: `add/rm/rename/show/prune/get-url`
+- **origin**: Auto from `git clone`
+- **URLs**: HTTP (read) vs SSH (read/write)
+- **refspec**: `+refs/heads/*:refs/remotes/origin/*`
+
+**PRs/Collaboration (5)**:
+- **Pull Request**: Source→Dest repo/branch
+- **Reviewers**: Inline comments + follow-up commits
+- **Workflows**: Feature/Gitflow/Forking
+- **Fork**: Copy → PR back to upstream
+
+**Branches (6)**:
+- **branch**: `.git/refs/heads/name` (pointer)
+- **checkout -b**: Create+switch
+- **-d/-D**: Safe/force delete
+- **Detached HEAD**: `HEAD~N` (branch before commit)
+- **push -u**: Set upstream tracking
+
+**Workflow Patterns (4)**:
+- **Centralized**: main only
+- **Feature Branch**: feature→main PRs
+- **Gitflow**: main/develop + feature/release/hotfix
+- **Forking**: External forks→PR→main[-4][1][2]
+
+[1](https://www.atlassian.com/git/tutorials/syncing)
+[2](https://www.atlassian.com/git/tutorials/making-a-pull-request)
+[3](https://angular.dev/api/core/rxjs-interop/toObservable)
+[4](https://v18.angular.jp/guide/signals/rxjs-interop)

@@ -1,0 +1,241 @@
+# Docker Containerization - Detailed Page-wise Summary
+
+Comprehensive coverage of Docker fundamentals from official docs. **Containers** (lightweight processes) vs **VMs** (heavy OS). Client-server architecture.[1][2]
+
+## Detailed Page-wise Breakdown
+
+### 1. Docker Overview (docker-overview/)
+**Core Concepts:**
+- **Platform Purpose**: Package + run apps in **loosely isolated containers**. Separate app from infrastructure
+- **Key Benefits**:
+  - **CI/CD**: Dev → test → prod consistent environments
+  - **Scaling**: Dynamic up/down scaling near real-time
+  - **Density**: More workloads same hardware vs VMs
+- **Architecture**:
+  ```
+  Docker Client (docker CLI) ↔ REST API ↔ Docker Daemon (dockerd)
+  ```
+  - **Daemon**: Builds/runs/distributes containers, images, networks, volumes
+  - **Client**: `docker run/pull/push` commands
+  - **Compose**: Multi-container orchestration
+
+**Docker Objects:**
+| Object | Purpose | Lifecycle |
+|--------|---------|-----------|
+| **Image** | Read-only template | Build → Push → Pull |
+| **Container** | Runnable instance | `docker run` → `docker stop/rm` |
+| **Registry** | Image storage | Docker Hub (default) |
+| **Volume** | Persistent data | Survives container deletion |
+
+### 2. Docker Desktop Installation (get-docker-desktop/)
+**Platforms & Downloads:**
+- **Mac**: Apple Silicon / Intel versions
+- **Windows**: WSL2 backend
+- **Linux**: Native package
+
+**First Container Run:**
+```bash
+docker run -d -p 8080:80 docker/welcome-to-docker
+```
+- `-d`: Detached (background)
+- `-p 8080:80`: **Host:Container** port mapping
+- Access: `http://localhost:8080`
+
+**Desktop GUI Features:**
+- **Containers Tab**: Logs, Inspect, Exec shell, Files, Stats
+- **Images Tab**: Pull/build history
+- **Volumes/Networks**: Persistent storage, connectivity
+
+### 3. Develop with Containers (develop-with-containers/)
+**docker compose watch** (dev mode):
+```yaml
+# docker-compose.yml
+services:
+  app:
+    build: .
+    volumes: ['./src:/app/src']  # Hot reload
+    ports: ["3000:3000"]
+  mysql:
+    image: mysql:8
+```
+**Commands:**
+- `docker compose watch`: Auto-rebuild + restart on file changes
+- **Hot Reload**: Edit code → instant browser update
+
+### 4. Build & Push First Image (build-and-push-first-image/)
+**Complete Workflow:**
+```bash
+# 1. Login
+docker login
+
+# 2. Build
+docker build -t myusername/myapp:v1 .
+
+# 3. Tag (multi-platform)
+docker tag myapp:v1 myusername/myapp:latest
+
+# 4. Push
+docker push myusername/myapp:v1
+docker push myusername/myapp:latest
+```
+
+**Tagging Convention:**
+```
+username/repo:tag
+# Examples:
+john/app:v1.2.3
+john/app:latest
+john/app:staging
+```
+
+### 5. Core Docker Concepts
+
+**What is a Container? (what-is-a-container/)**
+- **Runtime instance** of image
+- **Namespaces**: PID, Network, Mount, User, IPC, UTS isolation
+- **cgroups**: CPU/Memory limits
+- **Overlay FS**: Writable layer + read-only image layers
+
+**What is an Image? (what-is-an-image/)**
+```
+Image = Layers Stack
+Base (ubuntu:20.04)
+├── RUN apt-get update
+├── COPY app.js
+└── CMD ["node", "app.js"]
+```
+- **Read-only** template
+- **Layer caching**: Unchanged layers reused
+- **docker history img**: View layer history
+
+**Registry (what-is-a-registry/)**
+- **Docker Hub**: Default public registry
+- **Private**: Self-hosted or cloud (ECR, GCR, ACR)
+- **Repository**: Named collection (`username/nginx`)
+
+**Docker Compose (what-is-docker-compose/)**
+```yaml
+version: '3.8'
+services:
+  web:
+    image: nginx
+    ports: ["80:80"]
+  db:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: secret
+volumes:
+  db-data:
+```
+- `docker compose up`: Start all services
+- **Networks**: Auto service discovery (`web` → `db:5432`)
+
+### 6. Dockerfile Deep Dive
+
+**Layer Optimization Order (understanding-image-layers/):**
+```dockerfile
+# ✅ Cache hits
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json .
+RUN npm ci --only=production
+COPY . .  # Volatile - changes often
+EXPOSE 3000
+CMD ["node", "src/index.js"]
+```
+
+**Essential Instructions (writing-a-dockerfile/):**
+| Instruction | Purpose | Example |
+|-------------|---------|---------|
+| `FROM` | Base image | `FROM node:18-alpine` |
+| `WORKDIR` | Working dir | `WORKDIR /app` |
+| `COPY` | Filesystem | `COPY . /app` |
+| `RUN` | Execute | `RUN npm ci` |
+| `CMD` | Default exec | `CMD ["node", "app.js"]` |
+| `EXPOSE` | Port docs | `EXPOSE 3000` |
+| `USER` | Security | `USER node` |
+
+**Multi-stage Builds:**
+```dockerfile
+# Build stage
+FROM node:18 AS builder
+COPY package.json .
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Runtime stage (smaller)
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+```
+
+### 7. Running Containers Advanced
+
+**Port Publishing (publishing-ports/):**
+```bash
+docker run -p 8080:80 nginx  # HTTP
+docker run -p 3000:3000 -p 9229:9229 node:debug  # Debug
+```
+
+**Volumes (persisting-container-data/):**
+```bash
+# Named volume
+docker run -v mydata:/app/data postgres
+
+# Bind mount (host path)
+docker run -v $(pwd):/app nginx
+```
+
+**Multi-container (multi-container-applications/):**
+- **Service discovery**: `web` connects to `db` automatically
+- **Healthchecks**: `healthcheck: { test: ["CMD", "curl", "-f", "http://localhost"] }`
+
+## Best Practices & Trade-offs
+
+| Practice | ✅ Pros | ❌ Cons |
+|----------|---------|---------|
+| **Multi-stage** | Tiny runtime images | Complex Dockerfiles |
+| **Layer order** | Fast rebuilds | Requires planning |
+| **Non-root USER** | Security | File permission issues |
+| **.dockerignore** | Faster builds | Missing files risk |
+| **Alpine base** | Small size | Harder debugging |
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Container vs VM differences?**  
+A: **Container**: shared kernel, lightweight, seconds startup; **VM**: full OS, GBs RAM, minutes boot[1]
+
+**Q: Layer caching strategy?**  
+A: **Stable first** (`package.json`, deps) → **Volatile last** (source)
+
+**Q: `-p 8080:80` vs `--network host`?**  
+A: `-p`: **Explicit port mapping**; `--network host`: all ports exposed
+
+**Q: Dockerfile `CMD` vs `ENTRYPOINT`?**  
+A: `CMD`: **Default args** (overridable); `ENTRYPOINT`: **Fixed exec** (`docker run img arg`)
+
+**Q: Volume vs Bind Mount?**  
+A: **Volume**: Docker-managed, portable; **Bind**: Host filesystem access
+
+## Important Terms & Keywords
+
+**Core Concepts:**
+- **Container** - Isolated process (namespaces + cgroups)
+- **Image** - Read-only template (layered filesystem)
+- **Dockerfile** - Build instructions
+- **Registry** - Image storage (Docker Hub)
+- **Daemon** - `dockerd` core engine
+
+**Commands:**
+- `docker run/build/push/pull`
+- `docker compose up/watch`
+- `-p/-v/-e` flags
+
+**Advanced:**
+- **Multi-stage builds**
+- **Layer caching**
+- **Healthchecks**
+- **.dockerignore**
+
+[1](https://docs.docker.com/get-started/docker-overview/)
+[2](https://docs.docker.com/get-started/introduction/get-docker-desktop/)

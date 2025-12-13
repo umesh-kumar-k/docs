@@ -39,13 +39,13 @@ json--json--json-->      (flatMap flattens)
 |----------|---------|----------|
 | **`flatMap()`** | Flatten all inner Observables | All inner streams emit |
 | **`switchMap()`** | Cancel previous inner stream | Only latest inner stream emits |
-| **`map()`** | ❌ Creates metastream | Returns Observable<Observable<T>> |
+| **`map()`** | ❌ Creates metastream | Returns `Observable<Observable<T>>` |
 
 ## Design Patterns
 
 - **Higher-Order Mapping**: `flatMap(id => ajax(id))` - async transformation
 - **Cascading Calls**: ID → HTTP → User data
-- **Metastream Flattening**: Observable<Observable<T>> → Observable<T>
+- **Metastream Flattening**: `Observable<Observable<T>>` → `Observable<T>`
 
 ## Best Practices
 

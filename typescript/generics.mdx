@@ -1,0 +1,142 @@
+TypeScript generics here cover **generic functions, constraints, generic classes, and generic interfaces** to write reusable, type‑safe abstractions over varying types.[1][2]
+
+***
+
+## Generic Functions (page: Generics)
+
+### Basics
+- Generic type parameters are declared in angle brackets:  
+  `function identity<T>(arg: T): T { return arg; }`.[1]
+- Call site options:
+  - Explicit: `identity<string>('TS')`.  
+  - Inferred: `identity('TS')` (compiler infers `T` as `string`).[1]
+
+Key points:
+- Replaces copies like `identityNumber`, `identityString` with one generic implementation.  
+- Works with arrays: `function loggingIdentity<T>(arg: T[]): T[] { console.log(arg.length); return arg; }`.[1]
+
+Best practice:
+- Use short, meaningful type params (`T`, `U`, `K`, `V`) by convention; keep them minimal and scoped.[3][1]
+
+***
+
+## Generic Constraints (page: Generic Constraints)
+
+### Constraining T with `extends`
+- Syntax: `function log<T extends { length: number }>(arg: T) { console.log(arg.length); }`.[4][2]
+- `T extends SomeType` means `T` must be assignable to `SomeType`, so members of `SomeType` are safely accessible.
+
+Key patterns:
+- Constraining to an interface with required props:  
+  `T extends HasId` to guarantee `id` exists.[5][2]
+- Constraining to keys of an object:  
+  `<T, K extends keyof T>(obj: T, key: K)` to ensure only valid keys are passed.[1]
+
+Trade‑offs:
+- Constraints improve safety but reduce flexibility; avoid over‑constraining generics when not needed.  
+- For very specific constraints, consider whether a plain non‑generic type is clearer.
+
+***
+
+## Generic Classes (page: Generic Classes)
+
+### Generic class declaration
+- Example:  
+  `class GenericNumber<T> { zeroValue: T; add: (x: T, y: T) => T; }`.[6][1]
+- Use:
+  - `const numberInstance = new GenericNumber<number>();`  
+  - `const stringInstance = new GenericNumber<string>();`.
+
+Key points:
+- The type parameter applies to all instance members using `T`.  
+- You cannot use type parameters in **static** members (no instance context).[7][1]
+
+Usage:
+- Collections, repositories, cache classes, response wrappers (`PagedResult<T>`).
+
+***
+
+## Generic Interfaces (page: Generic Interfaces)
+
+### Generic interface declarations
+- Basic: `interface Box<T> { value: T; }`.  
+- Use with concrete types: `const boxOfString: Box<string> = { value: 'hi' };`.[8][9]
+
+Function‑typed interfaces:
+- `interface GenericIdentityFn<T> { (arg: T): T }` and  
+  `let myIdentity: GenericIdentityFn<number>;`.[1]
+
+Best practice:
+- Parameterize interfaces at the **outermost level** when they are generally reusable, e.g., `interface ApiResponse<T> { data: T; error?: string }`.  
+- Avoid generic parameters that are never used in the interface body.
+
+***
+
+## Best Practices & Trade‑offs (Overall)
+
+- Use generics to **avoid duplication** and keep types precise in reusable code (e.g., libraries, shared utilities).[10][3]
+- Constrain generics when operations require specific properties (e.g., `length`, `id`, `keyof`).[2][4]
+- Don’t over‑generalize; sometimes a simple non‑generic function is more readable.  
+- Combine generics with **interfaces & type aliases** for strongly typed APIs: `type Result<T> = { ok: true; value: T } | { ok: false; error: string };`.
+
+Larger front‑end codebases and libraries typically:
+- Use generics heavily in data access layers, API clients, reusable hooks/services, and component props models (e.g., React/Angular libraries).[3][1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What problem do generics solve in TypeScript?**  
+A: Generics enable writing reusable components (functions, classes, interfaces) that work over a variety of types while preserving type safety, instead of duplicating code for each type or falling back to `any`.[3][1]
+
+**Q2: How do you declare a simple generic function and call it?**  
+A: `function identity<T>(arg: T): T { return arg; }` then call as `identity(42)` (inferred) or `identity<number>(42)` (explicit).[1]
+
+**Q3: What is a generic constraint and why use it?**  
+A: A constraint (`T extends SomeType`) restricts allowed types for a generic parameter so you can safely use members of `SomeType` on `T` (e.g., accessing `length` or `id`).[4][2]
+
+**Q4: How do you model a generic class?**  
+A: Put the type parameter on the class: `class Repository<T> { private items: T[] = []; add(item: T) { ... } }` then instantiate with `new Repository<User>()`.[6][1]
+
+**Q5: Show a generic interface example.**  
+A: `interface ApiResponse<T> { data: T; error?: string }` then `const userResponse: ApiResponse<User> = { data: user }`.[9][8]
+
+**Q6: What’s the difference between `T` and `any` in generics?**  
+A: `T` preserves the specific type across inputs/outputs and allows constraints; `any` turns off type checking and loses the relationship between argument and return types.[3][1]
+
+**Q7: When should you avoid generics?**  
+A: When the type is always the same (no variation) or when generics make the API harder to understand than a straightforward, concrete type.[10][3]
+
+***
+
+## Important Terms & Keywords (quick skim)
+
+- Generic type parameter: `<T>`, `<T, U>`.[1]
+- Generic function: `function fn<T>(arg: T): T`.  
+- Generic constraint: `T extends Constraint`.[2][4]
+- `keyof` constraint pattern: `<T, K extends keyof T>`.[1]
+- Generic class: `class C<T> { ... }`.[6][1]
+- Generic interface: `interface Box<T> { value: T }`.[8][9]
+- Reusability, type safety, reduced duplication via generics.[11][3]
+
+[1](https://www.typescriptlang.org/docs/handbook/2/generics.html)
+[2](https://www.typescripttutorial.net/typescript-tutorial/typescript-generic-constraints/)
+[3](https://www.digitalocean.com/community/tutorials/how-to-use-generics-in-typescript)
+[4](https://www.tektutorialshub.com/typescript/generic-constraints-in-typescript/)
+[5](https://www.geeksforgeeks.org/typescript/typescript-generic-constraints/)
+[6](https://www.tutorialsteacher.com/typescript/typescript-generic-class)
+[7](https://www.typescriptlang.org/docs/handbook/2/classes.html)
+[8](https://www.typescriptlang.org/docs/handbook/interfaces.html)
+[9](https://www.tutorialsteacher.com/typescript/typescript-generic-interface)
+[10](https://www.freecodecamp.org/news/how-typescript-generics-work/)
+[11](https://zerotomastery.io/blog/typescript-generics-explained/)
+[12](https://www.w3schools.com/typescript/typescript_basic_generics.php)
+[13](https://www.youtube.com/watch?v=EcCTIExsqmI)
+[14](https://prismic.io/blog/typescript-generics)
+[15](https://www.geeksforgeeks.org/javascript/generics-interface-in-typescript/)
+[16](https://www.freecodecamp.org/news/typescript-generics-use-case-example/)
+[17](https://dev.to/rajrathod/exploring-the-power-of-typescript-generics-constraints-utility-types-literal-types-and-recursive-structures-78g)
+[18](https://dev.to/audreyk/typescript-generics-a-cheat-sheet-1a89)
+[19](https://www.allthingstypescript.dev/p/generic-constraints-a-gentle-introduction)
+[20](https://stackoverflow.com/questions/74707455/typescript-generics-with-interface-parameters)
+[21](https://www.theserverside.com/tutorial/Using-generics-in-Typescript-An-in-depth-tutorial)

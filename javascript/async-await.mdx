@@ -1,0 +1,231 @@
+# JavaScript Promises & Async/Await - **Event Loop Priority**
+
+**Promises**: **Microtasks** (`then/catch/finally`) execute **before** **macrotasks** (`setTimeout`). **Async/await** = **syntactic sugar** over promises - **`await`** suspends function → **microtask resumption**. **Callback hell** → **chainable `.then()`**.[1]
+
+## Key Topics Section-wise
+
+### Promise States & Creation
+**Internal Structure:**
+```
+Promise { [[PromiseStatus]]: "pending"|"fulfilled"|"rejected", [[PromiseValue]]: any }
+```
+
+**Constructor Callback:**
+```javascript
+new Promise((resolve, reject) => {
+  // Async work
+  success ? resolve(data) : reject(error);
+});
+```
+
+**State Transitions:**
+| Call | Status | Value |
+|------|--------|-------|
+| `resolve(value)` | **`"fulfilled"`** | `value` |
+| `reject(error)` | **`"rejected"`** | `error` |
+
+**Shorthands:**
+```javascript
+Promise.resolve('data');    // Immediate fulfilled
+Promise.reject('error');    // Immediate rejected
+```
+
+### Promise Chaining (Callback Hell Fix)
+**Before (Nested):**
+```javascript
+getImage(cb1 => resizeImage(cb1, cb2 => applyFilter(cb2, cb3 => saveImage(cb3))));
+```
+
+**After (.then chain):**
+```javascript
+getImage()
+  .then(resizeImage)
+  .then(applyFilter)
+  .then(saveImage)
+  .catch(handleError);
+```
+
+**Chain Returns Promise:**
+```
+.then(fn) → Promise (passes fn(result) to next .then)
+```
+
+### Microtasks vs Macrotasks (Execution Order)
+**Event Loop Priority:**
+```
+1. Call Stack (synchronous)
+2. Microtask Queue (Promises, queueMicrotask)
+3. Macrotask Queue (setTimeout, setInterval)
+```
+
+**Example Execution:**
+```javascript
+console.log('Start');
+setTimeout(() => console.log('Timeout'), 0);
+Promise.resolve().then(() => console.log('Promise'));
+console.log('End');
+// Output: Start → End → Promise → Timeout
+```
+
+**Queues Visual:**
+```
+Call Stack: console.log('Start') → console.log('End')
+Microtask: Promise.then()
+Macrotask: setTimeout(0)
+```
+
+### Async/Await (Promise Sugar)
+**Implicit Promise Return:**
+```javascript
+async function process() {  // Returns Promise
+  const data = await getData();  // Suspends here
+  return processData(data);
+}
+```
+
+**Suspend/Resume Flow:**
+```
+async fn → await promise → Suspend → Microtask → Resume post-await
+```
+
+**Example:**
+```javascript
+console.log('Before');
+async function fn() {
+  console.log('In fn');
+  await Promise.resolve('One!');
+  console.log('After await');
+}
+fn();
+console.log('After');
+// Output: Before → In fn → After → After await
+```
+
+## Key Classes/Interfaces
+
+| Method | Trigger | Queue |
+|--------|---------|-------|
+| **`.then(onFulfilled)`** | Promise **fulfilled** | **Microtask** |
+| **`.catch(onRejected)`** | Promise **rejected** | **Microtask** |
+| **`.finally()`** | **Always** (resolve/reject) | **Microtask** |
+| **`await promise`** | Promise **resolves** | **Suspend** → Microtask |
+
+**Promise States (Internal):**
+- **`[[PromiseStatus]]`**: `"pending"|"fulfilled"|"rejected"`
+- **`[[PromiseValue]]`**: Resolved/rejected value
+
+## Design Patterns
+
+**1. Pipeline Processing:**
+```javascript
+async function imagePipeline(url) {
+  const img = await fetchImage(url);
+  const resized = await resize(img);
+  const filtered = await applyFilter(resized);
+  return save(filtered);
+}
+```
+
+**2. Error Boundaries:**
+```javascript
+async function safeApiCall() {
+  try {
+    return await apiCall();
+  } catch (error) {
+    console.error('API failed:', error);
+    return fallbackData;
+  }
+}
+```
+
+**3. Parallel Promises:**
+```javascript
+const [user, posts] = await Promise.all([
+  fetchUser(),
+  fetchPosts()
+]);
+```
+
+## Best Practices
+
+| Practice | ✅ Why |
+|----------|--------|
+| **`try/catch` with `await`** | **Natural error handling** |
+| **`Promise.all()`** | **Parallel execution** |
+| **`async` top-level** | **No `.then()` pollution** |
+| **Avoid `await` in loops** | **Sequential → use `Promise.all()`** |
+
+**Anti-patterns:**
+```javascript
+// ❌ Sequential
+for (const id of ids) {
+  results.push(await fetch(id));
+}
+
+// ✅ Parallel
+const results = await Promise.all(ids.map(fetch));
+```
+
+## Advanced Topics
+
+**Microtask Starvation:**
+```javascript
+// Infinite microtasks block macrotasks
+Promise.resolve().then(() => {
+  // Recursive .then() → macrotasks never run
+});
+```
+
+**Top-level Await (Modules):**
+```javascript
+// module.js
+const data = await fetchData();  // Blocks module loading
+export { data };
+```
+
+**setTimeout(0) Throttling:**
+```
+Browser: Minimum 4ms delay (even setTimeout(fn, 0))
+Node.js: setImmediate(fn) - no minimum delay
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Promise execution order vs setTimeout?**  
+A: **Promise first** (microtask) → **setTimeout last** (macrotask)[1]
+
+**Q: `async fn()` returns?**  
+A: **Always Promise** (implicit wrapping)
+
+**Q: `await` behavior?**  
+A: **Suspends async fn** → **resumes in microtask**
+
+**Q: `.then()` vs `await` error handling?**  
+A: **`.catch()`** vs **`try/catch`**
+
+**Q: Why `End!` logs before Promise?**  
+A: **Synchronous** → **microtask queue** → **macrotask**
+
+**Q: Infinite `.then()` chain?**  
+A: **Microtask queue** → **blocks macrotasks indefinitely**
+
+## Important Terms & Keywords
+
+**Core Concepts:**
+- **Promise States**: `"pending"` → `"fulfilled"`/`"rejected"`
+- **Microtask Queue**: `.then()`, `.catch()`, `queueMicrotask()`
+- **Macrotask Queue**: `setTimeout()`, `setInterval()`
+- **Async Suspension**: `await` → **microtask resumption**
+
+**Syntax:**
+- **`new Promise((resolve, reject) => {})`**
+- **`.then(onFulfilled).catch(onRejected)`**
+- **`async/await`** - Promise syntactic sugar
+
+**Advanced:**
+- **`Promise.resolve/reject`** - Immediate states
+- **`Promise.all()`** - Parallel racing
+- **Event Loop Priority**: **Call Stack → Microtasks → Macrotasks**
+- **Callback Hell** - Nested async callbacks[1]
+
+[1](https://dev.to/lydiahallie/javascript-visualized-promises-async-await-5gke)

@@ -1,0 +1,145 @@
+TypeScript advanced types here focus on **intersection types** (combine shapes), **type guards** (narrow unions safely), and **type assertions** (force a type when the compiler can’t).[1][2][3]
+
+***
+
+## Intersection Types (page: Intersection Types)
+
+### Core idea
+- Intersection combines multiple types into one:  
+  `type Employee = Identity & Contact;`  
+  New type has **all properties** of `Identity` and `Contact`.[1]
+- Used to model entities that must satisfy **multiple roles** simultaneously (e.g., `Identity & BusinessPartner & Contact`).[1]
+
+Key points:
+- If intersected types share a property with the **same type** (e.g., `name: string`), it’s fine; conflicting types (e.g., `name: string` and `name: number`) cause errors.[1]
+- Order doesn’t matter: `typeA & typeB` is equivalent to `typeB & typeA`.[1]
+
+Best practices & trade‑offs:
+- Use intersections for “has all of these capabilities” modeling (e.g., `Audited & Deletable`).  
+- Avoid intersecting types that may have incompatible fields; prefer composition or refactoring the common shape.
+
+***
+
+## Type Guards (page: Type Guards)
+
+### Concept
+- Type guards **narrow union types** within a scope so TS knows which branch you’re in.[4][2]
+
+Key built‑in guards:
+- `typeof` guard:
+  - For primitives: `if (typeof value === 'string') { /* value: string */ }`.[2][5]
+- `instanceof` guard:
+  - For class instances: `if (value instanceof Date) { /* value: Date */ }`.[6][2]
+- `in` guard:
+  - Check property presence to distinguish shapes:  
+    `if ('email' in contact) { /* contact has email */ }`.[7][2]
+
+Custom type guards:
+- Use **type predicate**:  
+  `function isCustomer(p: Identity | Customer): p is Customer { return 'credit' in p; }`. [2][6]  
+- Inside `if (isCustomer(p))`, `p` is treated as `Customer`.
+
+Best practices:
+- Use `typeof` for primitives, `instanceof` for classes, `in` for property-based discrimination, and custom `is` functions for complex shapes.[8][7]
+- Prefer **discriminated unions** + guards on a discriminant (`kind: 'success' | 'error'`) for robust modeling. [4][9]
+
+***
+
+## Type Assertions (page: Type Assertions)
+
+### Core idea
+- Type assertions tell the compiler “treat this value as type X” when TS can’t infer it directly.[3][10]
+- Syntax:
+  - `value as SomeType` (recommended, JSX‑safe).  
+  - `<SomeType>value` (not for `.tsx`).[11][3]
+
+Common usage:
+- DOM querying:  
+  `const input = document.querySelector('input[type="text"]') as HTMLInputElement; console.log(input.value);`[3]
+- Refining `any` or `unknown`:  
+  `let a: any; const length = (a as string).length;`[12][3]
+
+Error behavior:
+- Compiler may warn or error if assertion is clearly incompatible (e.g., `number as string`).[3]
+- At runtime, assertion does **not** change the value; if the assumption is wrong, you get runtime errors, not type errors.[13][3]
+
+Best practices & trade‑offs:
+- Prefer **type guards** or proper typing over assertions whenever possible; assertions **weaken** type safety.[12][13]
+- When needed, assert toward **subtypes** or more specific DOM types, not unrelated types.  
+- Avoid double casting hacks (`value as unknown as X`) unless absolutely necessary and localized.[14][13]
+
+***
+
+## Advanced Notes (Architect Angle)
+
+- Combine **intersection types + type guards**:
+  - Model “core + capabilities” via intersections (`Base & Audited`) and use property guards to check for capability presence at runtime.[4][1]
+- Custom guards are central in large codebases:
+  - Encapsulate checks like `isApiErrorResponse`, `isFeatureFlagConfig` as reusable predicates for robust control flow analysis.[9][7]
+- Use assertions mainly at:
+  - Framework boundaries (DOM, 3rd‑party libs, serialized JSON), then move to guards and strongly typed wrappers internally.
+
+Big‑tech style guidance (TS handbook & community):
+- Rely on **narrowing + control‑flow analysis**; treat assertions as last resort.[10][4]
+- Use intersections and unions for domain modeling rather than inheritance‑heavy class hierarchies.[4]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What is an intersection type, and when would you use it?**  
+A: An intersection combines multiple types into one new type that has **all properties** of each, e.g., `Identity & BusinessPartner & Contact` for an employee who is also a partner and a contact.[1]
+
+**Q2: How do type guards help with union types?**  
+A: Type guards narrow a union to a specific member within a branch (using `typeof`, `instanceof`, `in`, or custom `is` functions), letting the compiler treat values as more specific types safely.[2][7][8]
+
+**Q3: What is a custom type guard?**  
+A: A function with a type predicate, like `function isCustomer(p: Partner | Customer): p is Customer { return 'credit' in p; }`, which tells TypeScript that inside the `if` block `p` is a `Customer`. [2][6]
+
+**Q4: How do type assertions differ from type annotations?**  
+A: An annotation sets the declared type and is checked; an assertion (`value as T`) **overrides** the compiler’s idea of the type for that expression, turning off some checks and risking runtime errors if wrong.[12][3]
+
+**Q5: When is it appropriate to use a type assertion?**  
+A: At boundaries where the compiler cannot know the real type but you can (e.g., DOM queries, parsing JSON, migrations from `any`). Inside your core domain code, prefer proper typing and guards.[13][3]
+
+**Q6: Can intersection types conflict?**  
+A: Yes, if intersected types declare the **same property with incompatible types**, the intersection is unsatisfiable and causes compile‑time errors (e.g., `name: string` vs `name: number`).[1]
+
+**Q7: In practice, do you prefer type guards or assertions for narrowing?**  
+A: Prefer type guards (built‑in or custom) because they keep the compiler honest and reduce runtime risk; assertions are for exceptional cases where you know more than the compiler.[9][13][4]
+
+***
+
+## Important Terms & Keywords (quick skim)
+
+- Intersection type: `A & B`.[1]
+- `BusinessPartner`, `Identity`, `Contact` → `Employee = Identity & Contact`, `Customer = BusinessPartner & Contact`.[1]
+- Type guard, narrowing, control‑flow analysis.[2][4]
+- `typeof`, `instanceof`, `in` operators.[7][8][2]
+- Custom type guard: `value is Type` predicate.[6][2]
+- Type assertion: `value as Type` / `<Type>value`.[11][3]
+- `any` / `unknown` + assertions.[3][12]
+- Discriminated unions (tagged unions) with guards.[4]
+- Double casting (`as unknown as T`) – use sparingly.[14][13]
+
+[1](https://www.typescripttutorial.net/typescript-tutorial/typescript-intersection-types/)
+[2](https://www.typescripttutorial.net/typescript-tutorial/typescript-type-guards/)
+[3](https://www.typescripttutorial.net/typescript-tutorial/type-assertions/)
+[4](https://www.typescriptlang.org/docs/handbook/advanced-types.html)
+[5](https://ultimatecourses.com/blog/understanding-typescript-typeof-type-guard)
+[6](https://www.typescriptlang.org/play/typescript/language/type-guards.ts.html)
+[7](https://blog.logrocket.com/how-to-use-type-guards-typescript/)
+[8](https://www.w3schools.com/typescript/typescript_type_guards.php)
+[9](https://effectivetypescript.com/2024/02/27/type-guards/)
+[10](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)
+[11](https://www.tutorialsteacher.com/typescript/type-assertion)
+[12](https://www.scaler.com/topics/typescript/typescript-type-assertion/)
+[13](https://basarat.gitbook.io/typescript/type-system/type-assertion)
+[14](https://www.totaltypescript.com/concepts/type-assertions)
+[15](https://mimo.org/glossary/typescript/type-guard)
+[16](https://www.youtube.com/watch?v=FEeEItMtDwg)
+[17](https://www.youtube.com/watch?v=i2aXjcdFEig)
+[18](https://www.geeksforgeeks.org/typescript/explain-type-assertions-in-typescript/)
+[19](https://learntypescript.dev/07/l1-type-assertions/)
+[20](https://www.youtube.com/watch?v=lOuaE3nGS4g)
+[21](https://www.youtube.com/watch?v=Sj1425gwXxQ)

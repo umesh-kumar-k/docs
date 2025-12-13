@@ -1,0 +1,140 @@
+TypeScript interfaces here cover **object contracts, optional/readonly, function & class types, extension, and how they differ from abstract classes.**[1][2][3]
+
+***
+
+## Interfaces: Core Usage (page: Interface)
+
+### Basic object contracts
+- Interfaces give **names to object shapes** so parameters, variables, and return values can be checked against them, e.g. `interface Person { firstName: string; lastName: string; }`.[1]
+- Functions typed with interfaces accept any object that has at least the required properties (structural typing), so extra properties are allowed.[1]
+
+### Optional & readonly properties
+- Optional: `middleName?: string` means the property may be absent; consuming code must handle the `undefined` case.[1]
+- Readonly: `readonly ssn: string` can be set at creation time but not reassigned later.[1]
+
+### Function types via interfaces
+- Interfaces can describe call signatures: `interface StringFormat { (str: string, isUpper: boolean): string }`.[1]
+- Parameter names in implementations can differ; only types and order must match, and extra optional params are allowed.[1]
+
+### Class types
+- Interfaces can be implemented by classes: `class Person implements Json { toJson(): string { ... } }`.[1]
+- This creates contracts independent of class hierarchy, allowing unrelated classes to implement the same interface.[1]
+
+***
+
+## Extending Interfaces (page: Extend Interface)
+
+### Single and multiple extension
+- `extends` copies properties/methods:  
+  `interface B extends A { b(): void }`.[2]
+- Interfaces can extend **multiple interfaces**:  
+  `interface StockItem extends Product, Inventory { ... }` to combine shapes.[4][5]
+
+### Use cases
+- Add behavior: `interface FutureMailable extends Mailable { later(email: string, after: number): boolean }`.[2]
+- Compose concerns: `Admin` extending `User` plus additional fields (`role`, permissions).[4]
+
+Best practice:
+- Build small, focused interfaces and **compose** them via `extends` rather than creating large “god interfaces”.[6][4]
+
+***
+
+## Interfaces vs Abstract Classes (page: Interfaces vs Abstract Classes)
+
+### Differences (high level)
+- Interfaces:
+  - **Shape only**, no implementation or constructors.[3]
+  - Classes can implement **multiple** interfaces.[7][3]
+  - Compile‑time only; no runtime presence (cannot use `instanceof`).[7]
+- Abstract classes:
+  - Provide **shared implementation + abstract members**.[8][3]
+  - Single inheritance: a class can extend only one abstract/base class.[3][7]
+  - Exist at runtime, so usable with `instanceof` and can hold state.[9][7]
+
+### When to use which
+- Interfaces:
+  - Design contracts that multiple, possibly unrelated classes can implement.[3][1]
+  - Prefer for **composition of capabilities** (e.g., `Draggable`, `Serializable`).[6]
+- Abstract classes:
+  - For **families of related types** sharing code and invariants (e.g., `BaseComponent`, `Shape`).[9][3]
+  - Good fit for template‑method style flows where base calls overridable hooks.[9]
+
+Trade‑offs:
+- Interfaces are more flexible and lightweight; abstract classes give stronger coupling but more reuse via shared code.[3][9]
+
+***
+
+## Best Practices & Advanced Notes
+
+- Favor **interfaces** and type aliases for most modeling; use abstract classes when you need shared behavior plus a contract.[10][3]
+- Keep interfaces **narrow and cohesive**; avoid very large contracts that every implementation must satisfy.[6]
+- Use `readonly` on interface properties for immutability at the type level, especially for IDs and other identity fields.[1]
+- Compose via multiple small interfaces: `User & Auditable & SoftDeletable` through extension or intersections for large systems.[11][4]
+
+Large front‑end codebases (Angular, libraries, design systems) generally:
+- Use interfaces for component props, models, service contracts, and external API data.  
+- Use abstract classes only where framework patterns or shared lifecycle logic justify them.[10][3]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What problem do interfaces solve in TypeScript?**  
+A: They provide named contracts for object shapes and functions so TypeScript can enforce structure across parameters, return types, and classes without requiring inheritance.[1]
+
+**Q2: How do optional and readonly properties work on interfaces?**  
+A: `prop?: T` means the property may be missing and is treated as `T | undefined`; `readonly prop: T` can be set at initialization but not reassigned later, enforcing immutability of that member.[1]
+
+**Q3: How can an interface describe a function type?**  
+A: By declaring a call signature, e.g. `interface Formatter { (value: string, upper: boolean): string }`, and then using it as the type of variables or parameters.[1]
+
+**Q4: How do you extend an interface, and why is it useful?**  
+A: Use `extends` to reuse and compose shapes, e.g. `interface Admin extends User { role: string }`; this avoids duplication and supports building larger contracts from smaller ones.[2][4]
+
+**Q5: What are the key differences between an interface and an abstract class?**  
+A: Interfaces only define structure and support multiple implementation; abstract classes contain both implementation and abstract members, exist at runtime, and can only be extended one at a time.[7][3]
+
+**Q6: When would you choose an interface instead of an abstract class?**  
+A: When you just need a contract that multiple unrelated classes can implement, or when you want to compose behavior via multiple small contracts rather than relying on a shared base implementation.[3][1]
+
+**Q7: Why can’t you use `instanceof` with interfaces?**  
+A: Because interfaces are erased at compile time and have no runtime representation, while classes (including abstract classes) compile to JavaScript functions that exist at runtime.[7]
+
+***
+
+## Important Terms & Keywords (quick skim)
+
+- `interface` – named contract for object shape.[1]
+- PascalCase naming: `Person`, `UserProfile`.[1]
+- Optional property: `prop?: Type`.[1]
+- Readonly property: `readonly prop: Type`.[1]
+- Function type interface: `interface Fn { (arg: T): R }`.[1]
+- Class implements interface: `class C implements I { ... }`.[1]
+- `extends` (interfaces extending interfaces).[4][2]
+- Multiple interface extension: `interface X extends A, B {}`.[5]
+- Interfaces vs abstract classes (contract only vs contract + implementation).[9][7][3]
+- Structural typing – extra properties allowed as long as required ones exist.[1]
+
+[1](https://www.typescripttutorial.net/typescript-tutorial/typescript-interface/)
+[2](https://www.typescripttutorial.net/typescript-tutorial/typescript-extend-interface/)
+[3](https://www.typescripttutorial.net/typescript-tutorial/interfaces-vs-abstract-classes/)
+[4](https://www.convex.dev/typescript/core-concepts/object-oriented-programming/typescript-extend-interface)
+[5](https://compiletab.com/extend-multiple-interfaces-typescript/)
+[6](https://codesignal.com/learn/courses/clean-code-with-multiple-classes-2/lessons/clean-code-with-multiple-classes-in-typescript-interfaces-and-abstract-classes)
+[7](https://stackoverflow.com/questions/50110844/what-is-the-difference-between-interface-and-abstract-class-in-typescript/50113607)
+[8](https://www.tutorialsteacher.com/typescript/abstract-class)
+[9](https://khalilstemmler.com/blogs/typescript/abstract-class/)
+[10](https://www.typescriptlang.org/docs/handbook/2/classes.html)
+[11](https://www.scaler.com/topics/typescript/extending-interface-in-typescript/)
+[12](https://www.tektutorialshub.com/typescript/extend-interface-in-typescript/)
+[13](https://blog.logrocket.com/extending-object-like-types-interfaces-typescript/)
+[14](https://www.typescriptlang.org/docs/handbook/interfaces.html)
+[15](https://www.geeksforgeeks.org/typescript/how-to-extend-an-interface-from-a-class-in-typescript/)
+[16](https://dev.to/bilelsalemdev/typescript-tales-unraveling-abstracts-and-interfaces-3bhf)
+[17](https://stackoverflow.com/questions/41385059/possible-to-extend-types-in-typescript)
+[18](https://stackoverflow.com/questions/71538420/how-to-extend-typescript-interface-with-two-another-interfaces-and-add-null-to)
+[19](https://www.reddit.com/r/javahelp/comments/sydso4/when_to_use_an_interface_versus_an_abstract_class/)
+[20](https://www.youtube.com/watch?v=62J_eQsK0e0)
+[21](https://www.typescriptlang.org/docs/handbook/classes.html)
+[22](https://www.webdevtutor.net/blog/typescript-interface-or-abstract-class)
+[23](https://www.youtube.com/watch?v=rOzdMMOhIxY)

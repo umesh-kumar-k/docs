@@ -1,0 +1,190 @@
+# JavaScript Closures - **Lexical Scope Retention**
+
+**Closures**: Inner functions **retain outer scope variables** post-execution. **Lexical scoping** - scope defined by **creation location**. Enables **private vars**, **stateful functions**, **currying**.[1][2]
+
+## Key Topics Section-wise
+
+### Core Mechanism
+**Basic Structure:**
+```javascript
+function outer() {
+  let outerVar = "outer scope";
+  function inner() {     // Closure formed
+    console.log(outerVar); // Accesses outerVar
+  }
+  return inner;
+}
+const closure = outer();
+closure();  // "outer scope" (outerVar retained)
+```
+
+**Lexical Scoping:**
+```
+Scope determined by function DEFINITION location, NOT execution
+inner() defined in outer() → retains outer() scope forever
+```
+
+### Private Variables (Encapsulation)
+**Counter Pattern:**
+```javascript
+function counter() {
+  let count = 0;  // Private
+  return () => count++;  // Controlled access
+}
+const inc = counter();
+inc(); // 1
+inc(); // 2 (state preserved)
+```
+
+### Module Pattern (IIFE)
+**Self-contained API:**
+```javascript
+const module = (function() {
+  let private = 0;
+  return {
+    inc: () => private++,
+    reset: () => private = 0
+  };
+})();
+module.inc(); // 1 (private hidden)
+```
+
+## Key Classes/Interfaces
+
+| Pattern | Closure Role | Access |
+|---------|--------------|--------|
+| **Private State** | `let count = 0` retained | Controlled via returned fns |
+| **`this` Binding** | Loses outer `this` | Fix: `.bind(this)`, arrow fns |
+| **Async Callbacks** | Retains loop vars | `let` (block scope) vs `var` |
+
+**`this` Pitfall:**
+```javascript
+function Obj() {
+  this.val = 42;
+  setTimeout(function() { console.log(this.val); }); // undefined
+}, 0);
+}
+```
+
+## Design Patterns
+
+**1. Function Currying:**
+```javascript
+function add(a) {
+  return function(b) {  // Closure remembers `a`
+    return a + b;
+  };
+}
+const add5 = add(5);
+add5(3); // 8
+```
+
+**2. Memoization (Caching):**
+```javascript
+function memoize(fn) {
+  const cache = {};  // Private cache
+  return (...args) => {
+    const key = JSON.stringify(args);
+    return cache[key] ??= fn(...args);
+  };
+}
+const fastFib = memoize(fib);
+```
+
+**3. Event Listeners:**
+```javascript
+function attachCounter(id) {
+  let count = 0;
+  document.getElementById(id).onclick = () => console.log(++count);
+}
+```
+
+## Best Practices
+
+| Practice | ✅ Benefit | ❌ Avoid |
+|----------|-----------|----------|
+| **`let/const`** in loops | **Block scope** prevents shared closure | `var i` → all timeouts log final `i` |
+| **Minimize captured vars** | **GC friendly** | Capture large DOM/objects |
+| **Arrow functions** | **Lexical `this`** | `function() {}` loses `this` |
+| **Nullify unused refs** | **Enable GC** | Forever-retained closures |
+
+**Loop Fix:**
+```javascript
+// ❌ var (shared closure)
+for (var i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 0); // 3,3,3
+}
+
+// ✅ let (block scope)
+for (let i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 0); // 0,1,2
+}
+```
+
+## Advanced Topics
+
+**Memory Leaks:**
+```
+Closure retains DOM refs → Prevents GC
+Event listeners with closures → Leak city
+Fix: removeEventListener, nullify closures
+```
+
+**Performance:**
+```
+Each closure = scope snapshot → Memory overhead
+Hot paths: Avoid closure creation in loops
+```
+
+**React Hooks Connection:**
+```javascript
+function useCounter() {  // Custom Hook = Closure
+  const [count, setCount] = useState(0);
+  return { count, inc: () => setCount(c => c + 1) };
+}
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: Closure definition?**  
+A: **Inner fn retains outer scope** post-execution via **lexical scoping**[1]
+
+**Q: Why `var` loop + setTimeout prints same `i`?**  
+A: **Shared closure** - all timeouts capture **same `i` var** (hoisted)
+
+**Q: Closure memory impact?**  
+A: **Retains scope** → **prevents GC** → **memory leaks** with DOM refs
+
+**Q: `this` in closures?**  
+A: **Loses outer `this`** → **Use `.bind()`, arrows, or pass `this`**
+
+**Q: Module pattern benefit?**  
+A: **Private vars** via **IIFE closure** → **encapsulation**
+
+**Q: Currying via closure?**  
+A: **Intermediate fns remember** prior args → **partial application**
+
+## Important Terms & Keywords
+
+**Core Concepts:**
+- **Closure** - Inner fn + **retained outer scope**
+- **Lexical Scoping** - Scope by **definition location**
+- **Private Variables** - Hidden via **returned closures**
+
+**Patterns:**
+- **Module Pattern** - **IIFE** + public API
+- **Currying** - **Partial application** via closures
+- **Memoization** - **Cache-retaining closure**
+
+**Pitfalls:**
+- **`var` in loops** - **Shared closure state**
+- **`this` loss** - **Dynamic binding**
+- **Memory Leaks** - **Retained DOM refs**
+
+**Fixes:**
+- **`let/const`** - **Block scope**
+- **Arrow Functions** - **Lexical `this`**
+- **`.bind(this)`** - **Explicit binding**[2][1]
+
+[1](https://www.geeksforgeeks.org/javascript/closure-in-javascript/)
+[2](https://docs.docker.com/guides/angular/develop/)

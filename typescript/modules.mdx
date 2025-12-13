@@ -1,0 +1,157 @@
+TypeScript modules follow the ES6 module model: each file with a top‑level `import` or `export` is a module, with its own scope, and exports must be explicitly imported elsewhere.[1][2]
+
+***
+
+## Core Module Concept
+
+- A module is a **file** that has top‑level `import` or `export`; its variables, functions, classes, interfaces are **not global** unless exported.[1]
+- Other modules must explicitly `import` what they need; this enforces clear boundaries and avoids global namespace pollution.[1]
+
+Key topics:
+- `export` exposes declarations; `import` consumes them.  
+- Relies on the ES6 module system used by modern bundlers and frameworks.[2][1]
+
+***
+
+## Export Patterns
+
+### Direct export on declaration
+- Add `export` before declarations:  
+  `export interface Validator { isValid(s: string): boolean }`.[1]
+- Without `export`, `Validator` remains private to `Validator.ts`.[1]
+
+### Export list and renaming
+- Export afterward:  
+  ```ts
+  interface Validator { isValid(s: string): boolean }
+  export { Validator };
+  ```
+- Rename for consumers:  
+  `export { Validator as StringValidator };` so imports see `StringValidator`.[1]
+
+Best practice:
+- Prefer **named exports** over many defaults for better tooling and tree‑shaking in large FE apps.[2]
+
+***
+
+## Importing Modules
+
+### Named imports
+- Standard:  
+  `import { Validator } from './Validator';`.[1]
+- With renaming:  
+  `import { Validator as StringValidator } from './Validator';` and then implement `class EmailValidator implements StringValidator { ... }`.[1]
+
+### Using imported declarations
+- Implementing contracts across files:
+  - `EmailValidator` implements `Validator` and is itself exported:  
+    ```ts
+    import { Validator } from './Validator';
+    class EmailValidator implements Validator { ... }
+    export { EmailValidator };
+    ```
+
+Best practice:
+- Use relative paths for local modules (`./Validator`) and path mapping/aliases (via `tsconfig`) for larger monorepos.
+
+***
+
+## Importing Types
+
+### `import type`
+- Type‑only import from another module:  
+  `import type { alphanumeric } from './Types';` where `Types.ts` exports `type alphanumeric = string | number;`.[1]  
+- From TS 3.8+, this avoids bringing in runtime dependencies when only types are needed.[3][1]
+
+Best practice:
+- Use `import type` in shared libraries and performance‑sensitive bundles to keep the runtime graph minimal, especially when targeting ESM tree‑shaking.[3][2]
+
+***
+
+## Importing Everything & Re‑exports
+
+### Import all from a module
+- Pattern: `import * as validators from './Validators';` (the tutorial simplifies as `import * from 'module_name';`).[2][1]
+
+### Re‑exports and barrel modules
+- Re‑export all exports from other modules:  
+  ```ts
+  export * from './EmailValidator';
+  export * from './ZipCodeValidator';
+  ```
+  in `FormValidator.ts` to create a **barrel**.[1]
+- Consumers can then import from a single entry point instead of multiple files.
+
+Best practice:
+- Use barrel files at package or feature boundaries to simplify imports and create stable public APIs for teams.[2]
+
+***
+
+## Default Exports
+
+### Declaring and importing default
+- Default export example:  
+  ```ts
+  import { Validator } from './Validator';
+  export default class ZipCodeValidator implements Validator { ... }
+  ```
+- Importing:  
+  `import ZipCodeValidator from './ZipCodeValidator';` and use directly (`new ZipCodeValidator()`).[1]
+
+Trade‑offs:
+- Pros: simpler import syntax; one primary item per module.  
+- Cons: refactoring/renaming across codebase is less explicit; named exports tend to scale better in large repos.[2]
+
+***
+
+## Best Practices & Advanced Notes
+
+- Treat modules as **cohesive units**: group related validators, models, utilities into their own files and expose only what’s needed via `export`.[2][1]
+- Prefer **named exports + barrel modules** for large front‑end applications (Angular/React/Next) to keep import paths stable and clear.[4][2]
+- Use `import type` for purely type‑level imports (models, DTOs) to improve build performance and avoid circular runtime dependencies.[3][1]
+- Avoid mixing **default + lots of named exports** in the same module; pick one primary style to keep APIs consistent across teams.
+
+Big‑tech style patterns:
+- Monorepos (e.g., Google/Meta‑style TypeScript systems) rely on strict module boundaries with lint rules to enforce import layering and path aliases, plus central barrel modules for public APIs.[5][2]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: When does a TypeScript file become a module?**  
+A: When it has a top‑level `import` or `export`; then its declarations live in module scope, not the global scope.[2][1]
+
+**Q2: How do you export and import a named interface?**  
+A: `export interface Validator { ... }` in `Validator.ts`, then `import { Validator } from './Validator';` in another file.[1]
+
+**Q3: What is the purpose of `import type`?**  
+A: It imports only types (no runtime code), helping avoid unnecessary runtime dependencies and improving tree‑shaking and bundling.[3][1]
+
+**Q4: How do you create a barrel module for validators?**  
+A: In `FormValidator.ts`, re‑export others:  
+`export * from './EmailValidator'; export * from './ZipCodeValidator';`, then consumer imports from `FormValidator` instead of each file.[1]
+
+**Q5: How do default exports differ from named exports?**  
+A: A module can have one default export imported without braces (`import Foo from './Foo'`), whereas named exports require braces and exact names (`import { Bar } from './Foo'`).[2][1]
+
+**Q6: Why are named exports usually preferred in large codebases?**  
+A: They make refactoring and usage clearer, support better tooling and tree‑shaking, and avoid ambiguities when multiple things could be considered the “main” export.[4][2]
+
+***
+
+## Important Terms & Keywords (quick skim)
+
+- Module = file with top‑level `import` or `export`.[1]
+- `export` (on declarations, or `export { X }`, `export { X as Y }`).[1]
+- `import { X } from './X';` and `import { X as Y } ...`.[1]
+- `import type { T } from './Types';` (type‑only).[1]
+- `import * as ns from './Module';` (namespace import).[2]
+- Re‑export: `export * from './SomeModule';` (barrel).[1]
+- Default export: `export default class ...` and `import Name from './Module';`.[1]
+- Module scope vs global scope; explicit boundaries.[2][1]
+
+[1](https://www.typescripttutorial.net/typescript-tutorial/typescript-modules/)
+[2](https://www.typescriptlang.org/docs/handbook/2/classes.html)
+[3](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)
+[4](https://www.digitalocean.com/community/tutorials/how-to-use-classes-in-typescript)
+[5](https://www.typescriptlang.org/docs/handbook/advanced-types.html)

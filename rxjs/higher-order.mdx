@@ -1,6 +1,6 @@
 # RxJS Higher-Order Operators
 
-Higher-order operators flatten **Observable<Observable>** (metastreams): **concatMap** (sequential), **switchMap** (cancel previous), **mergeMap** (parallel), **exhaustMap** (ignore new while busy).[1]
+Higher-order operators flatten **`Observable<Observable>`** (metastreams): **concatMap** (sequential), **switchMap** (cancel previous), **mergeMap** (parallel), **exhaustMap** (ignore new while busy).[1]
 
 ## Key Topics Section-wise
 
@@ -108,12 +108,12 @@ A: `mergeMap()` or `switchMap()` instead of inner `.subscribe()`
 
 ## Important Terms & Keywords
 
-- **Higher-Order Operator** - Flattens Observable<Observable>
+- **Higher-Order Operator** - Flattens `Observable<Observable>`
 - **concatMap()** - Sequential flattening
 - **switchMap()** - Cancel previous + flatten
 - **mergeMap()** - Parallel flattening
 - **exhaustMap()** - Ignore new while busy
-- **Metastream** - Observable<Observable<T>>
+- **Metastream** - `Observable<Observable<T>>`
 - **Typeahead Pattern** - debounce + distinct + switchMap
 - **Nested Subscribe** - Anti-pattern to avoid
 - **Route Params** - switchMap use case

@@ -1,0 +1,175 @@
+# Git Advanced Tutorial (Atlassian) - **COMPLETE 16-Article Breakdown**
+
+**Git Advanced**: **Rebase vs Merge**, **3 Trees Undo**, **Log filtering**, **Hooks**, **Refs/Reflog**, **Submodules/Subtree**, **Big Repo handling**, **GC/Prune**.[-16][1][2]
+
+## **📋 PAGE-BY-PAGE SECTION BREAKDOWN**
+
+### **1. Merging vs Rebasing **[1]
+**Merge**: Creates **merge commit** (non-destructive, preserves history)
+```
+git checkout feature; git merge main
+```
+**Rebase**: **Rewrites history** (linear, no merge commits)
+```
+git checkout feature; git rebase main
+```
+**Interactive**: `git rebase -i HEAD~3` (`pick/fixup/squash`)
+
+### **2. Reset/Checkout/Revert **[2]
+**3 Trees**: Working → Staging → Commit History
+| Command | Commit Scope | File Scope | Effect |
+|---------|--------------|------------|--------|
+| **reset** | `--hard/soft/mixed` | `HEAD file` | Moves branch/trees |
+| **checkout** | `branch/commit` | `HEAD~2 file` | Moves HEAD |
+| **revert** | `HEAD~1` | N/A | New undo commit |
+
+**Private**: reset/checkout; **Public**: revert
+
+### **3. Advanced Git Log **[3]
+**Formatting**:
+```
+--oneline --decorate --graph  # Branch viz
+--stat/-p                     # Diffs
+--pretty=format:"%cn %h %cd"  # Custom
+shortlog -n                   # Author summary
+```
+**Filtering**:
+```
+-3                           # Last N
+--after="2024-01-01"         # Date
+--author="John" --grep=BUG   # Author/message
+-S"code" -G"regex"           # Content
+main..feature --no-merges    # Range
+```
+
+### **4. Git Hooks **[4]
+**Local** (`.git/hooks/`):
+- **pre-commit**: Validate staging (`git diff --check`)
+- **prepare-commit-msg**: Auto-issue# (`git symbolic-ref HEAD`)
+- **commit-msg**: Enforce format
+- **post-checkout**: Clean `.pyc`
+
+**Server**:
+```
+pre-receive/update: Reject bad pushes (stdin: old..new ref)
+post-receive: CI notifications
+```
+
+### **5. Refs & Reflog **[5]
+**Refs**: `.git/refs/heads/main` (branch files)
+```
+HEAD~2    # Ancestors
+HEAD^2    # 2nd parent (merge)
+refs/heads/feature
+```
+**Packed**: `git gc` → `.git/packed-refs`
+**Refspecs**: `main:qa-main` (push/fetch rename)
+**Reflog**: `git reflog` (90d safety net)
+
+### **6. Git Submodule **[6]
+**Static pointer** to external repo commit
+```
+git submodule add URL path
+git submodule update --init --recursive
+```
+**Workflow**: Commit submodule → Update parent → Push both
+**.gitmodules**: `[submodule "path"] url=...`
+
+### **7. Git Subtree **[7]
+**Alternative**: Inline sub-repo (no .gitmodules)
+```
+git subtree add --prefix=dir/ remote branch --squash
+git subtree pull --prefix=dir/ remote branch --squash
+```
+**Push back**: `git subtree push --prefix=dir/ upstream main`
+
+### **8. Big Repositories **[8]
+**Shallow**: `git clone --depth 1`
+**Single-branch**: `--single-branch branch`
+**Sparse-checkout**: `.git/info/sparse-checkout`
+**Filter-branch**: `rm -rf binaries` (rewrites history)
+**LFS**: Large files externalized
+
+### **9. Git GC **[9]
+**Garbage Collection**: Packs/compresses/prunes
+```
+gc --aggressive  # Deep optimize
+gc --auto        # Threshold-based
+gc.reflogExpire=90d  # Config
+```
+**Auto-runs**: commit/push/fetch
+
+### **10. Git Prune **[10]
+**Orphan cleanup**: Unreachable commits
+```
+prune --expire=now --dry-run  # After reflog expire
+```
+**Child of gc**: Don't run standalone
+
+## **Best Practices & Trade-offs**
+
+| Technique | ✅ Pro | ❌ Con |
+|-----------|--------|---------|
+| **Rebase** | Linear history | Never public branches |
+| **Subtree > Submodule** | Inline, no init | Manual upstream contrib |
+| **Shallow clone** | Fast | Limited history |
+| **Hooks** | Automate policy | Local-only (symlink) |
+| **gc --auto** | Hands-off | Occasional manual aggressive |
+
+## **Interview Cheat Sheet**
+
+**Q: Rebase Golden Rule?**  
+A: **Never public branches** (`git rebase` rewrites → force-push chaos)[1]
+
+**Q: reset --soft vs --hard?**  
+A: **soft**: Keep staging; **hard**: Nuke working+staging[2]
+
+**Q: Find "BUG" commits?**  
+A: `git log --grep=BUG -i --author=John`[3]
+
+**Q: Enforce commit ISSUE-123?**  
+A: **commit-msg hook**: Check `ISSUE-\d+` regex[4]
+
+**Q: Recover lost commit?**  
+A: `git reflog` → `git checkout HEAD@{2}`[5]
+
+**Q: Submodule vs Subtree?**  
+A: **Submodule**: Pointer (init needed); **Subtree**: Inline (--squash)[6][7]
+
+**Q: Big repo clone?**  
+A: `--depth 1 --single-branch main`[8]
+
+## **Important Terms & Keywords**
+
+**History (5)**:
+- **Rebase/Merge**: `--onto/-i/fixup/squash`
+- **reset/checkout/revert**: `--soft/mixed/hard`, 3 Trees
+- **log**: `--oneline/graph/stat/-p/-S/-G`, ranges `A..B`
+
+**Refs/Recovery (4)**:
+- **Refs**: `heads/tags/remotes`, **packed-refs**, **refspecs** `src:dst`
+- **Reflog**: `HEAD@{0}`, `reflog expire`
+- **Relative**: `HEAD~2 ^1`
+
+**Automation (3)**:
+- **Hooks**: `pre-commit/prepare-commit-msg/post-checkout`, `.git/hooks/`
+- **GC/Prune**: `--aggressive/auto/expire=now`
+
+**Advanced Structures (5)**:
+- **Submodule**: `.gitmodules`, `update --init --recursive`
+- **Subtree**: `--prefix=dir/ --squash`
+- **Big Repo**: `--depth/shallow/sparse-checkout/filter-branch/LFS`
+
+**Maintenance (2)**:
+- **gc/prune**: Orphan cleanup, pack compression[-10]
+
+[1](https://www.atlassian.com/git/tutorials/merging-vs-rebasing)
+[2](https://www.atlassian.com/git/tutorials/resetting-checking-out-and-reverting)
+[3](https://angular.dev/api/core/rxjs-interop/toObservable)
+[4](https://v18.angular.jp/guide/signals/rxjs-interop)
+[5](https://dev.to/cristiansifuentes/angular-rxjs-in-2025-the-experts-playbook-signals-rxjs-8-and-interop-28ed)
+[6](https://github.com/angular/angular/discussions/49681)
+[7](https://stackoverflow.com/questions/76856822/angular-tosignaltoobservable-does-return-undefined)
+[8](https://www.youtube.com/watch?v=5SD995zKvbk)
+[9](https://www.reddit.com/r/Angular2/comments/1g7ymmt/integrating_rxjs_with_signals_in_angular_18_for/)
+[10](https://angular.fr/signals/rxjs)

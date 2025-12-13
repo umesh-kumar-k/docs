@@ -1,0 +1,227 @@
+# JavaScript Prototypal Inheritance - **DETAILED** Chain Walking
+
+**Prototype Chain**: Objects inherit via `__proto__` → `Constructor.prototype`. **Classes** = constructor sugar. **Memory efficient** - shared methods. Chain ends at `Object.prototype` → `null`.[1]
+
+## **DETAILED Section-wise Breakdown**
+
+### **1. Constructor Functions → Prototypes**
+
+**Dog Example Creation:**
+```javascript
+function Dog(name, breed, color) {
+  this.name = name;
+  this.breed = breed;
+  this.color = color;
+}
+// AUTO-CREATED: Dog.prototype = { constructor: Dog }
+```
+
+**Instance + Prototype:**
+```
+dog1 = new Dog("Daisy", "Labrador", "black")
+↓
+dog1: {name:"Daisy", breed:"Labrador", color:"black", __proto__: Dog.prototype}
+Dog.prototype: {constructor: Dog, bark: function() {...}}
+```
+
+**Non-enumerable `__proto__`:**
+```javascript
+console.log(Object.keys(dog1));  // ["name","breed","color"] - NO __proto__
+console.log(dog1.__proto__ === Dog.prototype);  // true
+```
+
+### **2. Prototype Chain Resolution**
+
+**Property Lookup Algorithm:**
+```
+obj.foo ? → Local properties
+  ↓ No
+__proto__.foo ? → Dog.prototype
+  ↓ No  
+Dog.prototype.__proto__.foo ? → Object.prototype  
+  ↓ No
+Object.prototype.__proto__ === null ? → undefined
+```
+
+**Built-in Methods Source:**
+```
+dog1.toString()  // NOT on dog1, NOT on Dog.prototype
+                 // YES on Object.prototype.toString
+```
+
+### **3. Memory Efficiency (Shared Methods)**
+
+**Before Optimization:**
+```
+dog1.bark = function() { console.log('Woof!'); }  // 1 copy
+dog2.bark = function() { console.log('Woof!'); }  // 2nd copy ❌
+```
+
+**Prototype Solution:**
+```javascript
+Dog.prototype.bark = function() { console.log('Woof!'); }
+// dog1.bark, dog2.bark → SAME function (shared) ✅
+```
+
+### **4. ES6 Classes (Syntactic Sugar)**
+
+**Equivalent Syntax:**
+```javascript
+// ES5 Constructor
+function Dog(name) { this.name = name; }
+Dog.prototype.bark = function() { return 'Woof!'; };
+
+// ES6 Class (SAME under hood)
+class Dog {
+  constructor(name) { this.name = name; }
+  bark() { return 'Woof!'; }  // → Dog.prototype.bark
+}
+```
+
+**Class Extension:**
+```javascript
+class Chihuahua extends Dog {
+  constructor(name) { super(name); }
+  smallBark() { return 'Small woof!'; }
+}
+// Chihuahua.prototype.__proto__ === Dog.prototype
+```
+
+**Chain Access:**
+```
+myPet = new Chihuahua("Tiny")
+myPet.bark()      // Dog.prototype
+myPet.smallBark() // Chihuahua.prototype
+myPet.toString()  // Object.prototype
+```
+
+### **5. Object.create() Manual Linking**
+
+**Direct Prototype Assignment:**
+```javascript
+const person = { name: 'Lydia', age: 25 };
+const me = Object.create(person);  // me.__proto__ === person
+
+console.log(me.name);  // "Lydia" (inherited)
+me.name = 'John';      // Shadowing (local override)
+console.log(me.name);  // "John"
+console.log(person.name);  // "Lydia" (unchanged)
+```
+
+## Key Classes/Interfaces
+
+| Property | Access | Writable |
+|----------|--------|----------|
+| **`__proto__`** | `obj.__proto__` | ✅ (mutates chain) |
+| **`prototype`** | `Constructor.prototype` | ✅ (shared methods) |
+| **`constructor`** | `Dog.prototype.constructor` | Default reference |
+
+**Chain Detection:**
+```javascript
+let obj = dog1;
+while (obj !== null) {
+  console.log(obj);
+  obj = obj.__proto__;
+}
+// dog1 → Dog.prototype → Object.prototype → null
+```
+
+## Design Patterns
+
+**1. Method Sharing:**
+```javascript
+// ✅ Shared (1 copy)
+Array.prototype.shuffle = function() { /* impl */ };
+[1,2,3].shuffle();  // All arrays share
+
+// ❌ Per-instance (N copies)
+const arr1 = { shuffle: fn };  // Wastes memory
+```
+
+**2. Plugin System:**
+```javascript
+const PluginHost = { plugins: [] };
+PluginHost.install = function(plugin) {
+  this.plugins.push(plugin);
+  plugin.install(this);
+};
+const logger = Object.create(PluginHost);
+logger.log = function(msg) { console.log(msg); };
+```
+
+## Best Practices
+
+| Practice | ✅ Why | ❌ Avoid |
+|----------|--------|----------|
+| **Prototype methods** | **Memory efficient** | Instance methods |
+| **Don't mutate builtins** | Conflicts | `Array.prototype.foo` |
+| **Shadow intentionally** | Local override | Accidental |
+| **`Object.create(null)`** | **No prototype pollution** | `Object.create({})` |
+
+**Safe Dictionary:**
+```javascript
+const dict = Object.create(null);  // No Object.prototype
+dict.hasOwnProperty = 'hacked';    // Safe (no inheritance)
+```
+
+## Advanced Topics
+
+**Prototype Pollution (Security):**
+```javascript
+// VULNERABLE
+function merge(obj, userData) {
+  Object.assign(obj, JSON.parse(userData));
+}
+// userData: {"__proto__": {"admin": true}}
+// Object.prototype.admin === true ❌
+```
+
+**Non-enumerable Protection:**
+```javascript
+Object.defineProperty(Object.prototype, 'secret', {
+  value: 42, enumerable: false, writable: false
+});
+// for...in loops SKIP it
+```
+
+## Interview Cheat Sheet (Q&A)
+
+**Q: `dog1.toString()` source?**  
+A: **Object.prototype.toString** (via prototype chain)[1]
+
+**Q: ES6 class vs constructor function?**  
+A: **Syntactic sugar** - identical prototype behavior
+
+**Q: Why prototype methods memory efficient?**  
+A: **Single shared copy** - all instances reference same function
+
+**Q: `Object.create(null)` purpose?**  
+A: **Dictionary** - no prototype pollution risk
+
+**Q: Shadowing vs Inheritance?**  
+A: **Local property shadows** prototype - `me.name = 'John'` hides inherited
+
+**Q: Chain termination?**  
+A: **`Object.prototype.__proto__ === null`**
+
+## Important Terms & Keywords
+
+**Core Concepts:**
+- **Prototype Chain** - `__proto__` linked objects
+- **`__proto__`** - Instance → prototype reference
+- **`prototype`** - Constructor → shared object
+
+**Creation:**
+- **`new Constructor()`** - Instance + prototype link
+- **`Object.create(proto)`** - Manual prototype assignment
+- **`class`** - ES6 constructor sugar
+
+**Chain:**
+- **`Dog.prototype.__proto__ === Object.prototype`**
+- **`Object.prototype.__proto__ === null`**
+
+**Security:**
+- **Prototype Pollution** - Malicious `__proto__` mutation
+- **`Object.create(null)`** - Pollution-safe dict[1]
+
+[1](https://dev.to/lydiahallie/javascript-visualized-prototypal-inheritance-47co)

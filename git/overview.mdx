@@ -1,0 +1,291 @@
+# Git Tutorial (Atlassian) - **COMPLETE 12-Article Breakdown**
+
+**Git**: **Distributed VCS** with lightweight **branches** (pointers to commits). **3 Trees**: Working Directory → Staging → Repository. **Workflows**: Centralized → Feature Branch → Gitflow → Forking.[-12][1][2]
+
+## **📋 PAGE-BY-PAGE SECTION BREAKDOWN**
+
+### **1. Git SSH Keys **[1]
+**SSH Key Concept**:
+- **Public key** = "lock" (shared)
+- **Private key** = "key" (secret)
+- **RSA/DSA**: 4096-bit recommended
+
+**Mac/Linux Generation**:
+```
+ssh-keygen -t rsa -b 4096 -C "email@domain.com"
+# Default: ~/.ssh/id_rsa (private), id_rsa.pub (public)
+# Passphrase: Optional extra security
+eval "$(ssh-agent -s)"  # Start agent
+ssh-add ~/.ssh/id_rsa   # Load private key
+```
+
+**Windows**: Git Bash or WSL (same commands)
+
+### **2. Git Archive **[2]
+**Purpose**: Export **commit/branch/tree** → **tar/zip/tar.gz** (no Git metadata)
+
+**Basic Usage**:
+```
+git archive --format=tar HEAD > repo.tar           # Current HEAD
+git archive --output=repo.tar.gz HEAD ./build/     # Subdir only
+git archive --remote=git@github.com:user/repo.git HEAD | tar -x  # Remote
+```
+
+**Options**:
+| Flag | Effect |
+|------|--------|
+| `--prefix=app/` | Prepend path |
+| `--remote=URL` | Archive from remote |
+| `tar.umask` | File permissions |
+
+### **3. GitOps **[3]
+**Definition**: **Git as single source of truth** for IaC (declarative configs)
+```
+PR → Pipeline → Operator → K8s/Terraform sync
+WeaveWorks → Kubernetes-native GitOps pioneer
+```
+
+**Imperative → Declarative**:
+```
+❌ Install OS → deps → code → 3x more
+✅ "4 machines run app X in dir Y"
+```
+
+**Operator**: Syncs Git state → live infra
+
+### **4. Setting Up Repository **[4]
+**git init** (Local):
+```
+cd /path/to/project
+git init                    # Creates .git/
+git config --global user.name "John"
+git config --global user.email "john@ex.com"
+```
+
+**git clone** (Remote):
+```
+git clone git@github.com:user/repo.git  # SSH
+git clone https://github.com/user/repo  # HTTPS
+# Auto-creates 'origin' remote
+```
+
+**First Commit**:
+```
+echo "test" > file.txt
+git add file.txt
+git commit -m "Initial commit"
+git remote add origin git@github.com:user/repo.git
+git push -u origin main
+```
+
+### **5. Saving Changes **[5]
+**3 Trees Flow**:
+```
+Working Dir → git add → Staging → git commit → Repo
+```
+
+**git add Options**:
+```
+git add file.txt              # Single file
+git add .                     # All changes
+git add -p                    # Interactive (patch mode)
+git add --all                 # Everything (new+modified)
+```
+
+**Staging Benefits**:
+- **Atomic commits** (related changes only)
+- **Split large changes** across commits
+
+### **6. Inspecting Repository **[6]
+**git status**:
+```
+Changes staged: git reset HEAD <file>
+Changes unstaged: git add <file>
+Untracked: git add <file> | .gitignore
+```
+
+**git log Options**:
+| Command | Output |
+|---------|--------|
+| `git log --oneline` | 1-line commits |
+| `git log --stat` | File changes + lines |
+| `git log -p` | Full diffs |
+| `git log --author="John"` | Author filter |
+| `git log --graph --oneline --decorate` | Branch graph |
+| `git log main..feature` | Branch range |
+
+**.gitignore**: `*.pyc`, `node_modules/`
+
+### **7. Undoing Changes **[7]
+**Local (Unpublished)**: `git reset`
+```
+git reset --soft HEAD~1     # Undo commit, keep staging
+git reset --mixed HEAD~1    # Undo commit+staging, keep working dir
+git reset --hard HEAD~1     # Nuke everything to previous commit
+```
+
+**Public (Shared)**: `git revert`
+```
+git revert HEAD             # New commit undoing last commit
+```
+
+**Files Only**:
+```
+git checkout HEAD -- file.txt  # Restore single file
+git clean -fd                  # Remove untracked
+```
+
+**Safety**: `git reflog` (90-day history)
+
+### **8. Rewriting History **[8]
+**git commit --amend** (Last Commit):
+```
+git commit --amend -m "Better message"           # Edit message
+git add forgot.txt; git commit --amend --no-edit # Add to last commit
+❌ Never amend pushed commits
+```
+
+**git rebase -i** (Interactive):
+```
+pick 872fa7e Try crazy
+s 0254ea7 Fix typo     # squash into previous
+# Editor opens → combine messages
+```
+
+**Squash**: `s` merges commits (clean history)
+
+### **9. Syncing (Remotes) **[9]
+**git remote**:
+```
+git remote -v                   # List remotes + URLs
+git remote add upstream git@github.com:org/repo.git
+git remote rm old-remote
+git remote rename old new
+```
+
+**URLs**:
+```
+SSH: git@github.com:user/repo.git (auth)
+HTTPS: https://github.com/user/repo.git (token)
+```
+
+**Fetch/Pull/Push**:
+```
+git fetch origin              # Update remotes
+git pull origin main          # Fetch+merge
+git push origin feature       # Publish branch
+git push origin :feature      # Delete remote branch
+```
+
+### **10. Pull Requests **[10]
+**Anatomy**: Source Repo/Branch → Destination Repo/Branch
+```
+Fork → Feature branch → PR → Review → Merge → Delete branch
+```
+
+**Workflows**:
+- **Feature Branch**: Same repo, feature→main
+- **Gitflow**: feature→develop, release→main+develop
+- **Forking**: Your fork→Official main
+
+**Bitbucket**: Inline comments, follow-up commits auto-added
+
+### **11. Using Branches **
+**Branches = Lightweight Pointers**:
+```
+git branch feature           # Create (no switch)
+git checkout -b feature      # Create+switch
+git checkout main            # Switch
+git branch -d feature        # Safe delete
+git branch -D feature        # Force delete
+git branch -a                # All (local+remote)
+```
+
+**Remote Branches**:
+```
+git push origin feature
+git push origin :feature     # Delete remote
+```
+
+### **12. Comparing Workflows **
+| Workflow | Branching | Scale | Use Case |
+|----------|-----------|-------|----------|
+| **Centralized** | main only | Small | SVN→Git migration |
+| **Feature Branch** | feature→main PRs | Medium | Continuous integration |
+| **Gitflow** | main/develop + feature/release/hotfix | Large | Release cycles |
+| **Forking** | Fork→PR→main | OSS/External | Open source contribs |
+
+**Guidelines**:
+- **Short-lived branches** (min merge conflicts)
+- **Match release cadence** (tags for versions)
+- **Easy reverts** (rebase vs merge commits)
+
+## **Best Practices & Trade-offs**
+
+| Practice | ✅ Pro | ❌ Con |
+|----------|--------|---------|
+| **Feature branches** | **Isolation** | Merge conflicts |
+| **PRs before merge** | **Review/feedback** | Overhead |
+| **Rebase > Merge** | **Linear history** | Rewrites shared commits |
+| **Squash commits** | **Clean history** | Loses granular history |
+| **SSH > HTTPS** | **Passwordless** | Key management |
+
+## **Interview Cheat Sheet**
+
+**Q: SSH Key Generation?**  
+A: `ssh-keygen -t rsa -b 4096 -C "email"` → `~/.ssh/id_rsa(.pub)`[1]
+
+**Q: 3 Git Trees?**  
+A: **Working → Staging (`git add`) → Repo (`git commit`)**[5]
+
+**Q: Undo published vs local commit?**  
+A: **Published**: `git revert`; **Local**: `git reset --hard`[7]
+
+**Q: `git log main..feature`?**  
+A: **Commits in feature NOT in main**[6]
+
+**Q: `git rebase -i` commands?**  
+A: `pick/squash/edit/drop/reword`[8]
+
+**Q: Centralized vs Feature Branch?**  
+A: **Centralized**: SVN-like (main only); **Feature**: Isolation+PRs
+
+## **Important Terms & Keywords**
+
+**Setup/Auth (5)**:
+- **SSH Keys**: `ssh-keygen`, `ssh-agent`, `~/.ssh/id_rsa.pub`
+- **git init/clone**: Local vs remote repo
+- **git remote**: `add/rm/rename`, `origin/upstream`
+
+**Core Workflow (8)**:
+- **3 Trees**: Working/Staging/Repo
+- **git add/status/commit**: Stage→snapshot
+- **git log**: `--oneline/-p/--graph/--stat`
+- **.gitignore**: `*.pyc`, `node_modules/`
+
+**Branches/Collaboration (7)**:
+- **git branch/checkout**: Create/switch
+- **Pull Requests**: Source→Dest repo/branch
+- **git push/pull/fetch**: Sync remotes
+
+**Undo/Rewrite (6)**:
+- **git reset**: `--soft/mixed/hard` (local)
+- **git revert**: Safe public undo
+- **git rebase -i**: `pick/squash/edit`
+- **git reflog**: 90-day safety net
+
+**Advanced (6)**:
+- **git archive**: Export tar/zip (no history)
+- **GitOps**: Git=Infra truth (K8s operator)
+- **Workflows**: Centralized/Feature/Gitflow/Forking[-12][2][1]
+
+[1](https://www.atlassian.com/git/tutorials/git-ssh)
+[2](https://www.atlassian.com/git/tutorials/export-git-archive)
+[3](https://angular.dev/api/core/rxjs-interop/toObservable)
+[4](https://v18.angular.jp/guide/signals/rxjs-interop)
+[5](https://dev.to/cristiansifuentes/angular-rxjs-in-2025-the-experts-playbook-signals-rxjs-8-and-interop-28ed)
+[6](https://github.com/angular/angular/discussions/49681)
+[7](https://stackoverflow.com/questions/76856822/angular-tosignaltoobservable-does-return-undefined)
+[8](https://www.youtube.com/watch?v=5SD995zKvbk)
+[9](https://www.reddit.com/r/Angular2/comments/1g7ymmt/integrating_rxjs_with_signals_in_angular_18_for/)
+[10](https://angular.fr/signals/rxjs)

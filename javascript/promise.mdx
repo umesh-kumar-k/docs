@@ -1,0 +1,219 @@
+# JavaScript Promises - **DETAILED** Internal Execution
+
+**Promises** = **Objects** with **internal slots** (`[[PromiseState]]`, `[[PromiseResult]]`, `[[PromiseFulfillReactions]]`). **Microtask Queue** execution via **PromiseReaction** records. **Chaining** creates new promises.[1]
+
+## **DETAILED Section-wise Breakdown**
+
+### **1. Promise Constructor & Internal Slots**
+
+**Creation Process:**
+```
+new Promise((resolve, reject) => { ... })
+↓
+1. Promise Object created
+2. Promise Capability record created
+3. Executor function executes SYNCHRONOUSLY
+```
+
+**Core Internal Slots:**
+| Slot | Initial | Resolved | Rejected |
+|------|---------|----------|----------|
+| **`[[PromiseState]]`** | `"pending"` | `"fulfilled"` | `"rejected"` |
+| **`[[PromiseResult]]`** | `undefined` | `resolve(value)` | `reject(reason)` |
+| **`[[PromiseFulfillReactions]]`** | `[]` | **PromiseReaction records** | `[]` |
+| **`[[PromiseRejectReactions]]`** | `[]` | `[]` | **PromiseReaction records** |
+
+**Example State Evolution:**
+```javascript
+const p = new Promise((res, rej) => {
+  setTimeout(() => res("Done!"), 100);  // Async later
+});
+// State: { [[PromiseState]]: "pending", [[PromiseResult]]: undefined }
+```
+
+### **2. PromiseReaction Records (.then/.catch)**
+
+**Handler Registration:**
+```javascript
+p.then(onFulfilled, onRejected);
+// Creates PromiseReaction {
+//   [[Handler]]: onFulfilled,
+//   [[PromiseIsHandled]]: true
+// }
+// → Added to [[PromiseFulfillReactions]]
+```
+
+**Resolution Trigger:**
+```
+resolve("Done!") →
+1. [[PromiseState]] = "fulfilled"
+2. [[PromiseResult]] = "Done!"
+3. EACH PromiseReaction → Microtask Queue
+4. Event Loop: ALL microtasks before tasks
+```
+
+**Complete Timeline:**
+```javascript
+console.log("1");  // Sync
+const p = new Promise(res => setTimeout(() => res("2"), 0));
+p.then(v => console.log(v));  // Microtask queued
+console.log("3");  // Sync
+// Output: 1 → 3 → 2 (sync → sync → microtasks)
+```
+
+### **3. Async Integration (Realistic Usage)**
+
+**setTimeout + Promise Pattern:**
+```javascript
+const p = new Promise((resolve, reject) => {
+  // 1. Constructor → Call Stack (sync)
+  setTimeout(() => {
+    // 2. Web API timer (async) → Task Queue
+    resolve("Data loaded!");
+  }, 100);
+  // 3. Constructor pops (non-blocking)
+});
+// 4. .then() → PromiseReaction (Microtask when resolved)
+```
+
+**Execution Flow:**
+```
+Call Stack: new Promise(executor) → setTimeout → pops
+Web APIs:   Timer running (100ms)
+.then():    PromiseReaction queued in [[PromiseFulfillReactions]]
+Timer done: resolve() → Microtask Queue ← .then handler
+```
+
+### **4. Promise Chaining (Multiple Promises)**
+
+**Each .then() Creates New Promise:**
+```javascript
+Promise.resolve(1)
+  .then(v => v * 2)     // Promise #2: result=2
+  .then(v => v * 2)     // Promise #3: result=4
+  .then(v => console.log(v));  // Promise #4: result=undefined
+```
+
+**Chaining Mechanics:**
+```
+Promise #1: [[PromiseResult]]=1
+  ↓ .then(v=>v*2)
+Promise #2: [[PromiseResult]]=2  ← New object!
+  ↓ .then(v=>v*2) 
+Promise #3: [[PromiseResult]]=4
+  ↓ .then(console.log)
+Promise #4: [[PromiseResult]]=undefined  ← Implicit
+```
+
+**Value Propagation:**
+```
+.then(v => v * 2)  // Input: 1 → Output: 2 (becomes next input)
+.then(v => v * 2)  // Input: 2 → Output: 4
+```
+
+## **Key Classes/Interfaces (Internal)**
+
+| Internal Object | Purpose | Key Fields |
+|-----------------|---------|------------|
+| **`Promise Object`** | Core promise | `[[PromiseState]]`, `[[PromiseResult]]`, `[[PromiseFulfillReactions]]` |
+| **`PromiseReaction`** | Handler record | `[[Handler]]` (callback), `[[PromiseIsHandled]]` |
+| **`PromiseCapability`** | Resolve/reject control | Internal resolve/reject functions |
+
+## **Design Patterns**
+
+**1. Image Processing Pipeline:**
+```javascript
+async function processImage(image) {
+  return fetch(image)
+    .then(res => res.blob())           // Download
+    .then(blob => resize(blob, 800))   // Resize
+    .then(img => applyFilter(img))     // Filter
+    .then(img => addWatermark(img))    // Watermark
+    .then(img => img);                 // Final
+}
+```
+
+**2. Error Propagation:**
+```javascript
+fetch('/api')
+  .then(res => {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  })
+  .catch(err => console.error('Failed:', err));  // Bubbles up
+```
+
+## **Best Practices**
+
+| Practice | ✅ Why |
+|----------|--------|
+| **`return` in .then()** | **Value chaining** (`v * 2` → next input) |
+| **Error handling** | `.catch()` or `try/catch` with async |
+| **Avoid nested promises** | Chain `.then()` instead of pyramid |
+| **Clean rejection** | `reject(new Error('reason'))` |
+
+**Anti-pattern:**
+```javascript
+// ❌ No return → undefined propagates
+p.then(() => console.log('side effect'))
+ .then(v => console.log(v));  // undefined!
+```
+
+## **Advanced Topics**
+
+**1. Implicit undefined Return:**
+```javascript
+p.then(() => { /* no return */ });  // Returns Promise<undefined>
+```
+
+**2. Microtask Execution (Event Loop Integration):**
+```
+resolve() → PromiseReaction → Microtask Queue → .then() executes
+                                                      ↑
+                                              Higher priority than setTimeout
+```
+
+**3. Promise.isHandled Flag:**
+```
+Uncaught (in promise) → [[PromiseIsHandled]]=false → Console warning
+```
+
+## **Interview Cheat Sheet (Q&A)**
+
+**Q: Promise constructor executor timing?**  
+A: **Synchronous** - runs immediately during construction[1]
+
+**Q: `.then()` creates what internally?**  
+A: **PromiseReaction record** → `[[PromiseFulfillReactions]]` + **new Promise**
+
+**Q: Chaining value propagation?**  
+A: **.then() return value** → `[[PromiseResult]]` of new promise → next `.then()` input
+
+**Q: Why `.then()` after sync code?**  
+A: **Microtask Queue** - executes after synchronous code, before tasks
+
+**Q: `new Promise(res => setTimeout(res, 0))` timing?**  
+A: **Timer Task** → resolve → **Microtask** → higher priority than timer callback
+
+**Q: Last `.then(console.log)` result?**  
+A: **`undefined`** - implicit return
+
+## **Important Terms & Keywords**
+
+**Core Objects:**
+- **Promise Object** - `[[PromiseState]]`, `[[PromiseResult]]`
+- **PromiseReaction** - `.then/.catch` handler record
+- **PromiseCapability** - Internal resolve/reject control
+
+**Internal Slots:**
+- **`[[PromiseState]]`** - `"pending"|"fulfilled"|"rejected"`
+- **`[[PromiseFulfillReactions]]`** - List of `.then()` handlers
+- **`[[PromiseRejectReactions]]`** - List of `.catch()` handlers
+
+**Execution Flow:**
+- **Executor** - Synchronous constructor callback
+- **Microtask Queue** - Promise handlers (high priority)
+- **Promise Chaining** - Each `.then()` → new Promise
+- **Value Propagation** - Return value → next input[1]
+
+[1](https://www.lydiahallie.com/blog/promise-execution)
