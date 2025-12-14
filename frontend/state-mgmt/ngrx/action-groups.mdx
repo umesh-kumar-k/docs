@@ -1,0 +1,174 @@
+# NgRx Action Groups: Typed Action Factories
+
+NgRx **Action Groups** provide **typed action factories** with namespace prefixing and **exhaustive type checking**. Replace manual `createAction()` calls; generate complete action unions + creators from single config. `createActionGroup({source: 'Todo API', events: {...}})`.
+
+## Core API: createActionGroup
+**Key Topics**: Single config → typed actions + union + creators.
+```typescript
+interface ActionGroupConfig {
+  source: string;  // Prefix: 'Todo API'
+  events: Record<string, ActionCreatorConfig>;
+}
+
+const TodoApiActions = createActionGroup({
+  source: 'Todo API',
+  events: {
+    'Load Todos': props<{filter: string}>(),
+    'Load Success': props<{todos: Todo[]}>(),
+    'Load Failure': props<{error: string}>(),
+    'Clear': emptyProps()
+  }
+});
+```
+- **Important Types**: `ActionGroup<T>`, `ActionCreatorConfig` (`props<T>() | emptyProps()`).
+- **Output**: `TodoApiActions.loadTodos({filter})`, `type TodoApiActions = typeof TodoApiActions`.
+
+## Generated Artifacts
+**Key Topics**: One config → **4 artifacts**:
+```
+1. Union type: type TodoApiActions = ReturnType<typeof TodoApiActions['loadTodos']> | ...
+2. Creators: TodoApiActions.loadTodos(props), TodoApiActions.loadSuccess(props)
+3. Typed dispatch: dispatch(TodoApiActions.loadTodos({filter: 'active'}))
+4. ofType(): actions$.pipe(ofType(TodoApiActions.loadTodos))
+```
+```typescript
+// Usage
+dispatch(TodoApiActions.loadTodos({filter: 'active'}));  // Fully typed
+// Effects
+@Effect() loadEffect = this.actions$.pipe(
+  ofType(TodoApiActions.loadTodos),  // Exhaustive type narrowing
+  // ...
+);
+```
+- **Benefits**: **Zero boilerplate**; **compile-time safety**.
+
+## Configuration Patterns
+**Key Topics**:
+```typescript
+const TodoPageActions = createActionGroup({
+  source: 'Todo Page',
+  events: {
+    // Typed payload
+    'Enter': emptyProps(),
+    'Add Todo': props<{text: string}>(),
+    'Toggle': props<{id: string}>(),
+    
+    // No payload
+    'Clear Completed': emptyProps()
+  }
+});
+```
+| Config | Creator | Dispatch |
+|--------|---------|----------|
+| `props<{todos: Todo[]}>()` | `loadSuccess({todos})` | `{type: '[Todo API] Load Success', todos}` |
+| `emptyProps()` | `clear()` | `{type: '[Todo Page] Clear'}` |
+
+## Namespace Prefixing
+**Key Topics**: **`source`** auto-prefixes `type`: `'Todo API Load Todos'` → `'[Todo API] Load Todos'`.
+```
+Good: createActionGroup({source: 'Todo API', events: {...}})
+Result: '[Todo API] Load Todos', '[Todo API] Load Success'
+
+Avoid: Manual prefixes in createAction()
+```
+- **Design Patterns**: **Hierarchical naming** (`[Component]`, `[Service]`, `[API]`).
+
+## Effects Integration
+**Key Topics**: **`ofType()`** narrows union types exhaustively.
+```typescript
+loadEffect$ = createEffect(() =>
+  this.actions$.pipe(
+    ofType(TodoApiActions.loadTodos),  // Type: LoadTodos only
+    switchMap(({filter}) => 
+      this.api.getTodos(filter).pipe(
+        map(todos => TodoApiActions.loadSuccess({todos})),
+        catchError(err => of(TodoApiActions.loadFailure({error: err.message})))
+      )
+    )
+  )
+);
+```
+- **Type Safety**: **No string typos**; IDE autocomplete.
+
+## Reducer Integration
+**Key Topics**: `on()` matches exact union types.
+```typescript
+const reducer = createReducer(
+  initialState,
+  on(TodoApiActions.loadSuccess, (state, {todos}) => ({
+    ...state,
+    todos,
+    loading: false
+  })),
+  on(TodoApiActions.loadFailure, (state, {error}) => ({
+    ...state,
+    error,
+    loading: false
+  }))
+);
+```
+- **Exhaustiveness**: TypeScript errors on unhandled actions.
+
+## Migration from createAction
+```
+BEFORE:
+const loadTodos = createAction('[Todo API] Load', props<{filter}>());
+const loadSuccess = createAction('[Todo API] Load Success', props<{todos}>());
+
+AFTER:
+const actions = createActionGroup({
+  source: 'Todo API',
+  events: {
+    'Load': props<{filter}>(),
+    'Load Success': props<{todos}>()
+  }
+});
+```
+
+## Best Practices Summary
+```
+Structure: feature/todos/todo-api.actions.ts
+Naming: source: 'Component Name' or 'Service Name'
+Payloads: Minimal; immutable; typed interfaces
+Effects: ofType(ActionGroup.action) + switchMap success/failure
+Reducers: on(ActionGroup.action1, on(ActionGroup.action2))
+DevTools: Auto-grouped by source prefix
+Testing: Mock entire ActionGroup; exhaustive union matching
+```
+
+## Advanced Topics
+- **Dynamic Groups**: Runtime `createActionGroup({source: routeName, ...})`.
+- **Signal Actions**: `@ngrx/signals` integration (Angular 17+).
+- **Multi-Source**: `combineActionGroups([group1, group2])`—merge unions.
+
+## Big Tech References
+- **Google**: Angular schematics generate `createActionGroup` for all examples.
+- **Microsoft**: Azure Portal migrated `createAction()` → Action Groups (2024).
+- **Articles**: "Action Groups at Scale" (ng-conf 2024).
+
+## Interview Cheat Sheet
+**Q: Action Group vs createAction?**  
+A: **`createActionGroup`** → typed union + creators + `ofType()`; replaces multiple `createAction()`.
+
+**Q: Single config generates?**  
+A: **4 artifacts**: union type, creators, `ofType()` narrowing, reducer `on()` matching.
+
+**Q: Naming convention?**  
+A: `{source: 'Todo API', events: {...}}` → `'[Todo API] Load Todos'` auto-prefix.
+
+**Q: Effects type narrowing?**  
+A: `ofType(TodoActions.loadTodos)` → **exact** `LoadTodos` type inside pipe.
+
+**Q: Reducer exhaustiveness?**  
+A: **TypeScript errors** unhandled `ActionGroup` union members in `createReducer`.
+
+**Q: emptyProps() usage?**  
+A: **`emptyProps()`** → no payload actions (`Clear`, `Reset`).
+
+## Key Terms & Keywords
+- **Core**: `createActionGroup`, `ActionGroup<T>`, `props<T>()`, `emptyProps()`
+- **Config**: `{source: string, events: Record<string, ActionCreatorConfig>}`
+- **Generated**: Typed Union, Creators, `ofType()`, Auto-prefix `'[Source] Event'`
+- **Integration**: Effects `ofType()`, Reducers `on()`, DevTools grouping
+- **Migration**: `createAction()` → `createActionGroup()`—zero breaking changes
+- **Advanced**: Dynamic Groups, Signal Actions, `combineActionGroups()`

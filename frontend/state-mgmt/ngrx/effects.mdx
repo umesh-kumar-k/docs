@@ -1,0 +1,175 @@
+# NgRx Effects: Reactive Side Effects
+
+NgRx **Effects** handle **side effects** (HTTP, WebSocket, localStorage) reactively using RxJS streams. Listen to `Actions$` → perform async → dispatch new actions. **Pure reducers**; effects isolate impurities.[1]
+
+## Effects Core Concept
+**Key Topics**: `Actions$` Observable → `ofType(action)` → async → `dispatch(successAction)`.
+```
+Component ──► dispatch(loadTodos) ──► Effects ──► HTTP ──► dispatch(loadSuccess)
+```
+- **Important Classes**: `Actions` (injectable), `EffectResult` (`Actions` union).
+- **Design Patterns**: **Unidirectional flow** with side-effect isolation.[1]
+
+## Creating Effects: createEffect
+**Key Topics**: `createEffect(() => actions$.pipe(...))` → auto-dispatches returned actions.
+```typescript
+loadTodosEffect = createEffect(() => this.actions$.pipe(
+  ofType(TodoApiActions.loadTodos),
+  switchMap(({filter}) =>
+    this.http.get(`/api/todos?filter=${filter}`).pipe(
+      map(todos => TodoApiActions.loadSuccess({todos})),
+      catchError(error => of(TodoApiActions.loadFailure({error})))
+    )
+  )
+));
+```
+- **Dispatch**: **Auto** (`{dispatch: false}` to disable).
+- **Standalone**: `inject(Actions)` (Angular 14+).[1]
+
+## Effect Strategies
+| Strategy | RxJS Operator | Use Case |
+|----------|---------------|----------|
+| `switchMap` | Cancels previous | Search, navigation |
+| `concatMap` | Sequential | Upload queue |
+| `mergeMap` | Parallel | Multiple independent API calls |
+| `exhaustMap` | Ignore new | Debounced search |
+
+```typescript
+// Search (cancel previous)
+searchEffect = createEffect(() => this.actions$.pipe(
+  ofType(searchTodos),
+  switchMap(({query}) => 
+    this.http.get(`/api/search?q=${query}`).pipe(
+      map(SearchApiActions.searchSuccess)
+    )
+  )
+));
+```
+
+## Registration & Scoping
+**Key Topics**: **Feature Effects** (`EffectsModule.forFeature([TodoEffects])`); **Root Effects**.
+```typescript
+// Feature module
+@NgModule({
+  imports: [EffectsModule.forFeature([TodoEffects])]
+})
+
+// Standalone
+providers: [
+  provideEffects([TodoEffects]),
+  inject(TodoEffects)  // Constructor-less
+]
+```
+- **Best Practices**: **Feature-scoped**; one effect per async operation.[1]
+
+## Error Handling
+**Key Topics**: `catchError` → **failure action**; **retry** strategies.
+```typescript
+loadTodosEffect = createEffect(() => this.actions$.pipe(
+  ofType(loadTodos),
+  switchMap(() => this.http.get('/api/todos').pipe(
+    map(loadSuccess),
+    catchError(error => of(loadFailure({error: error.message})))
+  )),
+  retry({count: 3, delay: 1000})  // Retry 3x
+));
+```
+- **Global**: `catchError` at effect root catches **all** downstream errors.[1]
+
+## Advanced Patterns
+**Context Enrichment** (`withLatestFrom`):
+```typescript
+updateTodoEffect = createEffect(() => this.actions$.pipe(
+  ofType(updateTodo),
+  withLatestFrom(this.store.select(selectUser)),  // Add user context
+  switchMap(([action, user]) => 
+    this.http.patch(`/api/todos/${action.id}`, {
+      ...action.changes,
+      updatedBy: user.id
+    }).pipe(map(updateSuccess))
+  )
+));
+```
+
+**Race Conditions** (`race`):
+```typescript
+optimisticUpdateEffect = createEffect(() => this.actions$.pipe(
+  ofType(updateTodo),
+  race(
+    timer(500).pipe(map(() => updateOptimistic({id: action.id}))),  // Fallback
+    this.http.patch(...).pipe(map(updateSuccess))
+  )
+));
+```
+
+## Testing Effects
+**Key Topics**: `marble testing`; `HotObservable`.
+```typescript
+it('should dispatch loadSuccess', () => {
+  const action = TodoApiActions.loadTodos();
+  const todos = [{id: 1, text: 'Test'}];
+  
+  actions$ = hot('-a', {a: action});
+  httpSpy.get.and.returnValue(cold('-b|', {b: {todos}}));
+  
+  effects.loadTodosEffect$.subscribe(result => {
+    expect(result).toEqual(TodoApiActions.loadSuccess({todos}));
+  });
+});
+```
+
+## Best Practices Summary
+```
+Structure: feature/todos/todo.effects.ts
+One Effect: One async operation (HTTP/timer/router)
+Strategy: switchMap (search/nav), concatMap (queue), mergeMap (parallel)
+Error Handling: catchError → failure action; retry(3)
+Context: withLatestFrom(store.select()) for enrichment
+Testing: Marble diagrams; HotObservable actions$
+Dispatch: {dispatch: false} for fire-and-forgot
+Scoping: Feature Effects; avoid root bloat
+```
+
+## Advanced Topics
+- **Error Recovery**: `retryWhen`, `repeatWhen`, circuit breakers.
+- **WebSockets**: `webSocket` RxJS → continuous effect streams.
+- **SSR**: `isPlatformBrowser` guards; `TransferState` hydration.
+- **Signals Effects**: `@ngrx/signals/effects` (Angular 17+).[1]
+
+## Big Tech References
+- **Google**: Angular schematics generate `switchMap` + `catchError` patterns.
+- **Microsoft**: Azure Portal—`exhaustMap` for search; custom retry policies.
+- **Articles**: "Effects at Enterprise Scale" (ng-conf 2023).[1]
+
+## Interview Cheat Sheet
+**Q: Effects vs Reducers?**  
+A: **Reducers**: pure sync state; **Effects**: impure async side-effects (HTTP/timer).[1]
+
+**Q: Default dispatch behavior?**  
+A: **`createEffect()` auto-dispatches** returned `Actions`; `{dispatch: false}` to disable.[1]
+
+**Q: switchMap vs concatMap?**  
+A: **`switchMap`**: cancel previous (search); **`concatMap`**: queue (uploads).[1]
+
+**Q: Global error handling?**  
+A: **`catchError`** at effect root catches **all** downstream errors → failure action.[1]
+
+**Q: Testing marble diagram?**  
+A: `hot('-a', {a: action})` → `cold('-b|', {b: data})` → expect success action.[1]
+
+**Q: Feature Effects registration?**  
+A: **`EffectsModule.forFeature([TodoEffects])`** or `provideEffects([TodoEffects])`.[1]
+
+**Q: Context enrichment?**  
+A: **`withLatestFrom(store.select(selectUser))`**—add state to effect payload.[1]
+
+## Key Terms & Keywords
+- **Core**: `createEffect()`, `Actions$`, `ofType()`, `EffectResult`
+- **Strategies**: `switchMap`, `concatMap`, `mergeMap`, `exhaustMap`
+- **Error**: `catchError`, `retry({count, delay})`, Failure Actions
+- **Context**: `withLatestFrom()`, `withContext()`
+- **Testing**: Marble Testing, `HotObservable`, `ColdObservable`
+- **Registration**: `forFeature()`, `provideEffects()`
+- **Advanced**: WebSockets, SSR TransferState, Signal Effects[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-7-standard-patterns)

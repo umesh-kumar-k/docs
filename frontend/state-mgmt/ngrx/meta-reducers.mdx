@@ -1,0 +1,150 @@
+# NgRx Meta Reducers: Higher-Order State Transformers
+
+NgRx Meta Reducers are **higher-order reducers** wrapping the root reducer pipeline. Intercept **all** actions/state transformations for cross-cutting concerns (logging, immutability, undo). `(state, action) => state` signature; applied globally.[1]
+
+## Meta Reducer Signature & Execution
+**Key Topics**: `ActionReducer<T> = (state: T | undefined, action: Action) => T`; wraps root reducer.
+```typescript
+const metaReducer: MetaReducer<AppState> = (reducer, state, action) => {
+  const nextState = reducer(state, action);  // Call wrapped reducer
+  return nextState;  // Transform/return
+};
+```
+- **Execution Order**: Action → Meta1 → Meta2 → ... → Root Reducer → ... → Meta2 → Meta1 → Store.
+- **Important Types**: `MetaReducer<State, Actions extends Action = Action>`.[1]
+
+## Common Meta Reducer Patterns
+**Logging Meta Reducer**:
+```typescript
+export const logger: MetaReducer<AppState> = (reducer, state, action) => {
+  console.group(action.type);
+  console.log('prev state', state);
+  console.log('action', action);
+  
+  const nextState = reducer(state, action);
+  
+  console.log('next state', nextState);
+  console.groupEnd();
+  return nextState;
+};
+```
+**Immutability Checker** (`storeFreeze`):
+```typescript
+export const freeze = <S>(reducer: ActionReducer<S>): ActionReducer<S> => {
+  if (environment.production) return reducer;
+  
+  return (state, action) => {
+    const nextState = reducer(state, action);
+    Object.freeze(state);
+    Object.freeze(nextState);
+    return nextState;
+  };
+};
+```
+- **Design Patterns**: Decorator pattern; AOP (Aspect-Oriented Programming).[1]
+
+## Registration & Configuration
+**Key Topics**: Root level only; `StoreModule.forRoot({reducers}, {metaReducers: [logger, freeze]})`.
+```typescript
+// app.module.ts
+@NgModule({
+  imports: [
+    StoreModule.forRoot(reducers, {
+      metaReducers: environment.production 
+        ? [] 
+        : [logger, storeFreeze]
+    })
+  ]
+})
+```
+- **Best Practices**: **Dev-only** (`environment.production ? [] : [...]`); order matters (outer → inner).[1]
+
+## Execution Pipeline Visualization
+```
+Action ──► Meta1 ──► Meta2 ──► Root ──► Slice1 ──► Slice2 ──► Root ──► Meta2 ──► Meta1 ──► Store
+           ↓              ↓              ↓              ↑              ↑              ↑
+        Log/       Immutability     Pure state       Copy new      Copy new      Log/
+     Transform     Check          transformation    state up       state up    Transform
+```
+**Key Insight**: Meta reducers see **every** action/state pair; can short-circuit (`return state`).
+
+## Use Cases & Examples
+| Meta Reducer | Purpose | Production |
+|--------------|---------|------------|
+| `logger` | Action/state tracing | ❌ Dev only |
+| `storeFreeze` | Mutation prevention | ❌ Dev only |
+| `undo` | Time-travel | ⚠️ Limited |
+| `persist` | localStorage sync | ✅ Yes |
+| `debug` | State sanitization | ❌ Dev only |
+
+**Persist Example**:
+```typescript
+export const persistState: MetaReducer<AppState> = (reducer) => {
+  return (state, action) => {
+    const nextState = reducer(state, action);
+    
+    if (action.type === 'LOGOUT') {
+      localStorage.removeItem('state');
+      return nextState;
+    }
+    
+    localStorage.setItem('state', JSON.stringify(nextState));
+    return nextState;
+  };
+};
+```
+
+## Best Practices Summary
+```
+Registration: Root only; feature modules CANNOT have metaReducers
+Environment: [logger, freeze] dev; [] production
+Order: Outer (logging) → Inner (freeze) → Root → reverse
+Short-circuit: return state to skip root reducers
+Testing: Mock meta reducers; test wrapped reducer isolation
+Performance: Minimal logic; avoid selectors/DI
+Persist: Selective fields only (no secrets)
+```
+
+## Advanced Topics
+- **Conditional Meta Reducers**: `featureReducers: {todos: toggleReducer(todosReducer)}`.
+- **Async Meta Reducers**: Rare; must return **synchronously** (no Promises).
+- **Composition**: `composeMetaReducers(logger, freeze, persist)` utility.
+- **Signal Store Meta Reducers**: Upcoming Angular 18+ integration.[1]
+
+## Big Tech References
+- **Google**: Angular Material uses `storeFreeze` + custom sanitizers.
+- **Microsoft**: Azure Portal—selective persist meta reducer (user prefs only).
+- **Articles**: "Meta Reducers at Enterprise Scale" (ng-conf 2022).[1]
+
+## Interview Cheat Sheet
+**Q: Meta reducer signature?**  
+A: `(reducer: ActionReducer<S>, state: S, action: A) => S`—**wraps** root reducer.[1]
+
+**Q: Execution order?**  
+A: **Meta1 → Meta2 → Root → Root → Meta2 → Meta1** (outer-to-inner, reverse).[1]
+
+**Q: Where registered?**  
+A: **Root only** `forRoot({metaReducers: [...]})`; feature modules **cannot**.[1]
+
+**Q: Production usage?**  
+A: **No** (`[]`); dev-only logging/freeze; selective persist OK.[1]
+
+**Q: Short-circuit pattern?**  
+A: `if (action.type === 'RESET') return initialState;`—skip root reducers.[1]
+
+**Q: Async meta reducers?**  
+A: **No**—must return **synchronously**; no Promises/Observables.[1]
+
+**Q: Testing meta reducers?**  
+A: Mock outer reducer; test transformation isolation.[1]
+
+## Key Terms & Keywords
+- **Core**: `MetaReducer<State>`, `ActionReducer<S>`, `forRoot({metaReducers})`
+- **Patterns**: Higher-Order Reducer, Decorator, AOP, Pipeline Wrapping
+- **Common**: `logger`, `storeFreeze`, `persistState`, `undo`
+- **Lifecycle**: **Outer→Inner→Root→Inner→Outer** execution
+- **Config**: `environment.production ? [] : [logger, freeze]`
+- **Advanced**: Conditional Meta Reducers, Async **NOT** Supported
+- **Debugging**: Action tracing, State diffs, Mutation detection[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-7-standard-patterns)

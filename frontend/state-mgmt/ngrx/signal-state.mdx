@@ -1,0 +1,184 @@
+# NgRx Signal State: Functional State Utilities
+
+**NgRx Signal State** provides **functional utilities** for **Angular Signals** state management: `withState()`, `withComputed()`, `withMethods()`, `withHooks()`. Composable **building blocks** for custom signal stores; **immer-like** updates; **RxJS + Signals** interop.[1]
+
+## Core Utilities Overview
+**Key Topics**: Mix-and-match **feature functions** for signal stores.
+```
+withState({count: 0})           → WritableSignal<State>
+withComputed(({count}) => ({    → ReadonlySignal<Derived>
+  double: computed(() => count() * 2)
+}))
+withMethods(({patchState}) => ({→ State mutators
+  increment: () => patchState(s => ({count: s.count + 1}))
+}))
+```
+
+## withState(): Initial State
+**Key Topics**: `withState(initialState)` → `WritableSignal<State>` + typed `patchState/update/setState`.
+```typescript
+interface CounterState {
+  readonly count: number;
+  readonly loading: boolean;
+}
+
+const store = signalStore(
+  withState({count: 0, loading: false}),  // Typed Signal<CounterState>
+  // ...
+);
+
+// Typed access
+constructor(public store: typeof store) {}
+ngOnInit() {
+  this.store.patchState({loading: true});  // Type-safe partial update
+}
+```
+- **Important Types**: `WithState<State>`, `PatchFn<State>`.
+- **APIs**: `patchState(partial)`, `setState(full)`, `update(fn)`.[1]
+
+## withComputed(): Derived State
+**Key Topics**: `computed()` dependencies auto-track; **fine-grained reactivity**.
+```typescript
+withComputed((state) => ({
+  isEven: computed(() => state.count() % 2 === 0),
+  doubleCount: computed(() => state.count() * 2),
+  displayText: computed(() => 
+    `Count: ${state.count()}, ${state.isEven() ? 'Even' : 'Odd'}`
+  )
+}))
+```
+- **Template**: `@for (item of store.filteredItems(); track item.id)`.
+- **Benefits**: **No manual subscriptions**; **change detection** only on used signals.[1]
+
+## withMethods(): Pure Mutators
+**Key Topics**: **Immer-style** functions returning **partial state** or **update fn**.
+```typescript
+withMethods((store, service) => ({
+  async incrementAsync() {
+    store.patchState({loading: true});
+    const result = await service.increment();
+    store.patchState({count: result});
+  },
+  
+  reset: () => store.reset({count: 0, loading: false}),
+  
+  optimisticUpdate: (delta: number) => 
+    store.update(s => ({count: s.count + delta}))
+}))
+```
+- **Design Patterns**: **Pure functions** → `patchState()`; **optimistic updates**.[1]
+
+## withHooks(): Lifecycle
+**Key Topics**: **`onInit`, `onDestroy`** signal store lifecycle.
+```typescript
+withHooks({
+  onInit(store) {
+    store.patchState({initialized: true});
+    const sub = timer(0, 1000).subscribe(() => 
+      store.patchState(s => ({count: s.count + 1}))
+    );
+    return () => sub.unsubscribe();  // Auto-cleanup
+  }
+})
+```
+- **Benefits**: **Declarative lifecycle**; **auto-dispose** subscriptions.[1]
+
+## Complete Example: Counter Store
+```typescript
+export const CounterStore = signalStore(
+  withState({count: 0, loading: false}),
+  withComputed(({count}) => ({
+    isEven: computed(() => count() % 2 === 0),
+    display: computed(() => `Count: ${count()}`)
+  })),
+  withMethods((store) => ({
+    increment: () => store.update(s => ({count: s.count + 1})),
+    async incrementAsync() {
+      store.patchState({loading: true});
+      await delay(1000);
+      store.update(s => ({count: s.count + 1, loading: false}));
+    },
+    reset: () => store.setState({count: 0, loading: false})
+  })),
+  withHooks({
+    onInit(store) {
+      console.log('Counter initialized');
+    }
+  })
+);
+```
+**Usage**:
+```typescript
+@Component({
+  providers: [CounterStore]
+})
+export class CounterComponent {
+  constructor(public store: CounterStore) {}
+  
+  count = this.store.count;
+  isEven = this.store.isEven;
+  
+  increment() { this.store.increment(); }
+}
+```
+
+## Comparison: Signal State vs Redux Patterns
+| Need | Classic NgRx | Signal State |
+|------|-------------|-------------|
+| **Slice** | `createFeatureSelector('counter')` | `withState({count: 0})` |
+| **Derived** | `createSelector(state, s => s.count * 2)` | `computed(() => count() * 2)` |
+| **Update** | `dispatch(incrementAction)` | `patchState({count: count() + 1})` |
+| **Async** | `EffectsModule` | `withMethods(async () => ...)` |
+
+## Best Practices Summary
+```
+Structure: stores/counter/counter.store.ts
+State Shape: Minimal signals; enums; normalized arrays
+Computed: Track only used signals; primitive outputs
+Methods: Immer-style pure functions; optimistic updates
+Hooks: Cleanup subscriptions; avoid side effects
+Testing: Mock services; assert signal values
+DI: providers: [CounterStore]; tree-shakable
+Zoneless: Pure signals; computed dependencies
+```
+
+## Advanced Topics
+- **Entity State**: `withEntities()`—normalized CRUD + selectors.
+- **RxJS Interop**: `toSignal(obs$, {initialValue})` → computed signals.
+- **Patched Stores**: `extendStore(CounterStore, withCustomMethods)`.
+- **SSR**: `toPersistent()` browser-only signals.[1]
+
+## Big Tech References
+- **Google**: Angular schematics generate `signalStore(withState, withComputed)` (17+).
+- **Microsoft**: Azure prototyping `withComputed` for dashboard metrics.
+- **Articles**: "Signal State Patterns" (Angular Summit 2024).[1]
+
+## Interview Cheat Sheet
+**Q: Signal State utilities?**  
+A: **`withState()`, `withComputed()`, `withMethods()`, `withHooks()`**—composable features.[1]
+
+**Q: State update APIs?**  
+A: **`patchState(partial)`**, **`setState(full)`**, **`update(fn)`**—immer-like.[1]
+
+**Q: Computed reactivity?**  
+A: **Auto-tracks** accessed signals; re-runs only on **dependency changes**.[1]
+
+**Q: withHooks lifecycle?**  
+A: **`onInit`, `onDestroy`**; returns **teardown fn** (auto-dispose).[1]
+
+**Q: Template signals?**  
+A: **`@for (sig(); track id)`**; **no AsyncPipe**; native Angular syntax.[1]
+
+**Q: Providers pattern?**  
+A: **`providers: [CounterStore]`**—scoped, tree-shakable stores.[1]
+
+## Key Terms & Keywords
+- **Core**: `withState()`, `withComputed()`, `withMethods()`, `withHooks()`
+- **State**: `WritableSignal<T>`, `patchState()`, `setState()`, `update()`
+- **Reactive**: `computed()`, Auto-tracking, Fine-grained Updates
+- **Lifecycle**: `onInit`, `onDestroy`, Auto-dispose Subscriptions
+- **Composition**: `signalStore(withState, withComputed, ...)`
+- **Advanced**: `withEntities()`, RxJS `toSignal()`, SSR `toPersistent()`
+- **Templates**: `@for (store.sig(); track)`, **Zoneless**[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-7-standard-patterns)

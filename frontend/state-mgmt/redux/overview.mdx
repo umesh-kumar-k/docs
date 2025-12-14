@@ -1,0 +1,95 @@
+Redux Fundamentals Part 1 introduces core Redux concepts through a minimal counter app, emphasizing its role in managing global state predictably for large-scale front-end apps.[1]
+
+## Introduction & How to Read
+**Key Topics**: Tutorial covers Redux pieces, data flow, patterns; uses "older-style" code to teach principles (not production-ready); transitions to Redux Toolkit (RTK) in later parts.
+- **Design Patterns**: Unidirectional data flow (Flux-inspired).
+- **Best Practices**: Read "Redux Essentials" first for RTK; install React/Redux DevTools.
+- **Assumptions**: ES2015+, React basics (JSX, Hooks), async JS.[1]
+
+## What is Redux?
+**Key Topics**: Pattern/library for global state management; UI dispatches **actions** (events), **reducers** update state predictably in a central **store**.
+- **Important Classes/Interfaces**: Store (holds state, no direct mutations).
+- **Best Practices**: Use for shared/frequent/complex state across app/team.
+- **Trade-offs**: More boilerplate vs. testability/confidence in large codebases.
+- **When to Use**: Large state volume, frequent updates, complex logic; skip small apps ("You Might Not Need Redux").[1]
+
+## Redux Libraries & Tools
+**Key Topics**:
+- **Redux Toolkit (RTK)**: Official, bundles best practices (`createSlice`, `configureStore`), prevents mistakes, simplifies async/data fetching.
+- **React-Redux**: Hooks (`useSelector/useDispatch`) + `<Provider>` for React integration.
+- **Redux DevTools**: Time-travel debugging, action history.
+- **Best Practices**: Always use RTK for production; DevTools mandatory.[1]
+
+## Redux Basics: Store
+**Key Topics**: Store as state container with rules—no direct changes, only via `dispatch(action)` → root reducer → new state → notify subscribers.
+- **Store Methods**: `getState()`, `dispatch()`, `subscribe(listener)`, `replaceReducer()`.
+- **Design Patterns**: Centralized single source of truth.[1]
+
+## Redux Core Example: Counter App
+**Key Topics**: Vanilla JS/HTML demo (no React deps).
+- **State**: `{value: 0}` (plain JS object).
+- **Reducer**: `counterReducer(state = initialState, action)` switches on `action.type` (e.g., `'counter/incremented'` → `{...state, value: state.value + 1}`).
+- **Store**: `createStore(counterReducer)`.
+- **UI**: `render()` reads `store.getState()`, `store.subscribe(render)`.
+- **Dispatch**: Event listeners → `store.dispatch({type: 'counter/incremented'})`; supports conditional/async logic.
+- **Immutability**: Always spread/copy (`{...state}`).[1]
+
+## Data Flow
+**Key Topics**: One-way cycle: UI event → dispatch action → store runs reducer → new state → subscribers re-render UI.
+- **Diagram Insight**: Visualizes action → reducer → state → UI loop.[1]
+
+## What You've Learned
+**Key Topics**: Redux = global state lib; separates "what happened" (actions) from "how state changes" (reducers); one-way flow for predictability.
+- **Best Practices**: RTK standard; React-Redux integration.[1]
+
+## Best Practices Summary
+- Start with RTK (`configureStore`, `createSlice`)—auto-generates actions/reducers.
+- Feature-based structure: `features/counter/counterSlice.js`.
+- Normalize state for relational data; use selectors for derived state.
+- Local state (`useState`) for UI/forms; Redux for shared/persisted.
+- DevTools for debugging; avoid mutations (use Immer in RTK).[1]
+
+## Advanced Topics
+- **RTK Query**: Built-in caching, optimistic updates, auto-refetch—replaces thunks for APIs.
+- **Scaling**: Code-splitting reducers; dynamic `injectReducer`; normalized state (by ID).
+- **Performance**: Memoized selectors (Reselect); `shallowEqual` in `useSelector`.[1]
+
+## Big Tech References
+- **Facebook (Redux origin)**: Flux architecture evolved to Redux; used in Instagram for shared state.
+- **Airbnb**: Switched to Redux + RTK Query; normalized entities for lists/search.
+- **Netflix**: RTK for UI state; custom middleware for A/B testing.
+- **Articles**: "How Netflix Uses Redux" (Medium); Airbnb's "Scaling React with Redux" (2018 blog).[1]
+
+## Interview Cheat Sheet
+**Q: What are Redux's 3 principles?**  
+A: Single store; state read-only (actions only); pure reducers return new state immutably.[1]
+
+**Q: Redux data flow?**  
+A: UI → dispatch(action) → store → reducer(state, action) → newState → subscribers re-render.[1]
+
+**Q: When use Redux vs Context/useReducer?**  
+A: Redux for large/shared/frequent updates, complex logic, teams; Context for simple prop drilling.[1]
+
+**Q: Why RTK over vanilla Redux?**  
+A: Reduces 70% boilerplate (`createSlice`); Immer mutability; `createAsyncThunk`; DevTools integration.[1]
+
+**Q: Store creation?**  
+A: `createStore(reducer, preloadedState?, enhancer?)`; enhancer via `applyMiddleware(thunk)` or RTK `configureStore`.[1]
+
+**Q: Immutability in reducers?**  
+A: Return new objects/arrays (`{...state, todos: [...todos, newTodo]}`); no `state.push()`.[1]
+
+**Q: React-Redux hooks?**  
+A: `useSelector(state => state.value)` (subscribes); `useDispatch()` returns dispatch fn.[1]
+
+## Key Terms & Keywords
+- **Core**: Store, Action (`{type, [payload]}`), Reducer (`(state, action) => newState`), Dispatch, Subscribe, getState
+- **Patterns**: Unidirectional flow, Single source of truth, Immutability, Normalization
+- **APIs**: `createStore`, `combineReducers`, `applyMiddleware`, `compose`
+- **React**: Provider, useSelector, useDispatch, shallowEqual
+- **Tools**: Redux Toolkit (RTK), createSlice, configureStore, Redux DevTools, RTK Query
+- **Advanced**: Enhancer, Middleware, Thunk, Time-travel debugging, Memoized selectors (Reselect)
+- **Action Types**: `'domain/feature/event'` (e.g., `'counter/incremented'`)[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-1-overview)
+[2](https://redux.js.org/tutorials/fundamentals/part-1-overview)

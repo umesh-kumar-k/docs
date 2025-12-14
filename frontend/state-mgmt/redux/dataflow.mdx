@@ -1,0 +1,111 @@
+Redux Part 2 details core concepts like immutability, actions/reducers/store, and unidirectional data flow for predictable state management in scalable front-end apps.[1]
+
+## Introduction & Tutorial Notes
+**Key Topics**: Builds on Part 1; defines Redux terms/concepts/data flow; uses "older-style" code for learning (not production); recommends Redux Toolkit (RTK) + "Essentials" tutorial.[1]
+- **Best Practices**: Install Redux DevTools; learn RTK after fundamentals.
+
+## Background: State Management
+**Key Topics**: One-way data flow in React (`useState`): state → view → action → update state → re-render. Scales poorly with shared state across components.
+- **Design Patterns**: Centralized global state outside component tree; views as "pure functions of state".
+- **Solution**: Extract shared state to Redux store for tree-wide access.[1]
+
+## Background: Immutability
+**Key Topics**: JS objects/arrays mutable by default (`obj.b = 3` mutates original). Redux requires **immutable updates**: copy + modify copies.
+- **Techniques**: Spread (`{...obj, a: {...obj.a, c: 42}}`), `concat/slice/map/filter` (non-mutating array methods).
+- **Important**: Reducers must return **new** state objects/arrays—no mutations.
+- **Best Practices**: Avoid `push/sort/splice`; use Immer (RTK) for "mutable" syntax.[1]
+
+## Redux Terminology: Actions
+**Key Topics**: Plain JS objects with `type` string (e.g., `'todos/todoAdded'`, `'domain/feature/event'` format); optional `payload` for data.
+- **Example**: `{type: 'todos/todoAdded', payload: 'Buy milk'}`.
+- **Role**: Describes "what happened" (events).[1]
+
+## Redux Terminology: Reducers
+**Key Topics**: Pure fn `(state, action) => newState`; like `Array.reduce()` callback (accumulates state over actions).
+- **Rules**: Pure/synchronous; immutable (copy state); no side effects; default `return state`.
+- **Logic**: `switch(action.type)` or `if` → copy/update → return; else unchanged.
+- **Example**: 
+  ```
+  function counterReducer(state = {value: 0}, action) {
+    if (action.type === 'counter/incremented') {
+      return {...state, value: state.value + 1};
+    }
+    return state;
+  }
+  ```
+- **Advanced**: Composable; `actions.reduce(reducer, initialState)` replays history.[1]
+
+## Redux Terminology: Store & Dispatch
+**Key Topics**: 
+- **Store**: Holds state; created via `createStore(reducer)` or RTK `configureStore({reducer})`.
+- **Methods**: `getState()`, `dispatch(action)`, `subscribe(listener)` (returns unsubscribe), `replaceReducer()`.
+- **Dispatch**: Sole state updater → triggers reducer → notifies subscribers.
+- **Example**: `store.dispatch({type: 'counter/incremented'})` → `getState() === {value: 1}`.[1]
+
+## Redux Terminology: Selectors
+**Key Topics**: Fns extracting state slices (e.g., `selectCounterValue = state => state.value`); avoids repetition.
+- **Best Practices**: Memoize with Reselect (`createSelector`); use in `useSelector`.[1]
+
+## Core Principles (Redux's 3 Rules)
+**Key Topics**:
+- **Single Source of Truth**: One store object tree (not all state—only shared/global).
+- **State Read-Only**: Only `dispatch(action)` changes it.
+- **Pure Reducers**: `(prevState, action) => nextState`; specify transformations.
+- **Design Patterns**: Enforced separation (actions ≠ reducers).[1]
+
+## Redux Data Flow
+**Key Topics**: Detailed cycle:
+1. **Init**: `createStore` → root reducer → initial state → UI renders/subscribes.
+2. **Update**: UI event → `dispatch(action)` → store runs reducer → new state → notifies subscribers → UI checks/changes → re-renders.
+- **Visual**: Action → Store → Reducer → State → UI loop.
+- **Best Practices**: Subscribers re-read `getState()`; components subscribe via `useSelector`.[1]
+
+## Best Practices Summary
+- Action types: `'feature/event'` (namespaced, readable).
+- Reducers: Small/slice-specific; `combineReducers` for composition.
+- Immutability: Nested spreads; RTK `createSlice` + Immer.
+- Selectors: Always for derived data; memoize.
+- Flow: Keep UI "dumb"—dispatch only, read via selectors.[1]
+
+## Advanced Topics
+- **Time-Travel**: DevTools replays action history via `reduce`.
+- **Middleware**: Extends dispatch (thunks, sagas) before reducer.
+- **RTK**: `createSlice` auto-generates reducer cases/actions.[1]
+
+## Big Tech References
+- **Facebook**: Redux from Flux; Instagram uses single store for feeds/notifications.
+- **Twitter**: Normalized state + selectors for timeline; RTK migration (2023 blog).
+- **Articles**: "Redux at Scale" (Facebook engineering); "How Twitter Structures Redux" (Medium).[1]
+
+## Interview Cheat Sheet
+**Q: Redux 3 core principles?**  
+A: Single store; read-only (dispatch only); pure reducers return new immutable state.[1]
+
+**Q: Why immutability in Redux?**  
+A: Enables change detection (=== refs), time-travel, pure reducers; avoids mutation bugs.[1]
+
+**Q: Reducer vs Array.reduce()?**  
+A: Identical signature: `(prevState, action) => newState`; replays actions over time.[1]
+
+**Q: Full data flow?**  
+A: dispatch(action) → store → reducer(prevState, action) → newState → subscribers re-render.[1]
+
+**Q: Action structure?**  
+A: `{type: 'feature/event', payload?: any}`; descriptive, namespaced.[1]
+
+**Q: Store methods?**  
+A: `getState()`, `dispatch(action)`, `subscribe(fn)`, `replaceReducer(reducer)`.[1]
+
+**Q: Selectors purpose?**  
+A: Extract/reuse state logic; memoize to optimize `useSelector` re-renders.[1]
+
+## Key Terms & Keywords
+- **Core**: Action (`type`, `payload`), Reducer (`(state, action) => newState`), Store, Dispatch, Subscribe, Selector
+- **Principles**: Single Source of Truth, State Read-Only, Pure Functions
+- **Patterns**: One-Way Data Flow, Unidirectional, Immutability, Flux-inspired
+- **Immutability**: Spread (`...`), `concat/map/filter/slice`, Immer
+- **APIs**: `createStore`, `getState`, `combineReducers`
+- **Advanced**: Time-Travel Debugging, Middleware, Reselect (`createSelector`), RTK
+- **Action Naming**: `'domain/feature/event'` (e.g., `'todos/todoAdded'`)[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-2-concepts-data-flow)

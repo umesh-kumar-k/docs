@@ -1,0 +1,76 @@
+# Redux Fundamentals: Complete Summary
+
+Redux is a predictable state management library using unidirectional data flow: actions → dispatch → middleware → reducers → new state → UI re-render. Core principles: single store, read-only state (actions only), pure reducers with immutable updates.[1][2]
+
+## Core Principles & Data Flow
+**Three Principles**: Single source of truth (one store object tree); state read-only—dispatch actions `{type}`; pure reducers `(state, action) => newState` with immutable updates.[1]
+- **Flow**: UI event → `dispatch(action/thunk)` → middleware pipeline → root reducer → slice reducers → new state → subscribers (`useSelector` re-renders).[2]
+- **Store APIs**: `createStore(reducer, preloadedState?, enhancer?)`; `getState()`, `dispatch()`, `subscribe(listener)` (returns unsubscribe).
+
+## State Design & Reducers
+**State Shape**: Plain JS objects/arrays only—no classes/Promises/functions; derived from UI requirements (`{todos: [], filters: {status, colors}}`).
+- **Reducer Rules**: Pure (state+action only); immutable (copy **all** nesting levels: `{...state, todos: [...todos, newTodo]}`); no side effects.
+- **Slice Reducers**: Feature-based (`features/todos/todosSlice.js`); `combineReducers({todos: todosReducer, filters: filtersReducer})`—keys define state shape.
+
+## Production Patterns
+**Action Creators**: `todoAdded = todo => ({type: 'todos/todoAdded', payload: todo})`; thunk creators: `saveNewTodo(text) => async dispatch => { await API(); dispatch(todoAdded()) }`.
+- **Selectors**: Plain (`selectTodos = state => state.todos`); memoized (`createSelector(selectTodos, todos => todos.filter(...))`)—prevents re-renders.
+- **Loading Enums**: `{status: 'idle'|'loading'|'succeeded'|'failed', entities: [], error: null}` vs boolean `isLoading`—full lifecycle tracking.
+- **FSA**: `{type, payload?, error?, meta?}`—predictable fields.
+- **Normalized State**: `{entities: {1: todo1, 2: todo2}}`—O(1) lookups, no duplication.
+
+## Async Logic & Middleware
+**Thunk Middleware**: `applyMiddleware(thunk)`; `dispatch(fn)` where `fn(dispatch, getState)`—reusable async (API/timer) + `dispatch(resultAction)`.
+- **Flow**: UI → `dispatch(saveNewTodo(text))` → thunk middleware → API → `dispatch(todoAdded(response))` → reducer → state → UI.
+- **Thunks Return Promises**: `await dispatch(saveNewTodo())`—component loading states.
+
+## React Integration
+**Hooks**: `<Provider store={store}>`; `useSelector(state => state.todos)` (shallowEqual for arrays/objects); `useDispatch()` returns dispatch fn.
+- **Local vs Global**: `useState` for forms/UI flags; Redux for shared/persisted data.
+
+## Store Configuration
+**Enhancers**: `composeWithDevTools(applyMiddleware(thunk))`—chains middleware/DevTools.
+```
+const enhancer = composeWithDevTools(applyMiddleware(thunk))
+const store = createStore(rootReducer, enhancer)
+```
+- **DevTools**: Action history, state diffs, time-travel debugging.
+
+| Pattern | Purpose | Example |
+|---------|---------|---------|
+| Action Creators | Encapsulate logic | `todoAdded(todo)` |
+| Memoized Selectors | Performance | `createSelector(...)` |
+| Normalized State | O(1) lookups | `{entities: {id: item}}` |
+| Loading Enums | Lifecycle | `'idle/loading/succeeded'` |
+| Thunk Creators | Reusable async | `saveNewTodo(text) => thunk` |
+
+## Best Practices
+```
+File Structure: features/todo/todosSlice.js (reducer + actions + thunks + selectors)
+Naming: 'feature/event' (todos/todoAdded)
+State: Minimal; normalized for relations; enums over booleans
+Selectors: Always; memoize derived data
+RTK: Production standard—createSlice auto-generates everything
+```
+**When Redux**: Large/shared/frequent updates/complex logic; skip small apps (`useReducer`).[2]
+
+## Interview Cheat Sheet
+**Q: Redux 3 principles?** A: Single store; read-only (dispatch only); pure reducers return new immutable state.[1]
+**Q: Data flow?** A: UI → dispatch → middleware → reducer → state → subscribers re-render.[2]
+**Q: Reducer rules?** A: Pure; immutable (copy nesting); no side effects.
+**Q: Why normalized state?** A: O(1) lookups; no duplication; relational joins.
+**Q: Thunk flow?** A: `dispatch(fn)` → middleware → `fn(dispatch,getState)` → API → `dispatch(action)`. 
+**Q: createSelector?** A: Memoizes derived data; same inputs = same ref (no re-renders).
+**Q: Loading: enum vs boolean?** A: **Enum** tracks `'idle/loading/succeeded/failed'` lifecycle.
+
+## Key Terms & Keywords
+- **Core**: Store, Action `{type, payload}`, Reducer, Dispatch, Subscribe, Selector
+- **Patterns**: Action Creator, Thunk Creator, `createSelector`, Normalized State, FSA, Loading Enums
+- **APIs**: `createStore`, `combineReducers`, `applyMiddleware(thunk)`, `composeWithDevTools`
+- **React**: Provider, `useSelector`, `useDispatch`, `shallowEqual`
+- **State**: Immutability (`...spread`), `{status, entities, error}`, `'feature/event'` naming
+- **Tools**: Redux Toolkit (RTK), Reselect, DevTools, RTK Query
+- **Advanced**: Entity Adapter, `createAsyncThunk`, Time-travel, Middleware Pipeline[1][2]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-7-standard-patterns)
+[2](https://redux.js.org/tutorials/fundamentals/part-1-overview)

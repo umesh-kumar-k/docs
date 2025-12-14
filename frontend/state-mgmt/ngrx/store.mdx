@@ -1,0 +1,145 @@
+# NgRx Store: Angular Redux Implementation
+
+NgRx Store provides reactive state management for Angular apps using Redux principles: unidirectional data flow, single immutable state tree, pure functions. Built on RxJS for observables; `Store` as single source of truth.
+
+## Core Concepts
+**Key Topics**: Single store holds entire app state; actions trigger pure reducers; effects handle side-effects (async/API).
+- **State Shape**: Immutable object tree; slices via `combineReducers`-style feature modules.
+- **Data Flow**: Component → `store.dispatch(action)` → reducers → new state → `select()` observables emit.
+- **Important Classes**: `Store<T>`, `Action`, `ReducerMap<T>`.
+
+## Store Creation & Configuration
+**Key Topics**: `StoreModule.forRoot(reducers)` (root); `StoreModule.forFeature(featureKey, reducers)` (lazy).
+```typescript
+// app.module.ts
+StoreModule.forRoot({todos: todosReducer})
+
+// feature.module.ts
+StoreModule.forFeature('todos', {todos: todosReducer})
+```
+- **Interfaces**: `Action {type: string, payload?: any}`; `Reducer<S, A extends Action>(state: S, action: A): S`.
+- **DevTools**: `StoreDevtoolsModule.instrument({maxAge: 25})`—action replay, time-travel.
+
+## Actions & Dispatching
+**Key Topics**: Plain objects `{type: '[Source] Event', payload?: any}`; `@ngrx/store` dispatches via `store.dispatch()`.
+```typescript
+interface TodoAction extends Action {
+  type: '[Todo] Add';
+  todo: Todo;
+}
+store.dispatch({type: '[Todo] Add', todo: newTodo});
+```
+- **Design Patterns**: `'[Feature] Action'` naming (e.g., `'[Todo] Load Success'`).
+
+## Selectors
+**Key Topics**: `createSelector` for derived state; `select(signal)` for Angular signals.
+```typescript
+export const selectTodos = createSelector(
+  selectTodoState,
+  (state: TodoState) => state.todos
+);
+export const selectFilteredTodos = createSelector(
+  selectTodos,
+  selectFilter,
+  (todos, filter) => todos.filter(t => t.completed === filter)
+);
+```
+- **Usage**: `@Select(TodoState.selectTodos) todos$!: Observable<Todo[]>`.
+- **Best Practices**: Memoized selectors prevent recomputation; feature selectors (`createFeatureSelector`).
+
+## Reducers
+**Key Topics**: Pure functions `(state, action) => state`; `on(action, (state, action) => ({...state, ...action.payload}))`.
+```typescript
+const initialState: TodoState = {todos: []};
+const todoReducer = createReducer(
+  initialState,
+  on(todoActions.loadTodosSuccess, (state, {todos}) => ({...state, todos}))
+);
+```
+- **Immutability**: Spread syntax `{...state}`; no mutations.
+- **Composition**: `combineReducers({todos: todoReducer, ui: uiReducer})`.
+
+## Effects (Side Effects)
+**Key Topics**: `@Effect()` or `createEffect()` for async (HTTP/timer); RxJS operators (`switchMap`, `catchError`).
+```typescript
+loadTodos$ = createEffect(() => this.actions$.pipe(
+  ofType(TodoActions.loadTodos),
+  switchMap(() => this.todoService.getTodos().pipe(
+    map(todos => TodoActions.loadTodosSuccess({todos})),
+    catchError(error => of(TodoActions.loadTodosFailure({error})))
+  ))
+));
+```
+- **Design Patterns**: Actions → Effects → API → Success/Failure actions.
+- **Best Practices**: Scoped effects (`featureEffects`); `exhaustMap` for search (cancel previous).
+
+## Angular Integration
+**Key Topics**: 
+- **Components**: `store.dispatch()`, `@Select()` decorator, `store.select(selectTodos$)`.
+- **AsyncPipe**: `todos$ | async` in templates.
+- **OnPush**: Change detection optimized via observables/selectors.
+
+| Pattern | Redux | NgRx |
+|---------|-------|------|
+| Actions | `{type, payload}` | Same + TypeScript interfaces |
+| Selectors | `createSelector` | Same + `@Select()` |
+| Async | Thunk middleware | Effects + RxJS |
+| DevTools | Redux DevTools | Same + Angular integration |
+
+## Best Practices
+```
+Structure: libs/state/todos/README.md
+  ├── actions.ts
+  ├── reducer.ts
+  ├── selectors.ts
+  └── effects.ts
+Naming: '[Feature] Action' (TodoPage.loadTodos)
+State: Normalized {entities: {id: item}}; enums ('idle'|'loading')
+Selectors: Feature selectors; `createFeatureSelector('todos')`
+Effects: Scoped; error handling; `withLatestFrom(store.select())`
+DevTools: Always instrument; action tracing
+```
+**Meta-Reducers**: Logging, immutability checks (`metaReducers: [storeLogger]`)—dev only.
+
+## Advanced Topics
+- **Entity State**: `EntityAdapter`—normalized CRUD (`addOne`, `updateMany`, `removeAll`).
+- **Router Store**: `StoreRouterConnectingModule`—sync route params/query with state.
+- **Signals**: `@ngrx/signals`—Angular signals + computed selectors (v17+).
+- **Facets**: Query optimization (upcoming).
+
+## Big Tech References
+- **Google (Angular team)**: NgRx powers Google Cloud Console, Angular Material docs.
+- **Microsoft**: Azure Portal uses NgRx + custom entity resolvers.
+- **Articles**: "NgRx at Google Scale" (Angular Connect); "Microsoft Azure NgRx Patterns".
+
+## Interview Cheat Sheet
+**Q: NgRx vs Redux?**  
+A: Angular + RxJS + TypeScript; Effects > Thunks; `@Select()` decorators; `StoreModule.forFeature()` lazy loading.
+
+**Q: Effects lifecycle?**  
+A: `actions$.pipe(ofType(action), switchMap(=> apiCall().pipe(map(successAction), catchError(failAction))))`.
+
+**Q: Selector chaining?**  
+A: `createSelector(selectFeature, feature => feature.todos, todos => todos.filter(...))`—memoized composition.
+
+**Q: Normalized state?**  
+A: `EntityAdapter.create()` → `{ids: [], entities: {id: item}}`; `adapter.addOne(entity, state)`.
+
+**Q: Store setup?**  
+A: `forRoot({reducers})` (global); `forFeature('key', reducers)` (lazy); `instrument({maxAge: 25})` DevTools.
+
+**Q: Reducer creation?**  
+A: `createReducer(initialState, on(actionA, (s,a) => ({...s})), on(actionB, ...))`—declarative.
+
+**Q: AsyncPipe benefits?**  
+A: Auto-subscribe/unsubscribe; OnPush change detection; trackBy selectors.
+
+## Key Terms & Keywords
+- **Core**: `Store<T>`, `Action`, `Reducer<S>`, `createReducer`, `StoreModule.forRoot/forFeature`
+- **Selectors**: `createSelector`, `createFeatureSelector`, `@Select()`, `selectSlice`
+- **Effects**: `createEffect()`, `Actions$`, `ofType()`, `switchMap`, `withLatestFrom`
+- **Patterns**: Normalized State, `'[Feature] Event'` naming, EntityAdapter
+- **APIs**: `store.dispatch()`, `store.select()`, `AsyncPipe`, `MetaReducer`
+- **Advanced**: Signals (`@ngrx/signals`), Router Store, `EntityState<T>`, Facets
+- **Tools**: `ngrx/store-devtools`, `RxJS` operators, `OnPush`
+

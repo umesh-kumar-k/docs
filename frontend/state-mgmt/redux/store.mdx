@@ -1,0 +1,127 @@
+Redux Part 4 covers store creation, dispatch/subscribe mechanics, enhancers/middleware, and DevTools for debugging state flow in Redux apps.[1]
+
+## Redux Store Responsibilities
+**Key Topics**: Single store per app; holds state, provides `getState()`, `dispatch(action)`, `subscribe(listener)` (returns unsubscribe).
+- **Important APIs**: 
+  ```js
+  store.getState()  // Current state
+  store.dispatch({type: 'action'})  // Triggers reducer
+  const unsubscribe = store.subscribe(() => console.log(store.getState()))
+  ```
+- **Design Patterns**: Single source of truth; use reducer composition (not multiple stores).[1]
+
+## Creating the Store
+**Key Topics**: `createStore(rootReducer, [preloadedState], [enhancer])`.
+- **PreloadedState**: From `localStorage` or server: `createStore(rootReducer, {todos: JSON.parse(localStorage.todos)})`.[1]
+- **Example**:
+  ```js
+  import { createStore } from 'redux'
+  import rootReducer from './reducer'
+  const store = createStore(rootReducer)
+  ```
+
+## Dispatch Flow Verification
+**Key Topics**: Test store sans UI: dispatch actions → log state changes → unsubscribe.
+- **Flow**: `dispatch(action)` → rootReducer → slice reducers → new state → subscribers fire.
+- **Best Practices**: Test reducers independently: `todosReducer(initialState, action)`.[1]
+
+## Inside Store Implementation
+**Key Topics**: Mini-store (~25 lines):
+  ```js
+  function createStore(reducer) {
+    let state, listeners = []
+    return {
+      getState: () => state,
+      dispatch: action => { state = reducer(state, action); listeners.forEach(l => l()) },
+      subscribe: listener => { listeners.push(listener); return () => listeners.splice(...) }
+    }
+  }
+  ```
+- **Critical**: `getState()` returns **live reference**—mutations break everything (`state.todos.sort()`).[1]
+
+## Store Enhancers
+**Key Topics**: Higher-order `createStore`; override `dispatch/getState/subscribe`.
+- **compose**: `compose(enhancer1, enhancer2)(createStore)` chains multiple.
+- **Example**: `sayHiOnDispatch` logs on dispatch; `includeMeaningOfLife` adds `meaningOfLife: 42` to state.
+```
+const composed = compose(sayHiOnDispatch, includeMeaningOfLife)
+const store = createStore(rootReducer, undefined, composed)
+```
+
+## Middleware (applyMiddleware Enhancer)
+**Key Topics**: Pipeline between `dispatch` and reducer; side effects OK (async/logging).
+- **Structure**: 3 nested fns: `storeAPI => next => action => next(action)`
+  ```js
+  const logger = store => next => action => {
+    console.log('dispatching', action)
+    const result = next(action)
+    console.log('state', store.getState())
+    return result
+  }
+  ```
+- **Flow**: `dispatch` → middleware1 → middleware2 → ... → rootReducer → return values up chain.[1]
+
+| Middleware Phase | Action | Can Do |
+|------------------|--------|--------|
+| Before next() | Inspect/modify action | Log, validate |
+| After next() | See new state | Log result |
+| Return | Pass result up | Transform |
+
+## Redux DevTools
+**Key Topics**: `composeWithDevTools(applyMiddleware(...))`; shows action history, state diffs, stack traces.
+- **Setup**:
+  ```js
+  import { composeWithDevTools } from 'redux-devtools-extension'
+  const enhancer = composeWithDevTools(applyMiddleware(logger))
+  ```
+- **Tabs**: Action payload, State, Diff, Stack trace.[1]
+
+## Best Practices Summary
+- Single store; feature slices via `combineReducers`.
+- Always `composeWithDevTools` in dev.
+- Middleware for side effects; enhancers for store-wide changes.
+- Never mutate `getState()` result.
+- RTK `configureStore()` bundles everything.[1]
+
+## Advanced Topics
+- **Dynamic Reducers**: `store.replaceReducer(newRootReducer)` for code-splitting.
+- **RTK `configureStore`**: Auto-includes DevTools, middleware, Immer.
+- **Middleware Patterns**: Thunk (async), Saga (generators), Observables.[1]
+
+## Big Tech References
+- **Facebook**: Custom enhancers for A/B testing; single store across app.
+- **Airbnb**: `applyMiddleware` pipeline for analytics/logging (2018 blog).
+- **Articles**: "Redux DevTools at Scale" (Chrome team); Netflix middleware patterns.[1]
+
+## Interview Cheat Sheet
+**Q: Store creation signature?**  
+A: `createStore(reducer, [preloadedState], [enhancer])`—single store only.[1]
+
+**Q: Dispatch lifecycle?**  
+A: `dispatch(action)` → middleware pipeline → rootReducer → new state → subscribers fire.[1]
+
+**Q: Middleware 3-fn pattern?**  
+A: `storeAPI => next => action => { ...; return next(action) }`—`next` passes to next middleware/rootReducer.[1]
+
+**Q: Enhancer vs Middleware?**  
+A: Enhancer wraps entire store (any method); middleware only customizes `dispatch` via `applyMiddleware`.[1]
+
+**Q: Why `getState()` mutable danger?**  
+A: Returns live reference; `state.todos.push()` mutates store undetected.[1]
+
+**Q: DevTools setup?**  
+A: `composeWithDevTools(applyMiddleware(...))`—action history, diffs, time-travel.[1]
+
+**Q: `subscribe` behavior?**  
+A: Runs **after** reducer/state update; must call `getState()` inside; returns unsubscribe fn.[1]
+
+## Key Terms & Keywords
+- **Core**: `createStore`, `getState`, `dispatch`, `subscribe`, Root Reducer
+- **Enhancers**: `compose`, `composeWithDevTools`, Store Enhancer
+- **Middleware**: `applyMiddleware`, `storeAPI => next => action =>`, Pipeline
+- **DevTools**: Action history, State diff, Time-travel, Stack traces
+- **Patterns**: Single Store, 3-fn Middleware, `next(action)` chaining
+- **APIs**: `unsubscribe()`, `preloadedState`, `replaceReducer`
+- **Dangers**: State mutation, `array.sort()`, Live `getState()` reference[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-4-store)

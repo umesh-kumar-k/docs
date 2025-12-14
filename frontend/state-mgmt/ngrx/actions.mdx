@@ -1,0 +1,131 @@
+# NgRx Actions: Complete Guide
+
+NgRx Actions are plain TypeScript objects with `type: string` that describe events triggering state changes. Immutable, serializable; dispatched via `store.dispatch()` to reducers/effects.[1]
+
+## Action Interface & Structure
+**Key Topics**: Minimal `{type: string, payload?: any}`; TypeScript interfaces for type safety.
+```typescript
+interface Action {
+  readonly type: string;
+  payload?: T;
+}
+
+interface TodoAction extends Action {
+  readonly type: '[Todo] Add Todo';
+  readonly todo: Todo;
+}
+```
+- **Important Interfaces**: `Action`, `Props<T>` (union type for typed payload).[1]
+
+## Creating Actions
+**Key Topics**: 
+- **Union Types**: `type LoadTodos = LoadTodosSuccess | LoadTodosFailure`.
+- **Factories**: `createAction('[Todo] Add', props<{todo: Todo}>())`.
+```typescript
+const loadTodosSuccess = createAction('[Todo] Load Success', props<{todos: Todo[]}>());
+store.dispatch(loadTodosSuccess({todos: loadedTodos}));
+```
+- **No Payload**: `createAction('[Todo] Clear All')`.[1]
+
+## Action Creators & Factories
+**Key Topics**: `@ngrx/store` `createAction` generates typed creators; `props<T>` extracts payload type.
+```typescript
+// Factory
+export const addTodo = createAction('[Todo] Add', props<{todo: Todo}>());
+
+// Usage (auto-typed)
+dispatch(addTodo({todo: {id: 1, text: 'Buy milk'}}));
+```
+- **Benefits**: TypeScript inference; no manual `{type, payload}` boilerplate.
+- **Advanced**: `props<{todo: Todo}>()` with validators (`propValidator`).[1]
+
+## Naming Conventions
+**Key Topics**: `'[Source] Verb Object'` (e.g., `'[Todo API] Load Todos Success'`).
+```
+Good: '[Todo Page] Add Todo', '[Todo Effects] Load Todos Success'
+Bad: 'addTodo', 'LOAD_TODO_SUCCESS'
+```
+- **Design Patterns**: Feature-prefixed; success/failure variants (`LoadSuccess`/`LoadFailure`).
+- **Best Practices**: Descriptive, consistent; avoid acronyms.[1]
+
+## Dispatching Actions
+**Key Topics**: `store.dispatch(action)`; injectable `Actions` stream for effects.
+```typescript
+// Component
+constructor(private store: Store) {}
+addTodo(todo: Todo) {
+  this.store.dispatch(addTodo({todo}));
+}
+
+// Effects
+actions$ = inject(Actions);
+@Effect() load$ = this.actions$.pipe(
+  ofType(loadTodos),
+  // ...
+);
+```
+- **Upgrader**: `@ngrx/store@latest`—`inject(Actions)` (standalone).[1]
+
+## Success/Failure Patterns
+**Key Topics**: Triad pattern: `Load` → `LoadSuccess(payload)` / `LoadFailure(error)`.
+```
+dispatch(loadTodos());
+apiCall().subscribe({
+  next: todos => dispatch(loadTodosSuccess({todos})),
+  error: err => dispatch(loadTodosFailure({error: err}))
+});
+```
+- **Best Practices**: Explicit states; error as `payload: {error: any}`.[1]
+
+## Best Practices Summary
+```
+Naming: '[Feature/Context] Verb Object' (TodoPage.loadTodos)
+Types: Union types + createAction(props<>())
+Dispatch: Explicit success/failure; no direct mutations
+Factories: createAction('[Todo] Load', props<{todos: Todo[]}>())
+Effects: Actions stream via inject(Actions) or @Effect()
+DevTools: Action payloads logged automatically
+```
+
+## Advanced Topics
+- **Union Payloads**: `createAction('[Todo] Update', props<{todo: PartialTodo | Todo[]}>())`.
+- **Meta Fields**: `{type, payload, meta: {traceId: string}}`—logging/correlation.
+- **Upgraders**: Standalone components (Angular 14+); signal stores (upcoming).[1]
+
+## Big Tech References
+- **Google**: Angular team enforces `'[Component] Action'` in Material docs.
+- **Microsoft**: Azure Portal—typed action unions + factory generators.
+- **Articles**: "NgRx Actions at Scale" (Google Developer Summit).[1]
+
+## Interview Cheat Sheet
+**Q: NgRx Action structure?**  
+A: `{type: string, payload?: T}`; `createAction('[Feature] Event', props<{data: T}>())`.[1]
+
+**Q: Naming convention?**  
+A: `'[Source] Verb Object'` (e.g., `'[Todo API] Load Success'`)—feature-context-action.[1]
+
+**Q: createAction benefits?**  
+A: TypeScript inference; no `{type:'string', payload}` boilerplate; validators.[1]
+
+**Q: Success/failure pattern?**  
+A: `LoadRequest` → `LoadSuccess({data})` / `LoadFailure({error})`—explicit states.[1]
+
+**Q: Dispatch in Effects?**  
+A: `inject(Actions).pipe(ofType(loadTodos), switchMap(() => apiCall().pipe(map(successAction))))`.[1]
+
+**Q: Union types usage?**  
+A: `type TodoAction = AddTodo | UpdateTodo | DeleteTodo`—type narrowing in reducers.[1]
+
+**Q: Payload best practices?**  
+A: Minimal data; immutable; error as `{payload: {error: any}}` not `action.error`.[1]
+
+## Key Terms & Keywords
+- **Core**: `Action`, `createAction`, `props<T>`, Union Types
+- **Naming**: `'[Feature] Verb Object'`, `[Todo Page] Load Success`
+- **Factories**: `createAction('[Todo] Add', props<{todo: Todo}>())`
+- **Dispatch**: `store.dispatch()`, `inject(Actions)`
+- **Patterns**: Success/Failure Triad, Type Narrowing, Meta Fields
+- **Advanced**: `propValidator`, Payload Unions, Action Upgraders
+- **Tools**: NgRx Store DevTools, RxJS `ofType()`[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-7-standard-patterns)

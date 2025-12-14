@@ -1,0 +1,147 @@
+# NgRx Selectors: Reactive State Queries
+
+NgRx Selectors are pure functions extracting/deriving state slices as **memoized Observables**. Enable reactive components (`todos$ | async`); performance via recomputation avoidance.
+
+## Selector Basics
+**Key Topics**: `selectSlice(state => state.feature)` returns Observable slice.
+```typescript
+// Simple selector
+export const selectTodos = (state: AppState) => state.todos.todos;
+
+// Component usage
+todos$ = this.store.select(selectTodos);
+```
+- **Important Types**: `Selector<AppState, Result>`, `MemoizedSelector<AppState, Result>`.
+- **Reactive**: Auto-subscribe via `AsyncPipe`; OnPush change detection.
+
+## Feature Selectors (createFeatureSelector)
+**Key Topics**: `createFeatureSelector<FeatureState>(featureKey)` extracts feature slice.
+```typescript
+export const selectTodoState = createFeatureSelector<TodoState>('todos');
+export const selectTodos = createSelector(
+  selectTodoState,
+  (state: TodoState) => state.todos
+);
+```
+- **Benefits**: Type-safe feature extraction; composable selectors.
+- **Design Patterns**: Tree structure (`app → feature → slice → derived`).
+
+## Composable Selectors (createSelector)
+**Key Topics**: `createSelector(inputSelectors..., outputFn)`—memoized derived state.
+```typescript
+export const selectFilteredTodos = createSelector(
+  selectTodos,
+  selectFilter,
+  (todos: Todo[], filter: string) => 
+    filter === 'completed' ? todos.filter(t => t.completed) : todos
+);
+
+export const selectTodoCount = createSelector(
+  selectTodos,
+  (todos: Todo[]) => todos.length
+);
+```
+- **Memoization**: Same inputs → same output reference (no re-renders).
+- **Chaining**: `selectTodoStats = createSelector(selectFilteredTodos, countSelector)`.
+
+## Selector Usage Patterns
+**Key Topics**:
+```typescript
+// Method 1: store.select()
+todos$ = this.store.select(selectTodos);
+
+// Method 2: @Select decorator (ngrx/store)
+@Select(TodoState.selectTodos) todos$!: Observable<Todo[]>;
+
+// Method 3: Signals (Angular 17+)
+todosSig = computed(() => this.store.selectSnapshot(selectTodos));
+```
+- **AsyncPipe**: `<div *ngFor="let todo of todos$ | async">`—auto unsubscribe.
+- **Snapshot**: `store.selectSnapshot(selectTodos)`—sync value.
+
+## Performance & Memoization
+**Key Topics**: Recompute only on input changes; deep equality for complex objects.
+```
+Inputs: [todos, filter]
+Output: filteredTodos
+
+Case 1: todos changes → recompute ✓
+Case 2: filter changes → recompute ✓  
+Case 3: todos same, filter same → cache hit ✗ recompute
+```
+- **Best Practices**: Small input selectors; primitive comparisons; `selectHint: true` debugging.
+
+## Advanced Selector Patterns
+**Key Topics**:
+```typescript
+// Parametric selectors (with props)
+export const selectTodoById = createSelector(
+  selectTodoEntities,
+  (entities: Dictionary<Todo>, props: {id: number}) => 
+    entities[props.id]
+);
+
+// Usage
+todo$ = this.store.select(selectTodoById, {id: todoId});
+```
+- **Multi-arg**: `createSelector(selectA, selectB, (a,b) => a + b.length)`.
+- **Entity Normalization**: `selectTodoEntities = createSelector(selectTodoState, s => s.entities)`.
+
+| Selector Type | Use Case | Memoized |
+|---------------|----------|----------|
+| Simple | `state => state.feature` | No |
+| Feature | `createFeatureSelector('todos')` | Yes |
+| Derived | `createSelector(in1, in2, outFn)` | Yes |
+| Parametric | `createSelector(in, (data, props) => ...)` | Yes |
+
+## Best Practices Summary
+```
+Structure: feature/selectors/todos.selectors.ts
+Naming: selectFeatureSlice (selectTodoEntities, selectTodoCount)
+Composition: Chain selectors (selectFiltered → selectCount)
+Performance: Memoize derived; primitive inputs; small slices
+Reactivity: AsyncPipe + OnPush; avoid selectSnapshot in loops
+Debugging: selectHint: true; DevTools state diffs
+Type Safety: Generic selectors; feature selector trees
+```
+
+## Advanced Topics
+- **Signals Integration**: `@ngrx/signals`—`computed(selectTodos)` (Angular 17+).
+- **Entity Selectors**: `@ngrx/entity`—`selectIds`, `selectEntities`, `selectAll`.
+- **Reselect-like**: Manual memoization for complex caching.
+
+## Big Tech References
+- **Google**: Angular Material selectors chain 5+ levels for complex UIs.
+- **Microsoft**: Azure Portal—parametric selectors for dynamic grids.
+- **Articles**: "NgRx Selectors at Enterprise Scale" (ng-conf 2023).
+
+## Interview Cheat Sheet
+**Q: Selector recomputation?**  
+A: **Input changes** → recompute; same inputs → cached result (=== reference).
+
+**Q: createFeatureSelector vs createSelector?**  
+A: `createFeatureSelector('todos')` extracts slice; `createSelector` derives/composes.
+
+**Q: Parametric selector usage?**  
+A: `selectTodoById(entities, {id})` → `store.select(selectTodoById, {id: 1})`.
+
+**Q: @Select vs store.select()?**  
+A: **Decorator** `@Select(selectTodos) todos$!` vs manual `store.select()`—same result.
+
+**Q: Memory leak prevention?**  
+A: **AsyncPipe** auto-subscribe/unsubscribe; OnPush selectors trigger only on value change.
+
+**Q: Selector tree structure?**  
+A: `app → featureSelector → sliceSelector → derivedSelector(count/filtered)`.
+
+**Q: Debug selector performance?**  
+A: `selectHint: true` logs recomputations; DevTools traces selector calls.
+
+## Key Terms & Keywords
+- **Core**: `Selector<AppState, T>`, `MemoizedSelector`, `createSelector`
+- **Types**: `createFeatureSelector`, Parametric Selectors, `selectHint`
+- **Reactive**: `AsyncPipe`, `@Select()`, `OnPush`, `store.selectSnapshot`
+- **Patterns**: Feature Trees, Input/Output Selectors, Selector Composition
+- **Performance**: Memoization, Deep Equality, Primitive Inputs
+- **Advanced**: Signals (`computed()`), Entity Selectors (`selectAll`, `selectIds`)
+- **Debugging**: DevTools State Diffs, `selectHint: true`

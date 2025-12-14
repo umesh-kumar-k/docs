@@ -1,0 +1,117 @@
+Redux Part 7 covers production patterns: action creators, memoized selectors, loading enums, FSA, normalized state, and thunk promises for scalable Redux apps.[1]
+
+## Action Creators
+**Key Topics**: Functions creating action objects/thunks; encapsulate logic, avoid inline `{type, payload}`.
+```js
+export const todoAdded = todo => ({ type: 'todos/todoAdded', payload: todo })
+export const saveNewTodo = text => async dispatch => { /* API + dispatch(todoAdded) */ }
+```
+- **Usage**: `dispatch(todoAdded(newTodo))` vs inline objects.
+- **Design Patterns**: Thunk action creators (`fn() => async(dispatch) => {}`).[1]
+
+## Memoized Selectors (Reselect)
+**Key Topics**: `createSelector(inputSelectors..., outputFn)` caches results; prevents unnecessary re-renders.
+```js
+export const selectFilteredTodoIds = createSelector(
+  selectFilteredTodos,  // input
+  filteredTodos => filteredTodos.map(t => t.id)  // output
+)
+```
+- **Multi-input**: `createSelector(state => state.todos, state => state.filters.status, (todos, status) => todos.filter(...))`.
+- **Best Practices**: Only for derived data; plain selectors for direct lookups.[1]
+
+## Async Request Status (Loading Enums)
+**Key Topics**: `{status: 'idle'|'loading'|'succeeded'|'failed', entities: [], error: null}` vs boolean `isLoading`.
+- **Flow**: `dispatch(todosLoading())` → API → `dispatch(todosLoaded(data))`.
+```js
+case 'todos/todosLoading': return { ...state, status: 'loading' }
+case 'todos/todosLoaded': return { ...state, status: 'idle', entities: payload }
+```
+- **Why Enums**: Tracks full lifecycle; specific transitions; UI shows spinners/errors.[1]
+
+## Flux Standard Actions (FSA)
+**Key Topics**: Convention: `{type, payload?, error?, meta?}`.
+```
+{ type: 'todos/todoAdded', payload: todo }  // data
+{ type: 'todos/fetchError', payload: error, error: true }  // error
+```
+- **Benefits**: Predictable fields; middleware tooling; error handling.
+- **Community Practice**: Separate types (`todosLoaded`/`todosLoadError`) over `action.error` flag.[1]
+
+## Normalized State
+**Key Topics**: `{entities: {1: todo1, 2: todo2}, ids: [1,2]}` vs arrays; O(1) lookups, single data copy.
+```js
+case 'todos/todoAdded': 
+  return { ...state, entities: { ...state.entities, [todo.id]: todo } }
+case 'todos/todosLoaded':
+  return { ...state, entities: payload.reduce((acc, todo) => { acc[todo.id] = todo; return acc }, {}) }
+```
+- **Selectors**: `selectTodoById(state, id) => state.todos.entities[id]`.
+- **Trade-offs**: Complex reducers vs fast lookups/no duplication.[1]
+
+| Pattern | Array | Normalized Object |
+|---------|-------|-------------------|
+| Lookup | `find()` O(n) | `entities[id]` O(1) |
+| Updates | `map/filter` | Spread single item |
+| Duplication | Multiple copies | Single source |
+
+## Thunks Return Promises
+**Key Topics**: `dispatch(thunkFn())` returns Promise; `await dispatch(saveNewTodo(text))`.
+```js
+const handleSubmit = async () => {
+  setStatus('loading')
+  await dispatch(saveNewTodo(text))  // Waits for API + todoAdded
+  setStatus('idle')
+}
+```
+- **Benefits**: Component loading states; chaining async operations.[1]
+
+## Best Practices Summary
+- **Action Creators**: Always; encapsulate thunk logic.
+- **Selectors**: Memoize derived data (`createSelector`); `useSelector(selectFilteredTodoIds)`.
+- **State Shape**: `{status, entities, error}`; normalized for relations.
+- **Naming**: `'feature/action'`; FSA `{payload, error?, meta?}`.
+- **RTK**: `createSlice` generates all patterns automatically.[1]
+
+## Advanced Topics
+- **Entity Adapter**: RTK `createEntityAdapter`—CRUD normalized state.
+- **RTK Query**: Auto-generates thunks/selectors/loading enums/caching.
+- **Code-Splitting**: Dynamic `injectReducer` for lazy slices.[1]
+
+## Big Tech References
+- **Facebook**: Normalized + selectors for News Feed (React Conf 2018).
+- **Twitter**: Reselect + normalized state; RTK migration (2023).
+- **Articles**: "Scaling Redux at Twitter" (Medium); Netflix normalization patterns.[1]
+
+## Interview Cheat Sheet
+**Q: Action creator purpose?**  
+A: Encapsulate action object creation + setup logic; `todoAdded(todo) => ({type, payload})`.[1]
+
+**Q: Why `createSelector`?**  
+A: Memoizes derived data; same inputs → same ref (no re-renders); `useSelector` optimized.[1]
+
+**Q: Loading state: boolean vs enum?**  
+A: **Enum** (`'idle/loading/succeeded/failed'`) tracks full lifecycle vs boolean's 2 states.[1]
+
+**Q: Normalized state benefits?**  
+A: O(1) lookups (`entities[id]`), no duplication, relational data (`post.userId → users[id]`).[1]
+
+**Q: FSA structure?**  
+A: `{type, payload?, error?, meta?}`—predictable fields, middleware tooling.[1]
+
+**Q: Thunk returns Promise?**  
+A: Yes; `await dispatch(saveTodo())` waits for API + final action.[1]
+
+**Q: Selector dependency cycles?**  
+A: Move shared logic to utils; avoid `todosSlice` ↔ `filtersSlice` imports.[1]
+
+## Key Terms & Keywords
+- **Patterns**: Action Creator, Thunk Creator, Memoized Selector, Normalized State, FSA
+- **APIs**: `createSelector`, `Object.values(entities)`, `entities[id]`
+- **Enums**: `'idle'|'loading'|'succeeded'|'failed'`
+- **State Shape**: `{status, entities: {id: item}, ids: []}`
+- **Libraries**: Reselect (`npm i reselect`), Redux Thunk
+- **Advanced**: Entity Adapter, RTK Query, `injectReducer`
+- **Selectors**: `selectTodoById`, `selectFilteredTodoIds`, `selectTodoEntities`[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-7-standard-patterns)

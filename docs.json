@@ -14,6 +14,42 @@
         "tab": "Guides",
         "groups": [
           {
+            "group": "Index",
+            "pages": [
+              "angular/cd",
+              "angular/component",
+              "angular/di",
+              "angular/forms",
+              "angular/http",
+              "angular/lifecycle",
+              "angular/misc",
+              "angular/routing",
+              "angular/rxjs",
+              "angular/signals",
+              "angular/ssr",
+              "angular/state",
+              "docker/angular",
+              "api",
+              "async-messaging",
+              "architecture-styles",
+              "database",
+              "design-patterns",
+              "frontend/mfe",
+              "frontend/layout",
+              "frontend/performance",
+              "frontend/state-mgmt",
+              "frontend/tools",
+              "git",
+              "javascript",
+              "microservices",
+              "observability",
+              "security",
+              "spring",
+              "system-design",
+              "typescript"
+            ]
+          },
+          {
             "group": "Design Patterns",
             "pages": [
               "patterns/overview"
@@ -59,7 +95,24 @@
               "frontend/mfe/advanced-ng",
               "frontend/mfe/angular",
               "frontend/tools/linter",
-              "frontend/tools/bundler"
+              "frontend/tools/bundler",
+              "frontend/state-mgmt/ngrx/actions",
+              "frontend/state-mgmt/ngrx/effects",
+              "frontend/state-mgmt/ngrx/reducers",
+              "frontend/state-mgmt/ngrx/store",
+              "frontend/state-mgmt/ngrx/selectors",
+              "frontend/state-mgmt/ngrx/action-groups",
+              "frontend/state-mgmt/ngrx/feature-creator",
+              "frontend/state-mgmt/ngrx/meta-reducers",
+              "frontend/state-mgmt/ngrx/signal-state",
+              "frontend/state-mgmt/ngrx/signal-store",
+              "frontend/state-mgmt/redux/async",
+              "frontend/state-mgmt/redux/dataflow",
+              "frontend/state-mgmt/redux/overview",
+              "frontend/state-mgmt/redux/patterns",
+              "frontend/state-mgmt/redux/state-action-reducers",
+              "frontend/state-mgmt/redux/store",
+              "frontend/state-mgmt/redux/summary"
             ]
           },
           {

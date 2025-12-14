@@ -1,0 +1,106 @@
+Redux Part 6 demonstrates async data flow using middleware (thunks) for HTTP requests while maintaining unidirectional Redux patterns.[1]
+
+## Side Effects & Middleware Role
+**Key Topics**: Reducers **pure** (no side effects: HTTP, timers, logging, random IDs); middleware handles them between `dispatch` → reducer.
+- **Design Patterns**: Middleware pipeline intercepts non-actions (functions); access `dispatch/getState`.
+- **Examples**: `delayedActionMiddleware` delays actions; `fetchTodosMiddleware` calls API → dispatches result.[1]
+
+## Async Function Middleware Pattern
+**Key Topics**: `dispatch(fn)` where `fn(dispatch, getState)`—middleware checks `typeof action === 'function'`.
+```js
+const asyncFnMiddleware = store => next => action => 
+  typeof action === 'function' ? action(store.dispatch, store.getState) : next(action)
+```
+- **Flow**: Component → `dispatch(fetchFn)` → middleware calls fn → API → `dispatch(successAction)`.[1]
+
+## Redux Thunk Middleware
+**Key Topics**: Official `redux-thunk`: `npm i redux-thunk`; `applyMiddleware(thunk)`.
+- **Setup**: `composeWithDevTools(applyMiddleware(thunk))`.
+- **Thunk Signature**: `(dispatch, getState) => { async logic; dispatch(action); }`.
+- **Creator Pattern**: `saveNewTodo(text) => async (dispatch) => { await post(); dispatch(todoAdded()); }`.[1]
+
+## Fetching Todos Example
+**Key Topics**: Load on app start (`index.js`): `store.dispatch(fetchTodos())`.
+```js
+export async function fetchTodos(dispatch) {
+  const todos = await client.get('/fakeApi/todos')
+  dispatch({type: 'todos/todosLoaded', payload: todos})
+}
+```
+- **Reducer**: `case 'todos/todosLoaded': return action.payload` (replace entire array).[1]
+
+## Saving New Todos (Thunk Creator)
+**Key Topics**: Component dispatches thunk creator → returns thunk → middleware executes.
+```js
+// Header component
+dispatch(saveNewTodo(text))  // Returns thunk fn
+
+// todosSlice.js
+export function saveNewTodo(text) {
+  return async dispatch => {
+    const response = await client.post('/fakeApi/todos', {todo: {text}})
+    dispatch({type: 'todos/todoAdded', payload: response.todo})
+  }
+}
+```
+- **Reducer**: `case 'todos/todoAdded': return [...state, action.payload]` (server provides ID).[1]
+
+## Async Data Flow Diagram
+**Key Topics**: Extended cycle:
+1. UI event → `dispatch(thunk)`
+2. Thunk middleware → calls thunk fn(dispatch, getState)
+3. Async API call → `dispatch(successAction)`
+4. Root reducer → new state → UI re-renders
+
+```
+UI → dispatch(thunkFn) → Middleware → API Call → dispatch(action) → Reducer → State → UI
+```
+
+## Best Practices Summary
+- **Thunk Creators**: Encapsulate params (`saveNewTodo(text)`); components dispatch without async knowledge.
+- **Loading States**: Add `{status: 'idle'|'loading'|'succeeded'|'failed', items: [], error: null}`.
+- **Error Handling**: `try/catch` → `dispatch({type: 'todos/fetchError', payload: error})`.
+- **RTK Query**: Production default—auto-generates thunks/reducers/caching.[1]
+
+## Advanced Topics
+- **Cancellation**: `AbortController` in thunks.
+- **Optimistic Updates**: `dispatch(optimisticAction)` → API → `dispatch(correctAction)`.
+- **RTK Query**: `createApi()` auto-handles CRUD + caching + polling.[1]
+
+## Big Tech References
+- **Facebook**: Thunk → Relay for GraphQL; single API layer.
+- **Netflix**: Custom thunk middleware for A/B testing + analytics.
+- **Articles**: "How Netflix Does Async Redux" (Medium); Twitter's RTK Query migration.[1]
+
+## Interview Cheat Sheet
+**Q: Where do side effects belong?**  
+A: **Middleware** only—reducers pure; thunk middleware for async.[1]
+
+**Q: Thunk middleware flow?**  
+A: `dispatch(fn)` → middleware calls `fn(dispatch, getState)` → async → `dispatch(action)`.[1]
+
+**Q: Thunk creator vs thunk?**  
+A: Creator: `saveTodo(text) => async(dispatch) => {...}`; reusable with params.[1]
+
+**Q: Async data flow steps?**  
+A: UI → thunk → middleware → API → fulfilled action → reducer → state → re-render.[1]
+
+**Q: Why thunk over middleware-per-action?**  
+A: Reusable, testable, store-agnostic; single middleware handles all async.[1]
+
+**Q: RTK Query vs manual thunks?**  
+A: RTK Query auto-generates thunks/reducers/loading states/caching; zero boilerplate.[1]
+
+**Q: Handle API errors?**  
+A: `try { await api() } catch(e) { dispatch({type: 'error', payload: e}) }` + loading enum.[1]
+
+## Key Terms & Keywords
+- **Core**: Side Effects, Redux Thunk, `applyMiddleware(thunk)`, Thunk Creator
+- **Flow**: `dispatch(fn)`, `fn(dispatch, getState)`, Middleware Pipeline
+- **Patterns**: Action Creator → Thunk, Optimistic Updates, Loading States
+- **APIs**: `client.get/post()`, `composeWithDevTools(applyMiddleware(thunk))`
+- **States**: `'idle'|'loading'|'succeeded'|'failed'`, Error Payload
+- **Advanced**: RTK Query, `createAsyncThunk`, AbortController, Caching
+- **Files**: `features/todos/todosSlice.js` (thunks + reducer)[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-6-async-logic)

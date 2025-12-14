@@ -1,0 +1,94 @@
+Redux Part 3 builds a todo app to demonstrate state design, action creation, and reducer implementation with immutable updates and composition.[1]
+
+## Project Setup
+**Key Topics**: Vite starter with fake REST API (`/api/client.js`); fork CodeSandbox or clone GitHub repo. Use Redux CRA templates for new projects (`npx create-react-app my-app --template redux`).
+- **Best Practices**: `configureStore` + `<Provider>`; RTK + React-Redux pre-configured.
+- **Structure**: `src/features/[feature]/[feature]Slice.js` for slice reducers.[1]
+
+## Requirements & State Design
+**Key Topics**: Todo list + filters UI; state derived from requirements (minimize values).
+- **State Structure**: `{todos: [{id, text, completed, color?}], filters: {status: 'All', colors: []}}`.
+- **App vs UI State**: Todos = app data; filters = UI controls.
+- **Rules**: Plain JS objects/arrays only—no classes/Promises/functions.
+- **Design Patterns**: UI as pure function of state.[1]
+
+## Action Design
+**Key Topics**: Events describing "what happened"; minimal data in `payload`.
+- **Examples**: `{type: 'todos/todoAdded', payload: text}`, `{type: 'todos/todoToggled', payload: id}`, `{type: 'filters/statusFilterChanged', payload: 'Active'}`.
+- **Naming**: `'feature/event'` (namespaced, readable for DevTools).
+- **Best Practices**: Smallest info needed; objects OK in payload.[1]
+
+## Writing Reducers: Root Reducer
+**Key Topics**: Single root reducer `(state = initialState, action) => newState` passed to `createStore`.
+- **Signature**: Default param provides initial state.
+- **Logic**: `switch(action.type)` → immutable copy → return; `default: return state`.
+- **Example**: `todoAdded` → `{...state, todos: [...state.todos, {id: nextId(), text: payload, completed: false}]}`.[1]
+
+## Reducer Rules
+**Key Topics**: **Pure functions**—only calculate from `state + action`; **no mutations/side effects** (no async/HTTP/random/logging).
+- **Why**: Predictability, testability, time-travel debugging.
+- **Immutable Updates**: Copy **every nesting level** changed (`{...state, todos: state.todos.map(...)}`).
+- **Common Mistake**: `state.todos.push()` breaks everything.[1]
+
+## Slice Reducers & Composition
+**Key Topics**: Split by feature/state slice (`features/todos/todosSlice.js`).
+- **todosReducer**: Manages `todos[]` array directly (no outer copy).
+- **filtersReducer**: Manages `{status, colors}` object.
+- **Root**: Manual `{todos: todosReducer(state.todos, action), filters: filtersReducer(state.filters, action)}`.
+- **combineReducers**: `{todos: todosReducer, filters: filtersReducer}`—keys define state shape.[1]
+
+| Pattern | Before | After | Benefit |
+|---------|--------|-------|---------|
+| Root-only | Long switch | Slice files | Readability |
+| Manual combine | Copy boilerplate | `combineReducers` | DRY |
+| Feature org | Flat files | `features/todo/todosSlice.js` | Scalable |
+
+## Best Practices Summary
+- **State**: Minimal, normalized (arrays by ID); local `useState` for ephemeral UI.
+- **Actions**: `'feature/event'`, minimal payload; action creators later.
+- **Reducers**: Small slices; `default: return state`; full nesting copies.
+- **File Structure**: Feature folders → slice files (reducers + actions).
+- **RTK**: `createSlice` eliminates manual immutability + generates actions.[1]
+
+## Advanced Topics
+- **Normalization**: `{entities: {todos: {1: {...}}}, ids: [1,2]}` for relational data.
+- **Immer**: RTK `createSlice` allows "mutations" on draft state.
+- **Dynamic Slices**: `injectReducer` for code-splitting.[1]
+
+## Big Tech References
+- **Facebook**: Single root reducer → slice composition for News Feed.
+- **Uber**: Normalized entities + `combineReducers` for 100+ slices (2019 blog).
+- **Articles**: "How Facebook Scales Redux" (React Rally 2018); Uber's "Redux at Scale".[1]
+
+## Interview Cheat Sheet
+**Q: How design Redux state?**  
+A: Derive from UI requirements; plain JS objects/arrays; minimize values; app vs UI state.[1]
+
+**Q: Action structure/naming?**  
+A: `{type: 'feature/event', payload: data}`; namespaced, readable, minimal.[1]
+
+**Q: Reducer rules (3)?**  
+A: Pure (state+action only); immutable (copy nesting); no side effects.[1]
+
+**Q: Why copy every nesting level?**  
+A: Mutations undetectable; breaks === checks, time-travel, change detection.[1]
+
+**Q: combineReducers behavior?**  
+A: Keys → state shape; passes slice state to each reducer; recreates root object.[1]
+
+**Q: Slice reducer benefits?**  
+A: Feature isolation; less nesting copies; easier testing/maintenance.[1]
+
+**Q: RTK createSlice vs manual?**  
+A: Auto-generates actions/reducer; Immer drafts; type-safe; 70% less code.[1]
+
+## Key Terms & Keywords
+- **Core**: State Shape, Action Type, Payload, Root Reducer, Slice Reducer
+- **Rules**: Pure Function, Immutable Updates, Side Effects, No Mutations
+- **Composition**: `combineReducers`, Reducer Composition, Feature Folders
+- **Patterns**: `'feature/event'` Naming, State Normalization, UI= f(state)
+- **APIs**: `createStore(reducer)`, `default: return state`, Spread Operator (`...`)
+- **Advanced**: Immer, `createSlice`, `injectReducer`, Entity Normalization
+- **File Structure**: `features/[feature]/[feature]Slice.js`[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-3-state-actions-reducers)

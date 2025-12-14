@@ -1,0 +1,148 @@
+# NgRx Reducers: Pure State Transformers
+
+NgRx Reducers are pure TypeScript functions `(state: S, action: A) => S` that immutably transform state based on dispatched actions. Single responsibility: calculate **next state** only—no side effects.[1]
+
+## Reducer Signature & Rules
+**Key Topics**: `(state: StateType | undefined, action: Action) => StateType`; **pure, synchronous, immutable**.
+```typescript
+const todoReducer = (state: TodoState | undefined, action: Action): TodoState => {
+  // Return NEW state object; never mutate input
+  return state ?? initialState; // Default initial
+};
+```
+- **Important Interfaces**: `Reducer<State, Action>`; `on(actionCreator, reducerFn)`.
+- **Rules**: No API calls; no `console.log`; no mutations (`state.todos.push()` **illegal**).[1]
+
+## Creating Reducers: createReducer
+**Key Topics**: Declarative builder API; `createReducer(initialState, on(action1, handler1), on(action2, handler2))`.
+```typescript
+const initialState: TodoState = {todos: [], loading: false};
+
+const todoReducer = createReducer(
+  initialState,
+  on(TodoActions.loadSuccess, (state, {todos}) => 
+    ({...state, todos, loading: false})),
+  on(TodoActions.addTodo, (state, {todo}) => 
+    ({...state, todos: [...state.todos, todo]}))
+);
+```
+- **Benefits**: Type-safe; exhaustive action checking; immutable by convention.[1]
+
+## Reducer Registration
+**Key Topics**: Root (`forRoot({todos: todoReducer})`); Feature (`forFeature('todos', {todos: todoReducer})`).
+```typescript
+// app.module.ts
+StoreModule.forRoot({todos: todoReducer})
+
+// todos.module.ts (lazy)
+StoreModule.forFeature('todos', {todos: todoReducer})
+```
+- **Design Patterns**: Feature modules → lazy-loaded reducers; single slice per feature.[1]
+
+## Immutability Patterns
+**Key Topics**: `{...state, field: newValue}`; array spreads `todos: [...state.todos, newTodo]`.
+```typescript
+// Update single item
+on(updateTodo, (state, {id, changes}) => ({
+  ...state,
+  todos: state.todos.map(todo => 
+    todo.id === id ? {...todo, ...changes} : todo)
+}));
+
+// Replace entire slice
+on(loadTodosSuccess, (state, {todos}) => ({...state, todos}));
+```
+- **Best Practices**: Minimal copies; `Object.assign()` alternative; avoid deep clones.[1]
+
+## Handling Unknown Actions
+**Key Topics**: `default: return state` implicit in `createReducer`; explicit fallthrough.
+```typescript
+createReducer(initialState,
+  // Exhaustive matching catches all defined actions
+  // Unhandled actions auto-return state unchanged
+  on(loadTodos, state => ({...state, loading: true}))
+);
+```
+- **Type Safety**: TypeScript errors on unhandled union actions.[1]
+
+## Feature State Structure
+**Key Topics**: `{loading: boolean, todos: Todo[], error: string | null}` per slice.
+```
+todos: {
+  loading: 'idle'|'loading'|'success'|'error',
+  todos: Todo[],
+  error: string | null
+}
+```
+- **Design Patterns**: Loading enums; normalized `{ids: [], entities: {id: Todo}}`.[1]
+
+## Meta-Reducers
+**Key Topics**: Higher-order reducers wrapping state transformations (logging, immutability checks).
+```typescript
+export const logger = (reducer: ActionReducer<T>): ActionReducer<T> => {
+  return (state, action) => {
+    console.log('action', action);
+    const next = reducer(state, action);
+    console.log('next', next);
+    return next;
+  };
+};
+
+// app.module.ts
+metaReducers: [environment.production ? [] : logger]
+```
+- **Advanced**: `storeFreeze` prevents dev mutations; undo/redo meta-reducers.[1]
+
+## Best Practices Summary
+```
+Structure: feature/reducers/todos.reducer.ts
+Immutability: {...state, field: newValue}; map/filter spreads
+Slices: One reducer per feature; small, focused
+Initial State: const initialState = {loading: false, data: []}
+Type Safety: Union actions + createReducer exhaustiveness
+Meta-Reducers: Dev-only (logger, freeze); prod: []
+DevTools: Automatic action tracing with typed payloads
+```
+
+## Advanced Topics
+- **EntityAdapter**: `createEntityAdapter()`—normalized CRUD (`addOne`, `upsertMany`).
+- **Serializability**: No functions/Dates in state; `immer`-style drafts (future).
+- **Dynamic Reducers**: `registerFeatureReducer()` code-splitting.[1]
+
+## Big Tech References
+- **Google**: Angular Material uses `createReducer` + typed unions across docs.
+- **Microsoft**: Azure Portal—feature reducers + EntityAdapter normalization.
+- **Articles**: "NgRx Reducers at Enterprise Scale" (Google I/O Extended).[1]
+
+## Interview Cheat Sheet
+**Q: Reducer signature?**  
+A: `(state: S | undefined, action: A) => S`—pure, returns **new** state.[1]
+
+**Q: createReducer vs switch?**  
+A: **Declarative** `createReducer(initial, on(action1, fn1), on(action2, fn2))`—type-safe, exhaustive.[1]
+
+**Q: Immutability enforcement?**  
+A: Spreads `{...state}`; `metaReducers: [storeFreeze]` (dev); TypeScript prevents mutations.[1]
+
+**Q: Feature reducer setup?**  
+A: `StoreModule.forFeature('todos', {todos: todoReducer})`—lazy-loaded slice.[1]
+
+**Q: Unknown actions?**  
+A: `createReducer` auto-returns unchanged state; TypeScript warns unhandled union cases.[1]
+
+**Q: Meta-reducers purpose?**  
+A: Wrap reducers (logging, debugging); `logger(reducer)(state, action)`.[1]
+
+**Q: Normalized reducer example?**  
+A: `EntityAdapter.create()` → `adapter.addOne(newTodo, state)`—O(1) updates.[1]
+
+## Key Terms & Keywords
+- **Core**: `Reducer<State, Action>`, `createReducer`, `on(action, handler)`
+- **Immutability**: `{...state}`, Array spreads `[...state.todos, newTodo]`
+- **Setup**: `forRoot({reducers})`, `forFeature('key', reducers)`
+- **Advanced**: `MetaReducer<T>`, `EntityAdapter`, `storeFreeze`
+- **Patterns**: Feature Slices, Loading States, Normalized `{ids, entities}`
+- **Type Safety**: Union Actions, Exhaustive Matching, Props Type Inference
+- **Tools**: NgRx Store DevTools, RxJS integration[1]
+
+[1](https://redux.js.org/tutorials/fundamentals/part-7-standard-patterns)

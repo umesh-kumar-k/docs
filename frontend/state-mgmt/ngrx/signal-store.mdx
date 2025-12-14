@@ -1,0 +1,179 @@
+# NgRx Signal Store: Signals + Redux
+
+**NgRx Signal Store** combines **Angular Signals** + **NgRx patterns** in **class-free**, **functional** API. Replaces traditional Store/Effects/Reducers with `signalStore()`, `computed()`, `update()`, `effect()`. **Zero boilerplate**; **fine-grained reactivity**; **standalone-first**.
+
+## Core API: signalStore()
+**Key Topics**: `signalStore((get, set, api) => ({signals, computed, methods, effects}))`.
+```typescript
+interface SignalStoreFeature {
+  state: WritableSignal<State>;
+  computed: Signal<Derived>;
+  loadTodos: (filter: string) => void;
+  toggleTodo: (id: number) => void;
+}
+
+const TodoStore = signalStore(
+  signalStoreFeatureInitState({todos: [], loading: false}),
+  signalStoreFeatureComputedState({
+    filteredTodos: computed((state) => 
+      state().todos.filter(t => !t.completed)
+    )
+  }),
+  signalStoreFeatureUpdaters({
+    loadTodos: (state, filter: string) => ({...state, loading: true}),
+    toggleTodo: (state, id: number) => ({
+      ...state,
+      todos: state.todos.map(t => t.id === id ? {...t, completed: !t.completed} : t)
+    })
+  }),
+  signalStoreFeatureEffects(({todosService}) => ({
+    loadTodosEffect: (filter: string) => {
+      todosService.getTodos(filter).subscribe(todos => 
+        this.patchState({todos, loading: false})
+      );
+    }
+  }))
+);
+```
+- **Important Types**: `SignalStoreFeature<State>`, `Patch<State>`, `Updaters<State>`.
+- **Class-free**: **Pure functions**; no `@Injectable()`.
+
+## State Management Patterns
+**Key Topics**:
+| Pattern | API | Example |
+|---------|-----|---------|
+| **Initial** | `featureInitState({todos: []})` | Default values |
+| **Update** | `featureUpdaters({addTodo: emptyFn})` | `update({todos: [...todos, newTodo]})` |
+| **Patch** | `patchState({loading: false})` | Partial immutable updates |
+| **Computed** | `featureComputedState({count: computed(() => todos().length)})` | Derived reactive state |
+
+```typescript
+// Partial updates (immer-like)
+this.patchState({loading: false, error: null});
+this.setState({...this.state(), todos: loadedTodos});  // Full replace
+```
+
+## Effects & Async
+**Key Topics**: **`effect()`** inside store; auto-dispose; **no Actions$** stream.
+```typescript
+signalStoreFeatureEffects((store, todosService) => ({
+  loadTodos: effect((filter: string) => {
+    const todosSig = store.filteredTodos;  // Reactive dependency
+    
+    todosService.getTodos(filter)
+      .subscribe({
+        next: todos => store.patchState({todos}),
+        error: err => store.patchState({error: err.message})
+      });
+  })
+}));
+```
+- **Reactive**: Effects re-run on **signal changes**; **auto-cleanup**.
+
+## Feature Composition
+**Key Topics**: **`withFeatures([feature1, feature2])`**—composable stores.
+```typescript
+const TodoStore = signalStore(
+  withInitState({todos: []}),
+  withComputed(({todos}) => ({
+    count: computed(() => todos().length)
+  })),
+  withMethods(({patchState}) => ({
+    addTodo: (text: string) => patchState(s => ({
+      todos: [...s.todos, {id: Date.now(), text, completed: false}]
+    }))
+  })),
+  withEffects(({addTodo}) => ({
+    saveEffect: effect((todo: Todo) => {
+      this.api.save(todo).subscribe(saved => addTodo(saved.text));
+    })
+  }))
+);
+```
+- **Design Patterns**: **Functional composition**; **Unix pipe** philosophy.
+
+## Angular Integration
+**Key Topics**: **Signals everywhere**; **no AsyncPipe** needed.
+```typescript
+@Component({
+  providers: [TodoStore]
+})
+export class TodoComponent {
+  constructor(public store: TodoStore) {}
+  
+  todos = this.store.filteredTodos;  // Signal, not Observable
+  
+  addTodo(text: string) {
+    this.store.addTodo(text);  // Method call
+  }
+}
+```
+```
+Template:
+<ul>
+  @for (todo of todos(); track todo.id) {
+    <li>{{todo.text}}</li>
+  }
+</ul>
+<input #input (keyup.enter)="store.addTodo(input.value)">
+```
+- **Benefits**: **Zoneless**; **fine-grained** updates; **trackBy** automatic.
+
+## Comparison: Signal Store vs Classic NgRx
+| Feature | Classic NgRx | Signal Store |
+|---------|-------------|-------------|
+| **State** | `select(state => state.todos)` | `store.todos()` |
+| **Async** | `Actions$.pipe(ofType())` | `effect((params) => apiCall())` |
+| **Update** | `dispatch(action)` | `patchState({field: value})` |
+| **Config** | `@NgModule({imports})` | `signalStore(withFeatures(...))` |
+| **Reactivity** | `AsyncPipe` | Native signals |
+
+## Best Practices Summary
+```
+Structure: stores/todo.store.ts (single file)
+Composition: withInit → withComputed → withMethods → withEffects
+State: Minimal signals; computed for derived; enums over booleans
+Async: effect(fn); auto-dispose; error boundaries
+DI: Constructor injection (services); providers: [TodoStore]
+Testing: Mock store methods; test computed reactivity
+Zoneless: Native Angular 16+ signals; no Zone.js dependency
+```
+
+## Advanced Topics
+- **Entity Signal Store**: `@ngrx/signals/entities`—normalized CRUD.
+- **Router Integration**: `withRouterStore()`—URL ↔ state sync.
+- **SSR Hydration**: `transferState` + `patchState(initialServerState)`.
+- **Patched Stores**: `extendStore(TodoStore, withCustomFeature)`.
+
+## Big Tech References
+- **Google**: Angular team demos use Signal Store for all new examples (Angular 17+).
+- **Microsoft**: Azure Portal prototyping Signal Store migration (2025 roadmap).
+- **Articles**: "Signal Store at Scale" (ng-conf 2024).
+
+## Interview Cheat Sheet
+**Q: Signal Store vs Classic?**  
+A: **Signals** (`store.state()`); **no Actions$**; `patchState()`; **class-free** `signalStore(withFeatures())`.
+
+**Q: State update pattern?**  
+A: **`patchState({field: value})`**—partial immutable; `setState(fullState)` replace.
+
+**Q: Effects lifecycle?**  
+A: **`effect(fn)`** auto-disposes; re-runs on signal deps; **no manual teardown**.
+
+**Q: Composition API?**  
+A: **`withInitState → withComputed → withMethods → withEffects`**—functional pipeline.
+
+**Q: Angular template usage?**  
+A: **`@for (todo of store.todos(); track todo.id)`**—native signals, **no AsyncPipe**.
+
+**Q: Providers setup?**  
+A: **`providers: [TodoStore]`**—tree-shakable; **standalone-first**.
+
+## Key Terms & Keywords
+- **Core**: `signalStore()`, `SignalStoreFeature`, `patchState()`, `effect()`
+- **Features**: `withInitState()`, `withComputed()`, `withMethods()`, `withEffects()`
+- **State**: `WritableSignal<T>`, `computed()`, Partial Updates
+- **Reactivity**: **Zoneless**, Fine-grained, `@for (sig(); track)`
+- **Composition**: Functional Pipeline, `extendStore()`, Feature Mixing
+- **Advanced**: Entity Signals, Router Signals, SSR Hydration
+- **Migration**: Classic → SignalStore; **incremental**
