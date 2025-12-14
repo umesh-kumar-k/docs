@@ -16,37 +16,7 @@
           {
             "group": "Index",
             "pages": [
-              "angular/cd",
-              "angular/component",
-              "angular/di",
-              "angular/forms",
-              "angular/http",
-              "angular/lifecycle",
-              "angular/misc",
-              "angular/routing",
-              "angular/rxjs",
-              "angular/signals",
-              "angular/ssr",
-              "angular/state",
-              "docker/angular",
-              "api",
-              "async-messaging",
-              "architecture-styles",
-              "database",
-              "design-patterns",
-              "frontend/mfe",
-              "frontend/layout",
-              "frontend/performance",
-              "frontend/state-mgmt",
-              "frontend/tools",
-              "git",
-              "javascript",
-              "microservices",
-              "observability",
-              "security",
-              "spring",
-              "system-design",
-              "typescript"
+              "index/toc"
             ]
           },
           {
