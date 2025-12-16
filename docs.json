@@ -67,7 +67,8 @@
           {
             "group": "Design Patterns",
             "pages": [
-              "patterns/overview"
+              "patterns/overview",
+              "patterns/cloud-overview"
             ]
           },
           {
@@ -305,6 +306,8 @@
                 "rxjs/subjects",
                 "rxjs/rxjs-overview",
                 "rxjs/observable",
+                "rxjs/hot-cold",
+                "rxjs/multicast",
                 "rxjs/frequent-operators",
                 "rxjs/higher-order",
                 "rxjs/signals-interop",
@@ -403,6 +406,19 @@
         "tab": "Frontend",
         "groups": [
           {
+            "group": "Design Patterns",
+            "pages": [
+                "frontend/design-patterns/overview",
+                "frontend/design-patterns/3rd-party-load",
+                "frontend/design-patterns/bundle-splitting",
+                "frontend/design-patterns/compression",
+                "frontend/design-patterns/dynamic-import",
+                "frontend/design-patterns/rendering",
+                "frontend/design-patterns/tree-shaking",
+                "frontend/design-patterns/virtual-list"
+            ]
+          },
+          {
             "group": "Typescript",
             "pages": [
                 "typescript/classes",
@@ -424,9 +440,12 @@
           {
             "group": "Micro Front Ends",
             "pages": [
+              "frontend/mfe/summary",
+              "frontend/mfe/overview",
               "frontend/mfe/module-federation-plugin",
               "frontend/mfe/advanced-ng",
-              "frontend/mfe/angular"
+              "frontend/mfe/angular",
+              "frontend/tools/nx/module-federation"
             ]
           },
           {
@@ -471,6 +490,15 @@
             "pages": [
               "frontend/tools/linter",
               "frontend/tools/bundler"
+            ]
+          },
+          {
+            "group": "Nx",
+            "pages": [
+              "frontend/tools/nx/overview",
+              "frontend/tools/nx/summary",
+              "frontend/tools/nx/module-federation",
+              "frontend/tools/nx/nx-angular"
             ]
           }
         ]

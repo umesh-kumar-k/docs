@@ -1,0 +1,261 @@
+Rendering patterns define where and when HTML is produced (build time, request time, edge, client) and strongly shape UX (Core Web Vitals) and DX (build/infra complexity).[1]
+
+***
+
+## Importance of Rendering Patterns
+
+- Rendering choice impacts Core Web Vitals (TTFB, FCP, LCP, CLS) and SEO, as well as DX (build times, rollbacks, infra scalability).[1]
+- Different pages in the same app may need different patterns; patterns are fit-for-purpose, not one-size-fits-all.[1]
+
+**Best practices / trade-offs**
+
+- Optimize per page type (marketing, dashboard, search, editor) rather than “one global pattern”.[1]
+- Balance fast static/edge rendering for public content with more dynamic/server patterns for personalized flows.[1]
+
+***
+
+## Choosing a Pattern
+
+- Historical evolution: CSR → SSR → static generation → hybrids like ISR, Edge SSR, streaming, partial hydration.[1]
+- Chrome team encourages static/SSR plus progressive loading over full-page rehydration where possible.[1]
+
+**Key ideas**
+
+- Every pattern targets specific needs; the same pattern can be ideal in one scenario and harmful in another.[1]
+- Modern apps often mix multiple patterns (e.g., static marketing pages + SSR dashboards).[1]
+
+***
+
+## Static Rendering (Base Pattern)
+
+### Plain Static Rendering
+
+**Key points**
+
+- HTML generated at build time; served from CDN/edge; same for all users until next build.[1]
+- Ideal for content that is stable and not user-specific (e.g., basic landing pages, documentation, static product pages).[1]
+
+**Performance**
+
+- Excellent TTFB (HTML already at edge), fast FCP and LCP, essentially no layout shift.[1]
+
+**Best practices / trade-offs**
+
+- Use for pages with minimal dynamic/personalized content.[1]
+- Trade-off: any content update requires a new build/deploy; not suitable for highly dynamic or per-user pages.[1]
+
+***
+
+### Static Rendering with Client-Side Fetch
+
+**Key points**
+
+- Structure/UI is static; dynamic data is fetched client-side after load (e.g., via SWR + API route).[1]
+- Often uses skeleton components where data will appear.[1]
+
+**Performance**
+
+- Good TTFB/FCP (HTML arrives quickly), but LCP delayed until client data fetch completes.[1]
+- Risk of layout shift if skeleton size doesn’t match final content.[1]
+
+**Costs / trade-offs**
+
+- API called per request → higher server costs vs build-time fetch.[1]
+- Good for frequently changing listing-like data where SEO for the data itself is less critical than speed of deployment.[1]
+
+**Best practices**
+
+- Carefully size skeletons to reduce CLS.[1]
+- Cache API results where possible; consider pushing some data to build time if it’s stable enough.[1]
+
+***
+
+### Static with `getStaticProps` (Build-time Data Fetch)
+
+**Key points**
+
+- Data fetched at build time on the server; HTML includes data, no client skeleton or extra API route needed.[1]
+- From client’s perspective, behaves like plain static rendering (data already in HTML).[1]
+
+**Performance**
+
+- Very strong CWV: great TTFB, FCP, LCP, minimal CLS.[1]
+
+**DX / trade-offs**
+
+- Long build times when many pages (e.g., blogs with hundreds/thousands of routes).[1]
+- Possible API request limits or cost increase if external APIs are hit for each page on every build.[1]
+- Requires infrequent data changes; frequent updates → frequent rebuilds.[1]
+
+**Best practices**
+
+- Use for content that’s available and relatively stable at build time: marketing, docs, evergreen content.[1]
+- For large collections, combine with pagination or selective generation to avoid huge build times.[1]
+
+***
+
+## Incremental Static Regeneration (ISR)
+
+### Basic ISR
+
+**Key points**
+
+- Hybrid: pre-render some pages at build; generate other pages on-demand on first request.[1]
+- Next.js uses `getStaticPaths` to decide which dynamic routes to pre-generate and which to generate on-demand (with fallback).[1]
+
+**Behavior**
+
+- First user for a non-pregenerated page experiences a slower response while it’s generated.[1]
+- Generated page is cached at edge; subsequent users get cached version.[1]
+
+**Revalidation**
+
+- `revalidate` value triggers automatic background regeneration after N seconds; stale page served while new one builds, then cache updated.[1]
+
+**Benefits**
+
+- Shorter build times than full static; supports evolving content while preserving static-like performance.[1]
+
+**Drawbacks**
+
+- Content may not change as often as revalidate interval, causing unnecessary regenerations, cache churn, and higher server costs.[1]
+
+**Best practices**
+
+- Choose `revalidate` intervals informed by actual content churn & business SLAs.[1]
+- Pre-generate high-traffic or SEO-critical pages; let long tail be on-demand.[1]
+
+***
+
+### On-Demand ISR
+
+**Key points**
+
+- Instead of time-based `revalidate`, regeneration triggered by events (e.g., webhooks when CMS data changes).[1]
+- Uses API routes to call revalidation when new/updated content arrives.[1]
+
+**Benefits**
+
+- Regenerates only when needed → lower server costs, less unnecessary invalidation.[1]
+- Regenerated pages are redistributed across edge nodes, ensuring global users see fresh content without stale pages.[1]
+
+**Best practices**
+
+- Integrate CMS or back office with revalidation hooks.[1]
+- Use for content where freshness is driven by business events, not fixed intervals (e.g., product catalog updates, news posts).[1]
+
+***
+
+## Server-Side Rendering (SSR)
+
+### Core SSR
+
+**Key points**
+
+- HTML generated per request on the server (e.g., via `getServerSideProps`).[1]
+- Ideal for highly personalized, request-specific, or auth-gated pages.[1]
+
+**Behavior / metrics**
+
+- Data fetching (`getServerSideProps`) blocks page generation; TTFB higher than static.[1]
+- FCP ≈ LCP with minimal CLS since dynamic content is already in the HTML.[1]
+- Generated HTML is unique per request and generally not CDN-cacheable (though some partial caching may be possible).[1]
+
+**Cost / DX**
+
+- Serverless function invoked on every request; higher infra cost vs static.[1]
+
+**Performance best practices**
+
+- Keep `getServerSideProps` fast; minimize external calls and heavy computation.[1]
+- Deploy DB in same region as serverless function to minimize latency.[1]
+- Use `Cache-Control` headers where appropriate (e.g., personalized but partially cacheable content).[1]
+- Ensure adequate server hardware/configuration; be aware of cold starts in serverless.[1]
+
+**Trade-offs**
+
+- Strong for personalization and security; weaker on raw TTFB and infra cost compared to static/ISR.[1]
+
+***
+
+## Edge SSR + HTTP Streaming (Advanced)
+
+**Edge SSR**
+
+- Render on edge network: near-zero cold boot, lower latency globally.[1]
+- Edge runtime supports HTTP streaming of HTML chunks.[1]
+
+**Streaming SSR**
+
+- Server streams parts of document as they’re ready; client can progressively show and hydrate components.[1]
+- Enables React Server Components (RSC) patterns: only some components rendered on server, rest on client.[1]
+
+**Benefits**
+
+- Hybrid between static and SSR: static-like speed for most of page + server-only rendering for heavy/dynamic parts.[1]
+- Example: static landing page with server-rendered listings component using large dependencies or per-request data.[1]
+
+**Best practices / trade-offs**
+
+- Use streaming SSR + RSC for high-complexity apps where you want fine-grained control over what runs where.[1]
+- Trade-off: architecture complexity and tooling maturity vs optimal UX and infra efficiency.[1]
+
+***
+
+## Overall Conclusions from the Article
+
+- CSR with full rehydration still makes sense for very interactive UIs where “everything changes all the time”.[1]
+- Static, ISR, SSR, Edge SSR, streaming, and RSC each map to specific app holotypes (portfolio, content, storefront, social network, immersive tools).[1]
+
+**Holotype table (high level)**
+
+- Portfolio/blog → static routing/render, minimal hydration (11ty-like).[1]
+- Content sites (news) → static + SSR, progressive/partial hydration (Astro-like).[1]
+- Storefronts → static + SSR, partial/resumable hydration (Marko/Qwik/Hydrogen).[1]
+- Social networks → heavy SSR + transitional/client routing (Next/Remix).[1]
+- Immersive apps like Figma → CSR, client routing, full runtime in browser.[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: How would you choose a rendering pattern for a new frontend?**  
+- Analyze page types and their needs: static marketing pages → static/ISR; personalized dashboards → SSR/Edge SSR; highly interactive tools → CSR or hybrid with RSC. The goal is to optimize CWV for users and DX for teams.[1]
+
+**Q2: Compare plain static rendering vs static + client-side fetch.**  
+- Plain static: data baked into HTML, great TTFB/FCP/LCP, no CLS, but requires rebuild for content updates. Static + client fetch: faster deploy cycles with runtime data, but LCP delayed, potential layout shifts, higher per-request API costs.[1]
+
+**Q3: When would you use `getStaticProps` vs ISR vs on-demand ISR?**  
+- `getStaticProps`: small–medium sites with stable data where full static build is acceptable. ISR: large/dynamic sites needing on-demand page generation with periodic revalidate. On-demand ISR: event-driven content changes where you want precise control and lower infra cost.[1]
+
+**Q4: What are the main pros and cons of SSR (`getServerSideProps`)?**  
+- Pros: per-request personalization, secure handling of auth and sensitive data, FCP ≈ LCP with minimal CLS. Cons: higher TTFB, no full CDN caching, serverless cost and cold boot issues, need to optimize DB/infra latency.[1]
+
+**Q5: How does Edge SSR + streaming improve UX over traditional SSR?**  
+- Edge SSR reduces latency and cold starts; streaming allows sending HTML chunks as ready, enabling earlier rendering and granular hydration. Combined with RSC, only heavy/dynamic pieces render server-side, preserving static-like speed.[1]
+
+**Q6: Give an example of mapping app types to rendering patterns.**  
+- Personal blog: static + minimal/no hydration. News site: static/SSR with progressive hydration. E-commerce: static + SSR with partial/resumable hydration. Social network: SSR + client transitions. Design tool: CSR.[1]
+
+**Q7: How do rendering patterns influence Core Web Vitals?**  
+- Static/ISR: best TTFB/FCP/LCP, minimal CLS. Static + client fetch: good TTFB/FCP, weaker LCP, possible CLS. SSR: weaker TTFB but good LCP/CLS. Edge SSR/streaming: improves TTFB and LCP by streaming HTML early.[1]
+
+***
+
+## Important Terms & Keywords
+
+- Core Web Vitals (TTFB, FCP, LCP, CLS).[1]
+- Static Rendering, Plain Static Rendering.[1]
+- Static Rendering with Client-Side fetch, skeleton UI, API routes, SWR.[1]
+- `getStaticProps`, `getStaticPaths`.[1]
+- Incremental Static Regeneration (ISR), `revalidate`, fallback pages.[1]
+- On-demand ISR, webhooks, API-based revalidation, edge cache redistribution.[1]
+- Server-Side Rendering (SSR), `getServerSideProps`, serverless functions, cold start.[1]
+- Cache-Control headers, colocated database & serverless region.[1]
+- Edge SSR, edge runtime, HTTP streaming, streaming SSR.[1]
+- React Server Components (RSC), partial server rendering.[1]
+- Client-Side Rendering (CSR), full rehydration.[1]
+- Holotypes: portfolio/blog, content site, storefront, social network, immersive app.[1]
+- Routing: server, hybrid, transitional, client; Hydration: none, progressive, partial, resumable.[1]
+
+[1](https://nx.dev/docs/technologies/module-federation/introduction)

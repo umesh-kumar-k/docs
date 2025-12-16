@@ -1,0 +1,111 @@
+Bundle splitting breaks a large JavaScript bundle into smaller, focused bundles so that only code needed for the current route or interaction is loaded and executed, improving FCP, LCP, and TTI—especially on slow networks and low‑end devices.[1]
+
+***
+
+## Why Bundle Splitting Matters
+
+**Key topics**
+
+- Single big bundle vs multiple bundles.  
+- Impact on loading, parsing, execution.[1]
+
+**Key points**
+
+- Bundlers (Webpack, Rollup) turn your source into one or more bundles that the browser downloads and executes.[1]
+- Large bundles delay when the engine reaches the first render call, leading to blank screens and higher First Contentful Paint (FCP) and Largest Contentful Paint (LCP).[1]
+- Time To Interactive (TTI) depends on the bundle finishing execution; extra unused code extends TTI unnecessarily.[1]
+- Even if only a *small* part of the bundle is used initially, the whole file must be fetched and parsed. This hurts users on slow networks/devices.[1]
+
+**Best practices / trade-offs**
+
+- Avoid “one giant bundle” for complex SPAs; split by routes/features so initial navigation only fetches what’s essential.[1]
+- Trade-off: more bundles = more HTTP requests and complexity, but far better UX when designed carefully.[1]
+
+***
+
+## Concept: Splitting the Bundle
+
+**Key topics**
+
+- Basic idea of splitting.  
+- Example: `main.bundle.js` vs `emoji-picker.bundle.js`.[1]
+
+**Key points**
+
+- Instead of shipping a monolithic bundle with low‑priority code, separate non‑critical functionality (e.g., emoji picker) into its own bundle.[1]
+- Initial route loads `main.bundle.js` only; `emoji-picker.bundle.js` loads on demand when the user opens the emoji UI, cutting initial download and execution time.[1]
+
+**Impact**
+
+- Reduces JS payload on initial render, improving FCP/LCP and perceived performance.[1]
+- Helps especially where some features are rarely used but previously always shipped up front.[1]
+
+***
+
+## Key Topics Section-wise (from the article intro)
+
+While the page continues into concrete techniques (route-based splitting, dynamic imports, etc.), the introduction emphasizes:[1]
+
+- **Parsing & compilation are streamed**, but the developer controls:  
+  - Loading time (bundle size & number).  
+  - Execution time (how much JS runs before UI is interactive).  
+- **Bundle splitting as a performance pattern** to:  
+  - Reduce initial bundle size.  
+  - Prioritize critical path code over low‑priority code.  
+
+***
+
+## Best Practices & Trade-offs (Architect View)
+
+**Best practices**
+
+- Align bundle boundaries with user flows:  
+  - Core shell + above‑the‑fold for initial route.  
+  - Per‑route/per‑feature bundles for dashboards, heavy widgets (emoji picker, editors, reports).  
+- Use dynamic imports / lazy loading to request non‑critical bundles only on interaction or visibility.  
+- Monitor bundle sizes and split when a route bundle grows too large.
+
+**Trade-offs**
+
+- Too many tiny bundles can increase overhead (requests, cache lookups) and hurt compression; too few bundles bloat initial payload.  
+- Balance is context‑specific: business‑critical flows might tolerate more upfront JS than rarely used admin tools.  
+
+***
+
+## Advanced Topics & Industry References
+
+- Chrome/V8 research (referenced elsewhere on Patterns.dev) underpins the idea that:  
+  - Large bundles delay execution of the first render call.  
+  - Streaming parse helps but doesn’t eliminate network cost for large JS.  
+- Modern frameworks (Next.js, Gatsby, etc.) build on these ideas with route-based and granular chunking strategies (discussed in the separate compression article you already read).  
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What is bundle splitting and why use it?**  
+- Splitting a large JS bundle into multiple smaller bundles so only the code required for the current route or interaction is loaded, reducing load, parse, and execution time and improving FCP, LCP, and TTI.[1]
+
+**Q2: How does a single large bundle hurt performance?**  
+- The browser must download, parse, and compile the entire file before it can execute the first render call, even if most code is unused on initial load, leading to blank screens and longer time to interactive.[1]
+
+**Q3: Give a concrete example of bundle splitting.**  
+- Move a rarely used emoji picker from `main.bundle.js` into `emoji-picker.bundle.js` so initial navigation only fetches the main bundle; load the emoji bundle lazily when the user opens that feature.[1]
+
+**Q4: How does bundle splitting help Core Web Vitals?**  
+- Smaller initial bundles reduce the time until first and largest visible content (FCP/LCP) render and shorten the time until the page becomes interactive (TTI).[1]
+
+**Q5: What trade-offs does bundle splitting introduce?**  
+- More bundles can increase overhead (more requests, less compression efficiency), so you must balance granularity against network and browser overhead.  
+
+***
+
+## Important Terms & Keywords
+
+- Bundle, bundler (Webpack, Rollup).[1]
+- Bundle splitting, code splitting, lazy loading.[1]
+- `main.bundle.js`, feature bundle (e.g., `emoji-picker.bundle.js`).[1]
+- First Contentful Paint (FCP), Largest Contentful Paint (LCP), Time To Interactive (TTI).[1]
+- Critical path JS, non‑critical/low‑priority JS, dynamic import.
+
+[1](https://www.patterns.dev/vanilla/compression/)

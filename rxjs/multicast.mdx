@@ -1,0 +1,138 @@
+Multicasted observables in RxJS – architect-level summary[1]
+
+***
+
+## Core concepts  
+
+- Observables are unicast by default: each subscription triggers a new execution of the producer/pipe, so side effects happen once per subscriber.[1]
+- Multicasted observables share a single producer execution among multiple subscribers, so side effects occur once and values are fanned out.[1]
+- Multicasting is typically implemented via Subjects and operators like `share` / `shareReplay`.[2][1]
+
+***
+
+## Unicast vs multicast (why it matters)  
+
+**Unicast behavior**  
+- Example: `interval(2000).pipe(take(3), tap(() => console.log(Math.random())))` with two subscribers logs different randoms for each subscriber and each emission.[3]
+- Each subscription owns its own execution chain, so the `tap` side effect runs twice per tick for two subscribers.[3]
+
+**When that’s a problem**  
+- Duplicate expensive side-effects: HTTP calls, analytics events, CPU-heavy transforms.[3]
+- Confusing behavior if you assume “one source, many listeners” but get “one source per listener.”[2][3]
+
+***
+
+## Making an observable multicast  
+
+### Using `share`  
+
+- `share()` converts a unicast observable into a hot, multicasted, ref-counted observable.[2][3]
+- After adding `share()` to the previous example, both subscribers receive the same values and `tap` runs once per tick.[3]
+
+**Key properties**  
+- Single producer execution shared by all current subscribers.[2][3]
+- When subscriber count goes from 0→1, the source connects; when it returns to 0, the subscription to the source is torn down (refCount).[2]
+
+### Using `shareReplay`  
+
+- `shareReplay(n)` shares one execution and replays the last `n` values to late subscribers.[3][2]
+- Example: `new Subject().pipe(map(() => Math.random()), shareReplay(1))`  
+  - All subscribers get same random per emission.  
+  - A late subscriber immediately gets the last emitted value, then all subsequent ones.[3]
+
+**Trade-offs**  
+- `share()` does not replay; late subscribers only see future values.[3]
+- `shareReplay()` caches values in memory; risk of leaks or stale data if used on never-completing streams or large payloads.[2][3]
+
+***
+
+## Subjects as multicasting mechanism  
+
+- A Subject is both an observer and observable: you `next()` into it and all subscribers receive the same value.[4]
+- You can build your own multicasting behavior by:  
+  - Subscribing the source observable into a Subject.  
+  - Exposing `subject.asObservable()` to consumers.[5][4]
+
+**Best practices**  
+- Prefer operators (`share`, `shareReplay`, `connectable`, `multicast`) over manual Subject wiring when possible.[5][2]
+- Expose `asObservable()` from services so consumers can’t call `next()` directly.[4]
+
+***
+
+## Best practices & trade-offs  
+
+**When to multicast**  
+- Multiple subscribers need to share:  
+  - Live sources (WebSocket, DOM events).  
+  - Expensive side effects (network, CPU).  
+  - Shared global streams in Angular services (e.g., auth/user, app config).[4][2]
+
+**When not to multicast**  
+- When each subscriber should have an independent run (e.g., “click to load data” per component, per-user flows).[2][3]
+
+**Trade-offs**  
+- Multicasting simplifies sharing but:  
+  - Makes the stream hot: subscribers may miss past values unless replay is used.[2]
+  - Requires careful lifecycle management to avoid leaks (especially with `shareReplay`).[3][2]
+
+***
+
+## Advanced / operator-level topics  
+
+- `multicast` / `connectable`: lower-level APIs to create connectable (explicitly started) multicasted observables; often wrapped by `share`.[6][5]
+- Patterns in Angular: “service as event bus” using `Subject`/`BehaviorSubject` to multicast values to many components.[4]
+
+***
+
+## Interview cheat sheet – Q&A  
+
+- Q: What does “observables are unicast by default” mean?  
+  A: Each subscription runs its own producer pipeline; side effects execute once per subscriber, not shared.[3]
+
+- Q: Define multicasted observable.  
+  A: An observable where multiple subscribers share a single producer execution, typically implemented with Subjects or operators like `share`/`shareReplay`.[2][3]
+
+- Q: When would you use `share()` vs `shareReplay()`?  
+  A: Use `share()` to share live values without replay; use `shareReplay(n)` when late subscribers must see the last `n` emitted values (e.g., cached config, last known state).[2][3]
+
+- Q: What’s the main risk with `shareReplay`?  
+  A: Holding onto cached values in memory and re-emitting them indefinitely, which can leak memory or serve stale data on long-lived or high-throughput streams.[3][2]
+
+- Q: How does a Subject enable multicasting?  
+  A: A single call to `subject.next(value)` notifies all subscribers, so one producer’s value is broadcast to many observers.[4]
+
+***
+
+## Important terms & keywords  
+
+1. Unicast observable (default RxJS behavior).[2][3]
+2. Multicasted observable.[1][2]
+3. Side-effect duplication in unicast pipelines.[3]
+4. `share()` operator (hot, refCounted, no replay).[2][3]
+5. `shareReplay(n)` operator (multicast + replay cache).[3][2]
+6. Subject / BehaviorSubject / ReplaySubject as multicast sources.[4]
+7. `asObservable()` to expose read-only multicast streams.[4]
+8. Connectable observable, `multicast`, `connectable()`.[6][5]
+9. Hot vs cold observables connection to unicast vs multicast.[1][2]
+10. Angular service event bus pattern using Subjects.[4]
+
+[1](http://archive.ph/ffLKt)
+[2](https://www.learnrxjs.io/learn-rxjs/operators/multicasting)
+[3](https://dev.to/pedrostc/til-rxjs-observables-are-unicast-and-we-can-multicast-them-58na)
+[4](https://dzone.com/articles/mulitcasting-observables-using-rxjs-subjects-in-an)
+[5](https://xgrommx.github.io/rx-book/content/observable/observable_instance_methods/multicast.html)
+[6](https://liveloveapp.com/courses/advanced-rxjs/multicasting-operators/connectable)
+[7](https://archive.ph/ffLKt/image)
+[8](https://stackoverflow.com/questions/54064309/rxjs-configure-observable-to-multicast)
+[9](https://stackoverflow.com/questions/57020646/why-do-we-call-rxjs-subject-as-multicast-and-observable-as-unicast)
+[10](https://rxjs-course.dev/course/multicasting-operators/exercise-multicast-operator/)
+[11](https://www.youtube.com/watch?v=tLKobpWua1A)
+[12](https://ngserve.io/rxjs-tutorial-understanding-the-basics/)
+[13](https://liveloveapp.com/courses/advanced-rxjs/multicasting-operators/multicast-operator)
+[14](https://blog.logrocket.com/guide-rxjs-observables/)
+[15](https://stackoverflow.com/questions/54191211/angular-rxjs-multicasting-observable-of-observable)
+[16](https://github.com/cjr8020/fe-dev-kb/blob/6305325080577eef58f0a3b84a406eb5dcd2d6d1/js/RxJS-KB.txt)
+[17](https://www.learnrxjs.io/learn-rxjs/operators/combination/merge)
+[18](https://ronnieschaniel.com/rxjs/rxjs-mastery-multicast-operators/)
+[19](https://www.youtube.com/watch?v=nWmCMqtrBeQ)
+[20](https://www.learnrxjs.io/learn-rxjs/operators/combination)

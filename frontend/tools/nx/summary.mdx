@@ -1,0 +1,68 @@
+Nx provides structured monorepo management through project graphs, caching, and plugins, enabling efficient builds for large-scale frontend architectures. Key concepts differentiate library types and standardize tasks across Angular/React projects.[1][2]
+
+## Buildable & Publishable Libraries
+- **Publishable Libraries**: Use `--publishable` flag for external distribution (e.g., UI design systems via Storybook); adds `build` target compiling/bundling to `dist/mylib`; requires `--importPath` like `@myorg/mylib`; manual `npm publish` from `dist`.[1]
+- **Buildable Libraries**: Use `--buildable` for intra-monorepo pre-compilation; leverages incremental builds without external optimization; outputs consumable by apps without re-compilation.[1]
+- **Best Practices**: Choose publishable for npm sharing, buildable for speed in large workspaces; check source `packages/<framework>/src/generators/library/library.ts`.[1]
+
+## Common Tasks
+- **build**: Compiles output; depends on deps via `nx.json` `targetDependencies`; infers from Vite/Webpack/rspack configs or custom (e.g., `ts-node`).[2]
+- **serve**: Dev preview; infers from Vite/Webpack/rspack or custom entrypoint.[2]
+- **test**: Unit tests via Vitest/Jest/ava; consistent naming aids team onboarding.[2]
+- **lint**: ESLint/sonarts; infer from configs in `nx.json`.[2]
+- **Best Practices**: Standardize names (`build`, `serve`); override inferences; use `targetDefaults` for global deps.[2]
+
+## Executors & Configurations
+- **Executors**: Pre-packaged scripts (e.g., `@nx/webpack:webpack`); defined in `project.json` with `options` (defaults) and `configurations` (presets like `production: {sourceMap: false}`).[1]
+- **Running**: `nx build mylib --configuration=production` merges options > config > args.[1]
+- **Shorthand**: `nx:run-commands` for shell scripts.[1]
+- **Advanced**: Build custom via Devkit; default configs (e.g., `dev` for e2e).[1]
+
+## Caching Mechanics
+- **Hash Computation**: Includes source files, globals, deps versions, Node version, CLI flags; customizable inputs/outputs.[2]
+- **Process**: Local/remote cache check; replay outputs/stdout if match, else run/store.[2]
+- **Optimizations**: Minimized IO, relevant output only, Windows stderr capture.[2]
+- **Fine-tuning**: Define `inputs` (files/env), `outputs` (`dist/**` default); args hash ignores Nx CLI.[2]
+- **Trade-offs**: Full cache for reproducibility vs. tuned inputs for fewer misses.[2]
+
+## Mental Model
+- **Project Graph**: Auto-detects via `project.json`/imports; caches analysis; reflects deps/external tools. 
+- **Task Graph**: Derived from project graph; parallel execution (e.g., test app1 independent of lib test unless configured). 
+- **Affected**: Analyzes PR changes for minimal tasks (e.g., lib change → app1/app2 tests). 
+- **Caching**: Process-level (artifacts + terminal); distributed via Nx Cloud. 
+- **Best Practices**: Metadata-driven for VSCode/GitHub integration; use `targetDependencies` for order. 
+
+## Nx Plugins
+- **Purpose**: Codify tool expertise (e.g., `@nx/webpack` auto-configs cache from `webpack.config.js`). 
+- **Features**: Infer tasks, generate code, update deps/configs, advanced executors (e.g., `@nx/js:tsc` with TS batch). 
+- **Types**: Official/community (registry); custom buildable. 
+
+## Best Practices & Trade-offs
+- **Library Choice**: Publishable for cross-repo (npm overhead); buildable for intra-repo speed (less bundling).[1]
+- **Tasks/Caching**: Consistent naming; tune inputs to balance cache hits vs. accuracy; distributed for CI scale.[2]
+- **Scale**: Affected + caching for large monorepos; plugins reduce config boilerplate. Trade-off: metadata inference vs. explicit overrides. 
+
+## Advanced Topics
+- Distributed execution: Nx Cloud agents parallelize task graphs transparently. 
+- Custom executors/plugins: Devkit for internal tools.[1]
+- Inputs fine-tuning: Runtime/env/args for precise hashing.[2]
+
+## Interview Cheat Sheet
+- **Q: Publishable vs Buildable?** A: Publishable bundles for npm (`--importPath` req'd, `nx build` → `dist`); buildable pre-compiles intra-repo for incremental speed.[1]
+- **Q: How does Nx caching work?** A: Hash (source+deps+flags) → local/remote lookup → replay outputs/stdout; tune via `inputs`/`outputs`.[2]
+- **Q: Task Graph vs Project Graph?** A: Project: static deps; Task: dynamic per-command, enables parallel (no auto test→build dep). 
+- **Q: Affected commands?** A: PR analysis for minimal tasks (e.g., lib change affects dependents). 
+- **Q: Executor configs?** A: `options` baseline + `configurations` presets; merge order: options → config → args.[1]
+
+## Key Terms & Keywords
+- `--buildable`, `--publishable`, `--importPath`
+- `project.json`, `nx.json`, `targetDefaults`
+- `build`, `serve`, `test`, `lint`
+- Executors, configurations, `nx:run-commands`
+- Computation hash, inputs, outputs, remote cache
+- Project graph, task graph, affected
+- Plugins, Devkit, Nx Cloud
+- Incremental builds, distributed execution[1][2]
+
+[1](https://nx.dev/docs/concepts/buildable-and-publishable-libraries)
+[2](https://nx.dev/docs/concepts/common-tasks)

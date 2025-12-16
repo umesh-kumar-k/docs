@@ -1,0 +1,334 @@
+Nx’s core concepts (libraries, tasks, executors, caching, graphs, plugins) together form a highly optimized, metadata-driven monorepo platform, ideal for large frontend architectures. Below is a page-wise, section-style, interview-oriented summary with emphasis on structure and skimmability.[1][2]
+
+***
+
+## 1. Buildable & Publishable Libraries
+
+### 1.1 Workspace vs Buildable vs Publishable
+
+- **Workspace library (default)**  
+  - No `build` target by default; only `lint`, `test` (plugin-dependent).[1]
+  - Consumed only inside the monorepo, compiled as part of the consuming app’s build.[1]
+
+- **Buildable library (`--buildable`)**  
+  - Adds a `build` target that compiles the library into pre-built output (e.g., `dist/libs/mylib`).[1]
+  - Used to speed up app builds via incremental building: app refers to built artifacts instead of compiling everything every time.[1]
+
+- **Publishable library (`--publishable`)**  
+  - Adds a `build` target that compiles + bundles + optimizes the library for distribution.[1]
+  - Requires `--importPath` (e.g. `@myorg/ui`) which becomes the NPM package name.[1]
+
+### 1.2 Typical Usage Scenarios
+
+- **Publishable**  
+  - Organization-wide UI design system shared across multiple repos and apps.[1]
+  - Libraries meant for open-source or external customers; versioned and consumed via NPM.[1]
+
+- **Buildable**  
+  - Large monorepos where multiple apps consume the same core feature libraries.[1]
+  - Performance-sensitive CI where you want to avoid rebuilding unchanged libs on every app build.[1]
+
+### 1.3 Mechanics & Commands
+
+- **Creation**  
+  - `nx g @nx/angular:library mylib --buildable` or `--publishable --importPath=@myorg/mylib`.[1]
+  - Generator modifies `project.json` to add `build` executor and config.[1]
+
+- **Build & publish**  
+  - `nx build mylib` → bundle into `dist/mylib` or similar.[1]
+  - `cd dist/mylib && npm publish` (manual or scripted).[1]
+
+### 1.4 Best Practices & Trade-offs
+
+- **When to use workspace-only**  
+  - Small repos, early-stage projects, or where build performance is not yet a concern.[1]
+  - Trade-off: simpler setup, but slower builds as repo grows.
+
+- **When to use buildable**  
+  - Using Nx’s incremental build graph to cache lib builds and avoid recompilation in downstream apps.[1]
+  - Trade-off: project graph and build pipeline become more complex; requires managing lib versions of compiled output inside repo.
+
+- **When to use publishable**  
+  - Shared design systems or SDKs consumed by multiple independent repos.[1]
+  - Trade-off: adds versioning, registry, CI publish workflows; but decouples consumers and producers.
+
+- **Advanced**  
+  - Inspect generator logic at `packages/<framework>/src/generators/library/library.ts` for custom behavior (e.g., custom builders).[1]
+
+***
+
+## 2. Common Tasks (build / serve / test / lint)
+
+### 2.1 Task Naming & Conventions
+
+- Tasks in `project.json` are arbitrary keys (e.g. `build`, `serve`, `test`, `lint`), but consistent naming across projects is strongly recommended.[2]
+- Consistency enables developers to predict commands: `nx build <proj>`, `nx test <proj>` irrespective of stack.[2]
+
+### 2.2 `build` Task
+
+- **Goal**: produce compiled/bundled output of a project.[2]
+- **Inferred tasks**  
+  - Nx plugins can infer `build` if there is a Vite/Webpack/rspack config.[2]
+  - You configure this via `nx.json` to “auto-wire” `build` when config files are present.[2]
+- **Custom build task**  
+  - Example:  
+    - Executor: custom script via `ts-node` or `node` runner.[2]
+    - You specify executor and options in `project.json`.
+
+### 2.3 `serve` Task
+
+- **Goal**: run the project in dev preview / watch mode (like `ng serve`, `npm run dev`).[2]
+- **Inferred**: from Vite/Webpack/rspack configs, similar to `build`.[2]
+- **Custom**: can wrap any dev server (Node/Express, custom script via `ts-node`).[2]
+
+### 2.4 `test` Task
+
+- **Goal**: run unit tests.[2]
+- Uses plugins like `@nx/vite` (Vitest) or `@nx/jest` (Jest); or custom tools like `ava`.[2]
+- Again, tasks can be inferred when Nx sees config (e.g. `vitest.config.ts`, `jest.config.ts`).[2]
+
+### 2.5 `lint` Task
+
+- **Goal**: run static analysis (ESLint, etc.).[2]
+- Inferred when ESLint config present; can also be custom scripts.[2]
+
+### 2.6 Best Practices & Trade-offs
+
+- Standardize on `build`, `serve`, `test`, `lint` for discoverability.[2]
+- Use **task inference** to reduce boilerplate; override per-project when behavior diverges.[2]
+- Use `targetDefaults` in `nx.json` to define common options and dependencies (e.g. `build` depends on `lint`, `test`).[2]
+
+***
+
+## 3. Executors & Configurations
+
+### 3.1 What Are Executors?
+
+- An **executor** is a small piece of code that runs a task (e.g. Webpack build, Jest tests), shipped by an Nx plugin.[1]
+- Example: `@nx/webpack:webpack`, `@nx/js:tsc`, `@nx/jest:jest`, `nx:run-commands`.[1]
+
+### 3.2 Task Configuration Structure
+
+- In `project.json` each target has:[1]
+  - `executor`: name of executor (e.g. `@nx/webpack:webpack`).  
+  - `options`: default options for all runs of that target.  
+  - `configurations`: named presets like `production`, `development`.  
+
+- Example pattern:  
+  - `options`: `sourceMap: true`, `outputPath: dist/app`.[1]
+  - `configurations.production`: `sourceMap: false`, `optimization: true`.[1]
+
+### 3.3 How Options Are Resolved
+
+- Final options for a run:[1]
+  - Base `options`  
+  - Overridden/augmented by `configurations[<name>]` when `--configuration=<name>` is used  
+  - Overridden by CLI flags (e.g. `--sourceMap=false`)  
+
+- Command example:  
+  - `nx build app --configuration=production --sourceMap=true`.[1]
+
+### 3.4 Shorthand & Customization
+
+- **`nx:run-commands`**  
+  - Wraps arbitrary shell commands in a consistent Nx task (for legacy scripts, migration).[1]
+- **Default configurations**  
+  - Plugins may provide sensible defaults (e.g. `production` config for bundlers, `ci` config for test).[1]
+
+### 3.5 Advanced & Best Practices
+
+- Use configurations heavily for environment profiles: `production`, `staging`, `e2e`, `preview`.[1]
+- Encapsulate tool complexity into executors so teams use consistent commands.[1]
+- For custom tools, implement your own executor via Nx Devkit and ship in a private plugin.[1]
+
+***
+
+## 4. How Caching Works
+
+### 4.1 High-level Model
+
+- Nx caches **task results** (artifacts + terminal output) based on a **computation hash** derived from inputs.[2]
+- On task run:[2]
+  - Compute hash.  
+  - Check local cache (and remote if configured).  
+  - If hit: replay outputs and terminal log.  
+  - If miss: run executor, store results in cache.  
+
+### 4.2 What Affects the Hash
+
+- Inputs typically include:[2]
+  - Project source files involved in the task.  
+  - Dependency projects’ relevant inputs.  
+  - Global configs (e.g. lockfile, tsconfig).  
+  - Environment variables / runtime inputs (if configured).  
+  - Task arguments (excluding Nx CLI-specific flags).  
+
+- Nx aims to be conservative: if in doubt, consider an input.[2]
+
+### 4.3 Inputs & Outputs Configuration
+
+- In `nx.json` or plugins, tasks define:[2]
+  - `inputs`: which files/env/args to consider (e.g. `default`, `production`, `env:MY_VAR`).  
+  - `outputs`: directories/files produced (default often `dist/**` or tool-specific).  
+
+- This allows fine-tuning to:[2]
+  - Ignore irrelevant files.  
+  - Add env-based cache busting when necessary.  
+
+### 4.4 Performance Optimizations
+
+- Nx minimizes IO; reuses existing output paths and avoids unnecessary filesystem writes.[2]
+- Accurately replays terminal logs including `stderr` (especially relevant on Windows).[2]
+
+### 4.5 Local vs Remote Cache
+
+- **Local cache**: stored in `.nx/cache`.[2]
+- **Remote cache (Nx Cloud)**: shared across CI agents and developers, dramatically speeding CI.[2]
+- Typical big-tech-style usage: heavy reliance on remote cache to avoid running the same suite in every pipeline and branch.[2]
+
+### 4.6 Trade-offs & Best Practices
+
+- Overly broad inputs → fewer cache hits but safer; overly narrow → risk stale builds.[2]
+- For frontend: ignore non-functional changes (e.g. markdown) when safe; include environment-sensitive configuration (feature flags, env vars) where applicable.[2]
+- For CI: combine `affected` + remote cache to minimize build/test load.[2]
+
+***
+
+## 5. Mental Model
+
+### 5.1 Project Graph
+
+- Nx analyzes repo to build a **project graph**: nodes = projects, edges = dependencies (including implicit and external).   
+- Dependencies are derived from imports (e.g. TypeScript, JS) and config declarations.   
+
+### 5.2 Task Graph
+
+- Whenever you run a command (`nx test app1`), Nx builds a **task graph** over selected targets and their dependencies.   
+- Nodes = tasks (e.g. `app1:test`), edges = task deps (e.g. `lib1:build` → `app1:build`).   
+- Tasks can be run in parallel where dependencies allow. 
+
+### 5.3 Affected Commands
+
+- `nx affected:test`, `nx affected:build` look at:   
+  - Git changes between two commits/branches.  
+  - Their corresponding projects in the project graph.  
+  - All dependent projects.  
+
+- Only run tasks for those impacted projects, not the full repo. 
+
+### 5.4 Caching in the Graph
+
+- Cache is applied at the **task** level, not project level.   
+- Same task with same hash across branches/machines is reused.[2]
+
+### 5.5 IDE & CI Integration
+
+- Because Nx has structured metadata (graph, tasks, configs), it can provide:   
+  - VSCode plugins that visualize graph and tasks.  
+  - GitHub integrations that show affected projects and tasks in PRs.  
+
+### 5.6 Best Practices
+
+- Use `implicitDependencies` and tags when needed to model non-import-based relationships.   
+- Configure `targetDependencies` and constraints (tags) to enforce architecture rules (e.g. UI cannot depend on feature X).   
+
+***
+
+## 6. Nx Plugins
+
+### 6.1 What Plugins Provide
+
+- **Codified expertise** for specific tools/frameworks: Angular, React, Vite, Webpack, Jest, etc.   
+- Features:   
+  - Generators (scaffolding apps/libs).  
+  - Executors (build, test, lint, e2e, etc.).  
+  - Task inference (auto-detect build/test/serve from tool configs).  
+  - Migrations and config updates.  
+
+### 6.2 Official vs Community vs Custom
+
+- **Official**: `@nx/angular`, `@nx/react`, `@nx/webpack`, `@nx/node`, etc.   
+- **Community**: published to Nx plugin registry; used when official plugin doesn’t exist for a tool.   
+- **Custom**: internal plugins for org-specific patterns and tools. 
+
+### 6.3 Example Behaviors
+
+- `@nx/webpack` plugin:   
+  - Detects `webpack.config.js` and infers `build`/`serve` tasks.  
+  - Configures caching and target defaults tailored for Webpack.  
+
+- `@nx/js` plugin: TypeScript compilation executor (`@nx/js:tsc`) with multi-project optimization. 
+
+### 6.4 Best Practices
+
+- Prefer official plugins for mainstream tools to leverage well-tuned caching and defaults.   
+- Use organization-specific plugins to:   
+  - Enforce scaffolding standards.  
+  - Encapsulate CI conventions.  
+  - Implement custom executors for proprietary tooling.  
+
+***
+
+## 7. Interview Q&A Cheat Sheet
+
+### 7.1 Libraries
+
+- **Q: Workspace vs buildable vs publishable library?**  
+  - Workspace: only for internal reuse, no build target; compiled as part of consuming app.[1]
+  - Buildable: has `build` target; pre-compiled within monorepo for incremental builds.[1]
+  - Publishable: build+bundle+optimize; requires `--importPath`; distributed via npm.[1]
+
+- **Q: When would you choose publishable over buildable?**  
+  - When library is shared across multiple repos or external teams; when independent versioning is needed.[1]
+
+### 7.2 Tasks & Executors
+
+- **Q: How do executors and task configurations work in Nx?**  
+  - Each target uses an executor with `options` and `configurations`; final options = base options + configuration + CLI flags.[1]
+
+- **Q: Why is consistent task naming important?**  
+  - Improves discoverability and DX; lets any developer run `nx build/test/serve/lint` without knowing stack details.[2]
+
+- **Q: How would you wrap a legacy script?**  
+  - Use `nx:run-commands` executor in a `project.json` target to call existing shell script.[1]
+
+### 7.3 Caching & Performance
+
+- **Q: Describe Nx caching and what determines a cache hit.**  
+  - Hash based on inputs (sources, configs, deps, env, args); if hash matches prior run, reuse artifacts and terminal output instead of running task.[2]
+
+- **Q: How would you tune caching for a large frontend monorepo?**  
+  - Define precise `inputs` (exclude non-impacting files), correct `outputs`, and leverage remote cache to share results between CI and devs.[2]
+
+### 7.4 Graph & Affected
+
+- **Q: How does Nx determine what to rebuild when a PR changes certain files?**  
+  - Uses the project graph + git diff to compute affected projects and tasks; then runs `nx affected:<target>` only for those. 
+
+- **Q: Difference between project graph and task graph?**  
+  - Project graph: static dependencies between projects. Task graph: runtime dependencies between specific targets for a command. 
+
+### 7.5 Plugins & Extensibility
+
+- **Q: What is the role of Nx plugins?**  
+  - Provide generators, executors, and inferences for specific tools; encapsulate best practices and reduce configuration boilerplate. 
+
+- **Q: How would a large org enforce architectural rules with Nx?**  
+  - Use custom plugin or `nx.json` constraints/tags, project graph rules, and custom generators that produce compliant layouts. 
+
+***
+
+## 8. Important Terms & Keywords (for Skimming)
+
+- Library types: `workspace library`, `--buildable`, `--publishable`, `--importPath`.[1]
+- Config files: `project.json`, `nx.json`, `tsconfig.json`, `webpack.config.js`, `vite.config.ts`.[2][1]
+- Tasks: `build`, `serve`, `test`, `lint`, `e2e`, `nx:run-commands`, `targetDefaults`, `targetDependencies`.[2][1]
+- Executors: `@nx/webpack:webpack`, `@nx/js:tsc`, `@nx/jest:jest`, `@nx/vite:build`, `@nx/vite:test`.[1]
+- Configs: `options`, `configurations`, `production`, `development`, `staging`, `ci`.[1]
+- Caching: computation hash, `inputs`, `outputs`, local cache, remote cache, Nx Cloud, cache hit/miss.[2]
+- Graphs: project graph, task graph, affected projects, `nx affected:build`, `nx affected:test`.   
+- Plugins: `@nx/angular`, `@nx/react`, `@nx/node`, `@nx/webpack`, community plugins, custom/org plugins.   
+- Advanced: incremental builds, distributed execution, terminal replay, devkit, migrations.[2]
+
+[1](https://nx.dev/docs/concepts/buildable-and-publishable-libraries)
+[2](https://nx.dev/docs/concepts/common-tasks)

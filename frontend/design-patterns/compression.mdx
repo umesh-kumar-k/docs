@@ -1,0 +1,279 @@
+JavaScript compression reduces JS transfer size using lossless algorithms (Gzip, Brotli) and interacts tightly with minification, bundling, and chunking strategy; as an architect you must balance compression ratio, CPU cost, caching, and execution behavior.[1]
+
+***
+
+## Overview & Key Ideas
+
+- JS is the second largest contributor to page weight after images; compression is a core lever to reduce transfer time.[1]
+- Compression must be combined with minification, code‑splitting, bundling, caching, and lazy‑loading; these goals sometimes conflict (especially around chunk granularity).[1]
+- Gzip and Brotli are the dominant HTTP compression algorithms; Brotli gives better ratios at comparable levels.[1]
+
+**Real‑world impact**
+
+- OYO: 15–20% JS size reduction after switching from Gzip to Brotli.[1]
+- Wix: 21–25% reduction with Brotli vs Gzip.[1]
+
+***
+
+## HTTP Compression Basics
+
+**Key topics**
+
+- Lossy vs lossless compression.  
+- HTTP compression for text.[1]
+
+**Key points**
+
+- Lossy (e.g., JPEG) alters data slightly; unsuitable for JS.[1]
+- Lossless (e.g., PNG, Gzip, Brotli) preserves exact bytes; must be used for HTML/CSS/JS.[1]
+- Always use lossless compression for JS; typically applied after minification.[1]
+
+***
+
+## Minification
+
+**Key topics**
+
+- What minification does.  
+- Tools.[1]
+
+**Key points**
+
+- Removes whitespace, comments, long names, and syntactic sugar to keep only what’s needed for execution.[1]
+- Standard practice for JS/CSS; many libs ship `*.min.js` for production.[1]
+- Terser is a popular ES6+ minifier; Webpack 4+ uses a Terser plugin by default, or `TerserWebpackPlugin` can be configured directly.[1]
+
+**Best practices**
+
+- Treat minification as non‑optional in production; use source maps for debugging instead of readable prod bundles.[1]
+
+***
+
+## Static vs Dynamic Compression
+
+**Static compression**
+
+- Pre‑compress resources during build and store on disk (e.g., `.js.br`, `.js.gz`).[1]
+- Can use *higher* compression levels because build time doesn’t affect runtime performance.[1]
+- Best for rarely changing assets (framework, vendor bundles).[1]
+
+**Dynamic compression**
+
+- Compress on the fly per request on the server.[1]
+- Easier to enable but must use moderate levels; high levels increase CPU latency and negate size gains.[1]
+- Best for frequently changing or application‑generated responses (SSR HTML, APIs).[1]
+
+**Architectural guidance**
+
+- Use static compression for stable JS bundles, dynamic for hot content; mix both based on asset volatility.[1]
+
+***
+
+## Compression Algorithms: Gzip & Brotli
+
+### Gzip
+
+- ~30 years old; lossless Deflate (LZ77 + Huffman coding).[1]
+- LZ77: replace duplicate strings with backreferences (pointer + length). Huffman: shorter bit codes for more frequent references.[1]
+- Universally supported by browsers; Zopfli = slower, better Gzip‑compatible encoder ideal for static compression.[1]
+
+### Brotli
+
+- Introduced by Google (2015); also lossless, based on LZ77 + Huffman.[1]
+- Adds 2nd‑order context modeling (multiple Huffman trees per block), larger window size, and static dictionary, improving efficiency.[1]
+- Widely supported on servers and browsers; easy to enable on Netlify, AWS, Vercel, etc.[1]
+
+### Comparing Gzip vs Brotli (Chrome research)
+
+- Gzip:  
+  - Level 9: best Gzip compression with good speed; recommended default for Gzip.[1]
+- Brotli:  
+  - Consider levels 6–11; below that, Gzip can achieve similar ratio faster.[1]
+  - Levels 9–11 compress noticeably better than Gzip but can be slow (good fit for static compression).[1]
+- Larger bundles compress *better* and often faster per byte; relationships between algorithms hold across size ranges (e.g., Brotli 7 better than Gzip 9 for all sizes, Gzip 9 faster than Brotli 5 for all sizes).[1]
+
+**Best practices**
+
+- Prefer Brotli for text assets; use Gzip as fallback for older clients.[1]
+- Use higher Brotli levels (e.g., 8–11) for static assets; moderate levels for dynamic responses if CPU budget allows.[1]
+
+***
+
+## Enabling Compression
+
+**Build‑time (static) with Webpack**
+
+- Use `CompressionPlugin` for Gzip; `BrotliWebpackPlugin` for Brotli.[1]
+
+```js
+module.exports = {
+  // ...
+  plugins: [
+    new CompressionPlugin(),
+  ],
+};
+```
+
+**Platform specifics**
+
+- Next.js: exposes Gzip by default, but recommends enabling at HTTP proxy (e.g., Nginx).[1]
+- Vercel: supports Gzip and Brotli at proxy level out of the box.[1]
+
+**Runtime (dynamic)**
+
+- Browser indicates support via `Accept-Encoding` (e.g., `gzip, br`).[1]
+- Server chooses algorithm and replies with `Content-Encoding` (`br`, `gzip`).[1]
+- Node/Express: `compression` middleware can compress assets on request.[1]
+
+**Best practices**
+
+- Configure Brotli as primary, Gzip as fallback; verify `Content-Encoding` headers in DevTools.[1]
+
+***
+
+## Auditing Compression
+
+**Key topics**
+
+- DevTools and Lighthouse.[1]
+
+**Key points**
+
+- Chrome DevTools → Network → Headers: check `content-encoding` for each resource.[1]
+- Lighthouse audit “Enable text compression”: flags text resources without Gzip/Brotli/Deflate; estimates potential savings (using Gzip).[1]
+
+**Best practices**
+
+- Add Lighthouse text compression checks to CI; enforce no large uncompressed JS/CSS/HTML in production.[1]
+
+***
+
+## Compression & Loading Granularity
+
+### Bundling Terminology
+
+- **Module**: unit of functionality (source file).[1]
+- **Bundle**: set of modules after bundler processing.[1]
+- **Bundle splitting**: splitting into multiple bundles for independent download/cache.[1]
+- **Chunk** (Webpack): final output file after bundling + code splitting; can be created via entry config, `SplitChunksPlugin`, or dynamic imports.[1]
+
+**Loading granularity**
+
+- Number of chunks emitted: more chunks → smaller each chunk; fewer chunks → larger bundles.[1]
+- Some chunks are more critical than others (e.g., base/runtime, checkout).[1]
+
+***
+
+### The Granularity Trade‑off
+
+**Goal 1 – Improve download speed**
+
+- Compression favors **larger** files:  
+  - `compress(a + b) <= compress(a) + compress(b)`; compressing one large chunk yields smaller total size vs many small chunks.[1]
+  - Data suggests 5–10% size loss for smaller chunks; unbundled extremes can see ~20% total increase.[1]
+- Each chunk has overhead: IPC, I/O, cache lookups, script tag management.[1]
+- V8 streaming/parsing threshold ~30 KB: chunks <30 KB often parse on the critical path even if non‑critical.[1]
+- Therefore, **larger chunks** can be better for pure download and browser performance.[1]
+
+**Goal 2 – Improve cache efficiency**
+
+- Smaller chunks → better cache behavior for incremental loading:[1]
+  - Changes touch fewer chunks, so clients re‑download less total JS.  
+  - Shared libs can be cached separately across routes.  
+- Large chunks cause more invalidation: a small code change may force re‑download of a big bundle.[1]
+
+**Goal 3 – Execute fast**
+
+For fast execution:[1]
+
+- Dependencies should be readily available (bundled together or cached) → favors larger chunks for tightly coupled code.  
+- Only necessary code for a route/page should run (no extra commons code) → favors smaller, route‑specific chunks.  
+- Long tasks on main thread should be split to avoid jank → also favors breaking big chunks.  
+
+**Triangle summary**
+
+- De‑duplication & caching vs browser performance & compression are fundamentally in tension.[1]
+- Many production apps currently hover around ~10 chunks to balance these concerns; higher granularity (40–100) would increase caching potential but needs ecosystem work.[1]
+
+***
+
+## SplitChunksPlugin & Granular Chunking (Next.js & Gatsby)
+
+**Problem**
+
+- Older Webpack `CommonsChunkPlugin` created a single big “commons” chunk, increasing payload for pages that didn’t need all shared code.[1]
+
+**Solution: `SplitChunksPlugin`**
+
+- Webpack v4+ `SplitChunksPlugin` can emit multiple shared chunks to avoid duplicated code across routes while limiting unnecessary downloads.[1]
+
+**Next.js Granular Chunking Strategy**
+
+- Any sufficiently large 3rd‑party module (>160 KB) gets its own chunk.[1]
+- Create a dedicated `frameworks` chunk (e.g., `react`, `react-dom`).[1]
+- Create as many shared chunks as needed (up to 25).[1]
+- Minimum chunk size set at 20 KB to keep compression loss low.[1]
+
+**Benefits**
+
+- Multiple smaller shared chunks reduce unnecessary code on pages that don’t need all commons.[1]
+- Large vendor libs in individual chunks benefit from long‑lived caching, since they change infrequently.[1]
+- 20 KB minimum keeps each chunk large enough to compress well while still splitting out code for caching.[1]
+- Observed reduction in total JS used for many Next.js and Gatsby sites.[1]
+
+**Best practices (architect view)**
+
+- Use framework‑provided granular chunking (Next.js, Gatsby) by default; tune thresholds based on your app’s size and change patterns.[1]
+- For large 3P libs, prefer isolating into dedicated chunks for caching and monitoring.[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: Why compress JavaScript, and what algorithms are commonly used?**  
+- JS is a major contributor to page size; compression (Gzip/Brotli) reduces transfer time significantly. Brotli generally provides better compression ratios than Gzip at comparable levels.[1]
+
+**Q2: How do minification and compression relate?**  
+- Minification removes syntactic noise (whitespace, comments, long names) to shrink JS; compression then encodes the resulting text more efficiently. Both are complementary and should be used together.[1]
+
+**Q3: When would you choose static vs dynamic compression?**  
+- Static: pre‑compress stable assets (framework/vendor bundles) at high compression levels. Dynamic: compress frequently changing or generated content per request, using moderate levels to avoid CPU overhead.[1]
+
+**Q4: Compare Gzip and Brotli for JS.**  
+- Both are lossless. Gzip 9 is a good default; Brotli 6–11 offers higher compression but can be slower. For static assets, higher Brotli levels are ideal; for dynamic, balance level with CPU. Overall, Brotli 7+ beats Gzip 9 in ratio.[1]
+
+**Q5: How does the browser negotiate compression with the server?**  
+- Client sends `Accept-Encoding` (e.g., `gzip, br`); server selects an algorithm and responds with `Content-Encoding` (e.g., `br`) on compressed responses.[1]
+
+**Q6: Explain the “granularity trade‑off” in JS chunking.**  
+- Larger chunks compress better and reduce per‑chunk overhead (better download/parse) but hurt caching and de‑dup; smaller chunks improve cache efficiency and incremental loading but lose compression efficiency and add overhead.[1]
+
+**Q7: How do Webpack’s `SplitChunksPlugin` and Next.js granular chunking address this trade‑off?**  
+- By splitting large third‑party modules into their own chunks, isolating framework code, and creating multiple shared chunks with a minimum size threshold (e.g., 20 KB), they improve caching and de‑duplication while keeping compression loss manageable.[1]
+
+**Q8: How can you verify that JS compression is correctly applied in production?**  
+- Use DevTools Network → Headers to check `content-encoding` (e.g., `br`, `gzip`), and Lighthouse “Enable text compression” audit to detect large uncompressed text resources.[1]
+
+**Q9: As a front‑end architect, how do you approach choosing a compression + bundling strategy?**  
+- Use Brotli + Gzip fallback; apply static compression for static bundles; design code‑splitting around routes/critical paths; leverage framework granularity features; and regularly audit compression, chunk sizes, and cache behavior with real‑world metrics.[1]
+
+***
+
+## Key Terms & Keywords (Quick Review)
+
+- HTTP compression, lossless vs lossy, text compression.[1]
+- Gzip, Deflate, LZ77, Huffman coding, Zopfli.[1]
+- Brotli, 2nd‑order context modeling, static dictionary, window size.[1]
+- Minification, Terser, `TerserWebpackPlugin`, `*.min.js`.[1]
+- Static compression, dynamic compression, build‑time vs runtime.[1]
+- `Accept-Encoding`, `Content-Encoding`, `gzip`, `br`.[1]
+- Lighthouse “Enable text compression” audit.[1]
+- Module, bundle, bundle splitting, chunk, output size.[1]
+- Loading granularity, base chunk, critical vs non‑critical chunks.[1]
+- Granularity trade‑off, `compress(a + b) <= compress(a) + compress(b)`, 5–10% loss on small chunks, ~20% for unbundled.[1]
+- V8 30K parsing threshold, IPC/I/O/script‑tag overhead.[1]
+- `CommonsChunkPlugin`, `SplitChunksPlugin`, shared chunks.[1]
+- Granular chunking, frameworks chunk, third‑party chunk (>160 KB), minimum chunk size 20 KB.[1]
+- Next.js, Gatsby, JS total size reductions via granular chunking.[1]
+
+[1](https://www.patterns.dev/vanilla/compression/)

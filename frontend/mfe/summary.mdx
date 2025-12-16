@@ -1,0 +1,336 @@
+Micro frontends (Martin Fowler article) – interview-focused summary   
+
+***
+
+## Definition and benefits  
+
+**Core definition**  
+- Micro frontends: “an architectural style where independently deliverable frontend applications are composed into a greater whole.”   
+- Goal: break a frontend monolith into smaller, domain-aligned apps that can be developed, tested, and deployed independently but feel like one product.   
+
+**Benefits**  
+- Incremental upgrades: strangle the monolith page-by-page, avoid big-bang rewrites; upgrade frameworks or UX per micro frontend when convenient.   
+- Simple, decoupled codebases: smaller repos reduce accidental coupling; harder to share domain models across contexts, which is intentional.   
+- Independent deployment: each micro frontend has its own CD pipeline and release cadence, independent of others and the legacy monolith.   
+- Autonomous teams: teams own vertical slices (pages/features) end-to-end and move faster with fewer cross-team dependencies.   
+
+**Best practices / trade-offs**  
+- Use micro frontends to enable incremental migration and independent deployment, not for cosmetic modularization.   
+- Trade-off: duplicated dependencies and fragmented ways-of-working; must manage with governance and shared practices.   
+
+**Interview Q&A**  
+- Q: What is the primary organizational benefit of micro frontends?  
+  A: They enable autonomous, vertically aligned teams to own features end-to-end with independent codebases and deployment pipelines.   
+
+***
+
+## Example: food delivery app  
+
+**Scenario**  
+- Pages:  
+  - Browse restaurants (search/filter).  
+  - Restaurant page (menu, discounts, options).  
+  - Customer profile (history, tracking, payments).   
+- Each page is complex enough to justify its own team and micro frontend; customers still see a single seamless site.   
+
+**Key topics**  
+- Each page = one micro frontend with independent develop/test/deploy, but unified UX through a container.   
+- Natural vertical slicing by user-visible pages rather than technical layers.   
+
+**Interview Q&A**  
+- Q: How would you slice a food delivery UI into micro frontends?  
+  A: By page-level domains (browse, restaurant details/order, profile), each with its own team and lifecycle, composed by a container.   
+
+***
+
+## Integration approaches  
+
+### Common pattern: container + page MFEs  
+
+- Container application:  
+  - Renders common chrome (header/footer).  
+  - Handles cross-cutting concerns (auth, navigation).  
+  - Decides which micro frontend to load and where to mount it.   
+
+### Server-side template composition  
+
+- Approach  
+  - Server-side includes (e.g., Nginx SSI) to assemble `index.html` from page fragments.   
+  - Each fragment/page deployed independently; optionally separate servers per MFE behind a front server.   
+
+- Pros / cons  
+  - Pros: simple, mature approach; good isolation of deployment; works with any tech stack.   
+  - Cons: more server orchestration; still need careful caching, routing, and HTML contracts.   
+
+### Build-time integration (anti-pattern)  
+
+- Approach  
+  - MFEs published as NPM packages; container depends on them and produces one bundled app.   
+
+- Why it’s discouraged  
+  - Forces lockstep releases: must recompile and release all MFEs to release any one.   
+  - Reintroduces coupling exactly where micro frontends aim to decouple.   
+
+### Run-time integration via iframes  
+
+- Approach  
+  - Container page with a single `<iframe>`; src determined by route to different MFE URLs.   
+
+- Pros / cons  
+  - Pros: strong isolation of styles and globals; independent deployability.   
+  - Cons: difficult deep-linking, routing, resizing/responsiveness; limited integration flexibility.   
+
+### Run-time integration via JavaScript (global functions)  
+
+- Approach  
+  - Container loads each MFE bundle via `<script>`; each bundle attaches a `window.renderX()` entry function.   
+  - Container maps route → render function and calls it with a DOM container ID (and possibly extra data).   
+
+- Pros / cons  
+  - Pros: independent deployment; flexible integration; can lazy-load bundles; most commonly seen pattern.   
+  - Cons: need global namespace discipline and a well-maintained contract at the entry point.   
+
+### Run-time integration via Web Components  
+
+- Approach  
+  - MFEs define custom elements; container creates the appropriate element (`<micro-frontend-order-food>`) based on route.   
+
+- Pros / cons  
+  - Pros: browser-native encapsulation; standard interfaces; similar flexibility to JS function approach.   
+  - Cons: requires buy-in on Web Components model; still need to manage loading and contracts.   
+
+**Integration best practices**  
+- Prefer run-time integration (JS or Web Components) for flexibility and independent deployment.   
+- Avoid build-time coupling; treat the container–MFE interface as a stable, minimal contract.   
+
+**Integration interview Q&A**  
+- Q: Why is build-time integration usually a bad idea for micro frontends?  
+  A: It forces lockstep releases and couples all codebases at the release stage, defeating independent deployment.   
+- Q: Compare iframes vs JavaScript-based composition.  
+  A: Iframes give isolation but poor integration/routing; JS composition gives flexible integration with more responsibility for isolation and contracts.   
+
+***
+
+## Styling  
+
+**Problem**  
+- CSS is global and cascading; independent MFEs with rules like `h2 { color: ... }` can conflict when composed.   
+
+**Options**  
+- Naming conventions (e.g., BEM) to scope selectors.   
+- Preprocessors (Sass) with nesting as a pseudo-namespacing tool.   
+- CSS modules / CSS-in-JS to bind styles directly to components.   
+- Shadow DOM for platform-level style isolation.   
+
+**Best practices / trade-offs**  
+- Choose a strategy that lets teams write styles independently and have predictable behavior when composed.   
+- CSS-in-JS and shadow DOM give strong isolation but add tooling/learning overhead.   
+
+**Styling interview Q&A**  
+- Q: How do you avoid CSS conflicts across micro frontends?  
+  A: Use scoped approaches (CSS modules, CSS-in-JS, or Shadow DOM) or strict naming conventions to ensure styles apply only where intended.   
+
+***
+
+## Cross-application communication  
+
+**Guiding principle**  
+- Communicate as little as possible; avoid shared state and shared domain models to prevent tight coupling.   
+
+**Patterns**  
+- Custom events:  
+  - MFEs publish/subscribe to DOM events to communicate indirectly.   
+  - Pros: low coupling; Cons: contracts are less explicit and harder to enforce.   
+- Container-down data/callbacks (React-style):  
+  - Container passes props and callbacks into MFEs, making the interface explicit.   
+- URL / address bar as contract (detailed later):  
+  - Use routing (e.g., `/restaurant/:id`) as a shared declarative contract between MFEs.   
+
+**Validation**  
+- Use consumer-driven contracts to capture expectations between MFEs without full integrated UI tests.   
+
+**Best practices / trade-offs**  
+- Avoid shared global state stores; communicate via messages/events or URLs.   
+- Be clear about contracts and how they evolve; breaking changes require coordinated updates.   
+
+**Communication interview Q&A**  
+- Q: Why avoid shared state between micro frontends?  
+  A: It couples domain models and behavior, making changes risky and requiring coordinated releases similar to shared DBs in microservices.   
+
+***
+
+## Backend communication and BFF  
+
+**Full-stack ownership**  
+- Strong preference for full-stack teams owning visual code, API, DB, and infra for their slice.   
+
+**BFF pattern**  
+- Each MFE may have its own Backend For Frontend focused solely on that UI’s needs.   
+- BFF can be: self-contained (own DB and logic) or an aggregator of downstream services.   
+
+**When BFF is useful vs not**  
+- Useful when: every new MFE feature needs backend changes, or the MFE must compose several backends.   
+- Less valuable when: MFE talks to a single stable API that already fits its needs.   
+
+**Authentication**  
+- Auth is a cross-cutting concern handled by the container.   
+- Container obtains token and injects it into MFEs, which attach it to backend/BFF requests.   
+
+**Interview Q&A**  
+- Q: How would you structure frontend–backend relationships in a micro-frontend architecture?  
+  A: Prefer full-stack teams with a BFF per MFE; container owns auth and provides tokens; BFFs hide backend complexity from MFEs.   
+
+***
+
+## Testing  
+
+**Testing levels**  
+- Each MFE: its own unit and integration tests, same strategies as for a monolithic frontend.   
+- System-level: integration tests between MFEs and container using tools like Selenium or Cypress.   
+
+**Test pyramid approach**  
+- Keep functional/E2E tests minimal; focus them on composition:  
+  - Example: load a page and assert the MFE’s title appears.   
+- Use unit tests for business logic and rendering; use consumer-driven contracts for MFE–MFE interactions.   
+
+**Interview Q&A**  
+- Q: How do you test micro frontends without an explosion of E2E tests?  
+  A: Apply the test pyramid: heavy unit tests per MFE, light E2E focused on integration, plus consumer-driven contracts for cross-MFE expectations.   
+
+***
+
+## Example implementation in detail (React demo)  
+
+### Container  
+
+**Key implementation points**  
+- React app created with `create-react-app`; no MFE dependencies in `package.json` (avoid build-time integration).   
+- Uses React Router to map routes to a `MicroFrontend` component with props: `name`, `host`, `history`.   
+- `MicroFrontend` component:  
+  - Renders `<main id="${name}-container" />`.   
+  - On mount:  
+    - Checks if script for that MFE already exists; if not:  
+      - Fetches `<host>/asset-manifest.json`.  
+      - Appends `<script>` with `main.js` from that manifest.   
+    - On script `onload`, calls `renderMicroFrontend()`.   
+  - `renderMicroFrontend` calls `window['render' + name](containerId, history)`.   
+  - On unmount: calls `window['unmount' + name](containerId)`.   
+
+**Contract**  
+- Signature of `window.render<Name>(containerId, history)` is the core container–MFE contract; changes must be rare and deliberate.   
+
+### Micro frontends  
+
+**Entry point**  
+- Each MFE defines `window.renderX(containerId, history)` and `window.unmountX(containerId)` which call `ReactDOM.render` / `ReactDOM.unmountComponentAtNode`.   
+- Each MFE also has its own `index.html` for standalone dev mode, calling `window.renderX('container')` on `window.onload`.   
+
+**Routing-based communication**  
+- Container uses `BrowserRouter` and central `history`.   
+- Each MFE uses `<Router history={this.props.history}>` so all share the same history instance.   
+- Example: browse MFE uses `<Link to={`/restaurant/${restaurant.id}`}>`; route change triggers container to mount restaurant MFE, which parses ID from URL.   
+
+**Why URL is a good contract**  
+- Standard, globally accessible, size-limited, user-facing, and declarative (“this is where we are”).   
+- Forces indirect communication; route patterns (`/restaurant/:id`) become explicit contracts that should be tested.   
+
+**Shared content and dependencies**  
+- Common assets (images, JSON, CSS) served from a shared content repo.   
+- React and ReactDOM extracted as externals in webpack and loaded via shared `<script>` tags from a content host.   
+
+**Infra setup (AWS)**  
+- Core infra (S3 buckets, CloudFront, domains, certs) provisioned centrally via Terraform.   
+- Each MFE + container has its own repo and CI pipeline (e.g., Travis CI) deploying to its own S3 bucket.   
+- Design: centralized infra management + independent deployability per MFE.   
+
+**Interview Q&A**  
+- Q: How does the React demo ensure independent deployability and runtime composition?  
+  A: Container fetches each MFE’s manifest and script at runtime, then invokes a global render function with a shared history; each MFE has its own pipeline and bucket.   
+
+***
+
+## Downsides and trade-offs  
+
+### Payload size  
+
+- Independent bundles can duplicate dependencies (e.g., React), increasing download size.   
+- Tension: team autonomy vs shared dependencies; externalizing shared libs reintroduces build-time contracts (same versions everywhere).   
+- Sometimes, even with duplication, each page loads faster than a monolith because you effectively get page-level code splitting.   
+
+### Environment differences  
+
+- Developing MFEs standalone (without real container and peers) can hide integration issues, especially global CSS differences.   
+- Need frequent integration and testing in production-like environments to mitigate drift.   
+
+### Operational & governance complexity  
+
+- More repos, more pipelines, more infra, more tooling.   
+- Need enough automation and governance to avoid chaos: scalable infra provisioning, release processes, and alignment on minimal standards.   
+
+**Interview Q&A**  
+- Q: What are key downsides of micro frontends?  
+  A: Increased payload size from duplicate deps, environment mismatch risks, and higher operational/governance complexity when managing many small apps.   
+
+***
+
+## References / big-tech style practices  
+
+- Thoughtworks Technology Radar progression: micro frontends from “Assess” → “Trial” → “Adopt”, seen as a proven technique when aligned with org needs.   
+- Example demo app published with live site and GitHub repo, showing real-world React-based implementation and AWS hosting strategy.   
+
+***
+
+## Interview cheat sheet – condensed Q&A  
+
+- Q: Define micro frontends.  
+  A: Independently deliverable frontend apps composed into a single product, aligning teams and codebases to vertical business slices.   
+
+- Q: When would you adopt micro frontends?  
+  A: When a large frontend monolith blocks incremental upgrades and multi-team scaling; you need independent deployment and vertical team ownership.   
+
+- Q: Compare integration strategies.  
+  A: Server-side templates and iframes are simple but less flexible; build-time integration is discouraged; JS/Web Components runtime integration is preferred for autonomy and rich integration.   
+
+- Q: How should MFEs communicate?  
+  A: Prefer indirect messaging (events, URL) with minimal shared state; use container-down props or consumer-driven contracts to keep interfaces explicit.   
+
+- Q: How do you handle backend integration and auth?  
+  A: Use a BFF per MFE where needed; container owns auth and passes tokens; MFEs call BFF or backend with that token.   
+
+- Q: What testing strategy fits micro frontends?  
+  A: Each MFE fully tested via unit/integration tests; a thin layer of E2E tests for integrated pages; optional consumer-driven contracts between MFEs.   
+
+- Q: What are the major risks?  
+  A: Duplicate JS payloads, integration drift between standalone dev and production, and the overhead of managing many small apps and pipelines.   
+
+***
+
+## Important terms & keywords (for spaced repetition)  
+
+1. Micro frontends (MFEs) – independently deliverable frontend applications.   
+2. Container application / shell – owns layout, navigation, auth, and composition.   
+3. Vertical slice team – full ownership of a page/domain, not horizontal layers.   
+4. Server-side template composition (SSI, Nginx includes).   
+5. Build-time integration (anti-pattern, lockstep release).   
+6. Run-time integration – iframes, JS global functions, Web Components.   
+7. Global render/unmount functions (`window.renderX`, `window.unmountX`).   
+8. Asset manifest (`asset-manifest.json`) for dynamic bundle loading.   
+9. Custom elements / Web Components.   
+10. CSS strategies: BEM, Sass, CSS modules, CSS-in-JS, Shadow DOM.   
+11. Cross-application communication: custom events, container-down props, URL contracts.   
+12. Shared state anti-pattern; avoid shared domain models.   
+13. Consumer-driven contracts between MFEs.   
+14. Backend For Frontend (BFF) per micro frontend.   
+15. Auth token owned by container, passed into MFEs.   
+16. Test pyramid: unit vs E2E; integration tests focused on composition.   
+17. React Router + shared `history` for cross-MFE routing.   
+18. URL as contract (`/restaurant/:id`), declarative intent.   
+19. Shared content server for common assets & extracted libraries.   
+20. AWS hosting: S3 buckets, CloudFront, Terraform, CI/CD per MFE.   
+21. Dependency duplication and externalization (webpack externals).   
+22. Environment differences between standalone dev and production container.   
+23. Operational complexity: more repos, pipelines, infra.   
+
+If you want, a next step can be a concise comparison table between the AWS prescriptive guidance series you just summarized and this Fowler article, focusing on where they align or differ architecturally.
+
+[1](https://martinfowler.com/articles/micro-frontends.html)

@@ -1,0 +1,252 @@
+List virtualization (windowing) renders only the visible subset of items in a large list/grid, dramatically reducing DOM node count and improving scroll and render performance, especially on low‑end devices.[1]
+
+***
+
+## Concept & How It Works
+
+**Key topics**
+
+- Definition of list virtualization / windowing.  
+- Window movement as user scrolls.  
+- DOM structure & positioning.[1]
+
+**Key points**
+
+- Instead of rendering thousands of rows, a small “window” of visible rows is rendered and moved as the user scrolls, while off‑screen items are not in the DOM.[1]
+- Typical implementation:  
+  - A scrollable container.  
+  - A large inner “spacer” element representing full height.  
+  - Children absolutely positioned with `top/left/width/height` for currently visible indices.[1]
+- This reduces initial render cost, layout/paint work, and keeps scrolling smooth on mid/low‑end devices.[1]
+
+**Best practices / trade-offs**
+
+- Use virtualization for *large* lists; it adds complexity and is overkill for small collections.[1]
+- Trade-off: simpler mental model of “render everything” vs significantly better performance at scale.[1]
+
+***
+
+## react-virtualized vs react-window
+
+**Key topics**
+
+- react-virtualized: original popular virtualization library.  
+- react-window: lighter, faster, more tree‑shakeable rewrite.[1]
+
+**Key points**
+
+- react-window is a rewrite of react-virtualized by the same author, with a smaller bundle and simpler APIs; observed ~20–30 KB gzipped savings in real projects.[1]
+- Tree‑shakeable design: final size depends on which components you actually import (e.g., only `FixedSizeList`).[1]
+
+**Best practices**
+
+- For new React codebases, prefer react-window unless you specifically need advanced features only available in react-virtualized.[1]
+
+***
+
+## Lists with react-window
+
+### Basic list rendering (non-virtualized)
+
+**Key points**
+
+- A “normal” React list maps over all items and renders each row; with large arrays this can cause slow initial render and janky scrolling.[1]
+
+### `FixedSizeList` pattern
+
+**Key topics**
+
+- Windowed vertical list of rows.  
+- Required props and row renderer.[1]
+
+**Key points**
+
+- `FixedSizeList` props: `height`, `width`, `itemCount`, `itemSize`, `className`, and a row render function as child.[1]
+- Row renderer receives `{ index, style }`; `style` must be applied to the outer row element so react-window can position it correctly.[1]
+
+**Example (simplified)**
+
+```jsx
+const itemsArray = [...];
+
+const Row = ({ index, style }) => (
+  <div style={style}>{itemsArray[index].name}</div>
+);
+
+const Example = () => (
+  <List
+    className="List"
+    height={150}
+    itemCount={itemsArray.length}
+    itemSize={35}
+    width={300}
+  >
+    {Row}
+  </List>
+);
+```
+
+**Best practices**
+
+- Use fixed-size lists when all rows have the same height; this keeps math and implementation simple and fastest.[1]
+
+***
+
+## Grids with react-window
+
+**Key topics**
+
+- `FixedSizeGrid` / `VariableSizeGrid`.  
+- Virtualization on both vertical and horizontal axes.[1]
+
+**Key points**
+
+- Grids render only the cells needed for the current horizontal + vertical scroll positions.[1]
+- `FixedSizeGrid` props: `columnCount`, `rowCount`, `columnWidth`, `rowHeight`, `width`, `height`, and a `Cell` renderer.[1]
+- `Cell` renderer receives `{ columnIndex, rowIndex, style }`; apply `style` to position the cell.[1]
+
+**Example (simplified)**
+
+```jsx
+const itemsArray = [ [...], [...], ... ];
+
+const Cell = ({ columnIndex, rowIndex, style }) => (
+  <div style={style}>
+    {itemsArray[rowIndex][columnIndex].name}
+  </div>
+);
+
+const Example = () => (
+  <Grid
+    className="Grid"
+    columnCount={5}
+    columnWidth={100}
+    rowCount={5}
+    rowHeight={35}
+    width={300}
+    height={150}
+  >
+    {Cell}
+  </Grid>
+);
+```
+
+**Best practices**
+
+- Use grid virtualization for tables, dashboards, or gallery layouts where both dimensions can be large.[1]
+
+***
+
+## Infinite Loading + Virtualization (Advanced Usage)
+
+**Key topics**
+
+- `react-window-infinite-loader`.  
+- Breaking large data sets into chunks fetched on demand.[1]
+
+**Pitchfork scraper example**
+
+- Uses `FixedSizeGrid` + `InfiniteLoader` to fetch pages of music reviews as the user scrolls.[1]
+- `InfiniteLoader` props: `isItemLoaded`, `loadMoreItems`, `itemCount`.[1]
+- Provides `onItemsRendered` and `ref` to wire up virtualization with async fetching.[1]
+
+**List‑style infinite example**
+
+```jsx
+<InfiniteLoader
+  isItemLoaded={this.isItemLoaded}
+  loadMoreItems={this.loadMoreItems}
+  itemCount={this.state.count}
+>
+  {({ onItemsRendered, ref }) => (
+    <FixedSizeList
+      itemCount={this.state.count}
+      itemSize={ROW_HEIGHT}
+      onItemsRendered={onItemsRendered}
+      height={this.state.height}
+      width={this.state.width}
+      ref={ref}
+    >
+      {this.renderCell}
+    </FixedSizeList>
+  )}
+</InfiniteLoader>
+```
+
+**Best practices**
+
+- Combine virtualization with infinite loading for very large/unknown data sets (e.g., search results, feeds).[1]
+- Ensure `isItemLoaded` logic is correct to avoid repeated fetches or gaps.[1]
+
+***
+
+## What react-window Lacks vs react-virtualized
+
+**Missing components** (as of article)
+
+- `WindowScroller`: ties list scroll to *window* scroll; not planned for react-window → must implement manually.[1]
+- `AutoSizer`: HOC that auto-sizes child to available space; now a standalone package (separate from main react-window).[1]
+- `CellMeasurer`: measures dynamic cell size by invisible rendering; discussion ongoing, not in core.[1]
+
+**Trade-offs**
+
+- react-window gives smaller, simpler, faster core but leaves some advanced patterns to userland or extra packages.[1]
+
+***
+
+## Platform-Level Improvements: `content-visibility`
+
+**Key topics**
+
+- Native browser optimization.[1]
+
+**Key points**
+
+- CSS `content-visibility: auto` allows skipping rendering/painting of offscreen content until it becomes visible; great for long static documents.[1]
+- For *dynamic* lists, libraries like react-window, which actively remove DOM nodes or use `display:none`, still tend to outperform naive `content-visibility` usage.[1]
+
+**Best practices**
+
+- Consider `content-visibility` for long, static documents; keep virtualization for dynamic or highly interactive lists.[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What is list virtualization and why is it needed?**  
+- Technique where only visible items (a window) of a large list/grid are rendered; reduces DOM size, render work, and improves scroll performance, especially on low‑end devices.[1]
+
+**Q2: How does a typical virtualization implementation work in the DOM?**  
+- A scroll container and a large inner spacer represent full length; visible items are absolutely positioned within the viewport using computed `top/height`, updated as the user scrolls.[1]
+
+**Q3: Compare react-virtualized and react-window.**  
+- Both provide list/grid virtualization; react-window is a smaller, faster, more tree‑shakeable rewrite with simpler APIs but a smaller feature surface compared to react-virtualized.[1]
+
+**Q4: When would you use `FixedSizeList` vs `FixedSizeGrid`?**  
+- `FixedSizeList` for 1D vertical lists of uniform height rows; `FixedSizeGrid` for 2D tabular data where both rows and columns can be large.[1]
+
+**Q5: How do you handle infinite scrolling with virtualization?**  
+- Combine react-window with `react-window-infinite-loader`; use `isItemLoaded` and `loadMoreItems` to fetch chunks as new indices enter the visible window.[1]
+
+**Q6: What limitations does react-window have compared to react-virtualized?**  
+- Lacks built‑in `WindowScroller`, `AutoSizer`, `CellMeasurer` (need standalone packages or custom implementations); prioritizes minimal core size.[1]
+
+**Q7: Can CSS `content-visibility` replace virtualization libraries?**  
+- Helpful for long, mostly static pages, but for dynamic lists, specialized libraries that aggressively remove DOM nodes or toggle `display` still provide better performance and control.[1]
+
+**Q8: When should you *not* use list virtualization?**  
+- Small lists where overhead is unnecessary; simple UIs where added complexity and dependencies outweigh performance gains.[1]
+
+***
+
+## Important Terms & Keywords
+
+- List virtualization, windowing, windowed list.[1]
+- Virtualized list, virtualized grid, viewport, scrolling container.[1]
+- react-virtualized, react-window, `FixedSizeList`, `VariableSizeList`, `FixedSizeGrid`, `VariableSizeGrid`.[1]
+- `react-window-infinite-loader`, `InfiniteLoader`, `isItemLoaded`, `loadMoreItems`, `onItemsRendered`.[1]
+- `WindowScroller`, `AutoSizer`, `CellMeasurer` (react-virtualized concepts).[1]
+- DOM node count, initial render cost, scroll performance.[1]
+- CSS `content-visibility: auto`.[1]
+
+[1](https://www.patterns.dev/vanilla/virtual-lists/)

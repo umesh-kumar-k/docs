@@ -1,0 +1,176 @@
+Hot vs cold observables – Ben Lesh article summary   
+
+***
+
+## Core definitions  
+
+- Observable: a function that ties an observer to a producer and returns teardown logic; subscribing is equivalent to calling that function with an observer.   
+- Producer: the source of values (WebSocket, DOM events, iterator, loop over array, etc.) feeding `observer.next(value)`.   
+- “Hot vs cold” is about where and how the producer is created/activated relative to subscription.   
+
+***
+
+## Cold observables  
+
+**Key idea**  
+- Cold observable: producer is created and activated inside the subscription function.   
+- Every subscription:  
+  1) creates the producer,  
+  2) activates it,  
+  3) starts listening,  
+  4) is unicast (each subscriber gets its own producer instance).   
+
+**Example (WebSocket)**  
+- Cold version: create the `WebSocket` inside the observable’s subscribe callback, and close it in teardown; each subscriber gets its own socket.   
+
+**Best use cases**  
+- When you want each subscriber to have its own independent execution (e.g., HTTP call per subscriber, separate computation, separate resource).   
+
+**Trade-offs**  
+- Pros: isolation per subscriber, natural for “pull” style or per-request operations.   
+- Cons: easy to accidentally create multiple expensive resources (sockets, streams) if you subscribe more than once.   
+
+**Interview Q&A**  
+- Q: What makes an observable “cold”?  
+  A: It creates and activates its producer inside the subscribe function so every subscription gets its own producer.   
+
+***
+
+## Hot observables  
+
+**Key idea**  
+- Hot observable: producer is created or activated outside subscription; observable closes over a shared producer instance.   
+- Typical behavior:  
+  1) shares a reference to a producer,  
+  2) starts listening to that producer when subscribed,  
+  3) is usually multicast.   
+
+**Example (WebSocket)**  
+- Hot version: create the `WebSocket` outside the observable; subscribe adds event listeners to the same socket instance.   
+- Issue: teardown isn’t tied to the observable anymore (unsubscribe/complete/error won’t close the socket automatically).   
+
+**Why use hot observables?**  
+- To avoid recreating scarce/expensive producers (e.g., WebSockets) when multiple subscribers are interested in the same source.   
+- Example: `source.filter(...).subscribe(...)` twice (odd/even split) would create two sockets if source is cold; with a hot shared source, both observers share one socket.   
+
+**Trade-offs**  
+- Pros: resource sharing, natural multicast semantics.   
+- Cons: lifecycle is no longer bound to subscriptions by default; need explicit teardown strategy.   
+
+**Interview Q&A**  
+- Q: When do you want a hot observable?  
+  A: When multiple subscribers should share a single producer instance and you don’t want to recreate that producer for each subscription.   
+
+***
+
+## RxJS Subject and multicasting  
+
+**What is a Subject?**  
+- Is an observable (supports `subscribe`, operators).   
+- Is also an observer (supports `next`, `error`, `complete`).   
+- Multicasts: every `subscribe` adds an observer to an internal list; `next` pushes to all.   
+- One-shot: once unsubscribed/completed/errored, it cannot be reused.   
+
+**Role in hot observables**  
+- Subject acts as a multicast hub between a single producer and multiple observers.   
+
+**Interview Q&A**  
+- Q: Why is Subject key to hot observables?  
+  A: It bridges one producer to many observers by being both an observer (input) and an observable (output), enabling multicasting.   
+
+***
+
+## Turning cold into hot  
+
+### Simple `makeHot`  
+
+- Implementation idea:  
+  - Create a `Subject`.  
+  - Subscribe the cold observable to the subject (cold → subject).  
+  - Return a new observable that subscribes observers to the subject (subject → observers).   
+
+```ts
+function makeHot(cold) {
+  const subject = new Subject();
+  cold.subscribe(subject);
+  return new Observable(observer => subject.subscribe(observer));
+}
+```
+
+- Result: multiple subscribers share the same underlying cold source; producer is not recreated per subscriber.   
+- Problem: no explicit tracking of the subscription to the cold source, so teardown is not tied to number of observers.   
+
+### Ref-counted `makeHotRefCounted`  
+
+- Add reference counting:  
+  - Maintain `refs` counter of active subscribers.  
+  - Subscribe cold → subject once (`mainSub`).  
+  - On new observer: `refs++`, subscribe it to subject.  
+  - On unsubscribe: `refs--`; when `refs === 0`, unsubscribe `mainSub`.   
+
+- This creates a hot observable that stops the underlying cold source when the last subscriber unsubscribes.   
+
+**Trade-offs**  
+- Correctly managing subscription lifecycle is non-trivial; easy to leak resources if ref-counting logic is wrong.   
+
+**Interview Q&A**  
+- Q: Conceptually, how do you make a cold observable hot?  
+  A: Use a Subject to multicast from the cold source to multiple subscribers, and optionally add reference counting to tear down the source when no subscribers remain.   
+
+***
+
+## RxJS operators: `publish()` / `share()`  
+
+- In practice, don’t hand-roll `makeHot`; use RxJS operators:   
+  - `publish()` and related operators to control multicasting strategies.   
+  - `share()` in RxJS 5: creates a hot, refCounted observable that can be retried or repeated.   
+- Because Subjects cannot be reused after error/complete/unsubscribe, `share()` recycles underlying Subjects to allow resubscription.   
+
+**Best practices**  
+- Prefer built-in operators (`share()`, `shareReplay()`, etc.) over manual Subject/ref-count logic.   
+- Use `share()` when you want automatic ref-counting and retry/repeat semantics.   
+
+**Interview Q&A**  
+- Q: What does `share()` do in RxJS?  
+  A: It turns a cold observable into a hot, ref-counted observable using an internal Subject, recycling Subjects so you can retry or resubscribe after completion or error.   
+
+***
+
+## Warm observables  
+
+- Because observables are just functions, they can in theory both create a producer and close over another shared producer.   
+- This “mixed” case is loosely called “warm”: partly hot, partly cold.   
+- Rarely needed; an example could be multiplexed WebSockets where the socket is shared (hot), but each consumer sets up its own subscription or filter on the stream.   
+
+**Interview Q&A**  
+- Q: What is a “warm” observable?  
+  A: An observable that behaves partly hot and partly cold, e.g., sharing one producer while also creating additional per-subscriber work; generally discouraged except for rare multiplexing scenarios.   
+
+***
+
+## Concept summary: producer-centric view  
+
+- Hot vs cold is purely about the producer:   
+  - If the observable creates the producer inside subscribe → cold.   
+  - If the observable closes over a shared producer created outside subscribe → hot.   
+  - If it does both → “warm” (edge case).   
+
+***
+
+## Important terms & keywords (for spaced repetition)  
+
+1. Observable as function (subscribe == call function).   
+2. Producer (WebSocket, DOM events, iterator, etc.).   
+3. Cold observable – creates/activates producer inside subscription; unicast.   
+4. Hot observable – shares producer created/activated outside subscription; usually multicast.   
+5. Scarce resource (e.g., WebSocket) and why you avoid recreating it.   
+6. RxJS Subject – both observer and observable; multicasts to subscribers.   
+7. makeHot – uses Subject to multicast cold source.   
+8. Reference counting – tracking subscriber count to manage teardown.   
+9. makeHotRefCounted – ref-counted hot observable wrapper.   
+10. `publish()` – multicasting operator.   
+11. `share()` – hot, ref-counted observable with subject recycling.   
+12. Multicast vs unicast.   
+13. Warm observable – mixed hot/cold behavior.   
+
+If you want, next step can be a small comparison table mapping these concepts to concrete front-end scenarios (HTTP requests, WebSockets, DOM events, RxJS in Angular).

@@ -1,175 +1,250 @@
-Here’s a compact, interview‑oriented cheat sheet of the highest‑impact distributed‑systems patterns you’re most likely to need to talk about for scalability, availability, performance, and reliability.[1][2]
+Below is a compact, pattern‑by‑pattern cheat sheet for backend/system‑design interviews (Java/Spring, services, etc.). Each entry: intent, typical use case, pros/cons, and an interview‑style note.[1][2][3][4]
 
 ***
 
-## Interview Summary
+## Creational Patterns
 
-Across big‑tech style architectures, the same core patterns recur: **stateless services + load balancing**, **caching**, **database sharding/replication**, **asynchronous messaging/event‑driven design**, and **resilience patterns** (circuit breaker, bulkhead, retry, timeouts, saga). Senior‑level interviewers expect you to (a) name these patterns, (b) map them to SLOs (latency, throughput, availability), (c) show awareness of their trade‑offs (consistency, complexity, cost), and (d) connect them to real‑world usage at companies like Netflix, Amazon, and Azure.[3][4][5][6][7][1]
+### Factory Method
 
-***
-
-## Keywords & Patterns (Bucketed)
-
-### Core scalability & performance
-
-- **Horizontal scaling & stateless services**  
-  - Scale out behind a **load balancer**; keep app servers stateless, store session/state in external stores (Redis, DB).[8][4]
-  - Tools: NGINX/Envoy/ALB, Kubernetes HPA, service meshes.[4][8]
-
-- **Caching patterns**  
-  - **Client‑side cache**, **CDN**, **reverse proxy cache**, **read‑through/write‑through/write‑back**, **cache‑aside**.[2][8]
-  - Tools: Redis/Memcached, CloudFront/Akamai, Varnish/NGINX.[8][4]
-
-- **Data partitioning (sharding)**  
-  - Horizontal partitioning by key (userId, tenantId, time); range/hash/consistent hashing.[6][9]
-  - Applied to DBs, caches, search, queues, even microservices.[6][8]
-
-### Availability & reliability
-
-- **Replication patterns**  
-  - Multi‑AZ/region replicas; leader–follower, leaderless quorum, async vs sync.[10][2]
-  - RPO/RTO awareness; failover and health checks.[7][3]
-
-- **Resilience patterns (microservices)**  
-  - **Circuit Breaker** – open/half‑open/closed; stop hammering unhealthy dependencies.[11][12][13]
-  - **Bulkhead** – isolate resource pools per dependency (threads/connection pools) to prevent cascade.[11][6]
-  - **Retry + timeout + backoff + jitter** – avoid thundering herds and tail latency spikes.[5][2]
-  - **Fallback / graceful degradation** – cached/default responses when dependencies fail.[5][11]
-
-- **Consistency & long‑running workflows**  
-  - **Saga** – sequence of local transactions with compensating actions; orchestration vs choreography.[13][11]
-  - **CQRS** – separate command and query models; write‑optimized vs read‑optimized stores.[11][5]
-
-### Architecture & messaging
-
-- **Microservices & bounded contexts**  
-  - Decompose by business capability; independent deployments; strong contracts.[14][5]
-  - Trade: agility and independent scaling vs operational and consistency complexity.[5]
-
-- **Event‑driven architecture**  
-  - Producers emit domain events; consumers build projections, send notifications, trigger workflows.[2][5]
-  - Tools: Kafka, Pulsar, Kinesis, Azure Event Hubs/Event Grid.[9][2]
-
-- **Message‑centric patterns**  
-  - **Message queues** vs **event streams** (RabbitMQ/SQS vs Kafka‑style logs).[15][16]
-  - Back‑pressure, DLQs, idempotent consumers, at‑least‑once semantics.[13][15]
+- **Intent**: Let a base class define a **factory method** for creating products, while subclasses decide which concrete product to return.[1]
+- **Use case**: `Dialog.createButton()` returning platform‑specific `Button` (Windows/Mac), or `RoadLogistics.createTransport()` returning `Truck` vs `SeaLogistics` returning `Ship`.[1]
+- **Pros**: Decouples client from concrete classes; centralizes construction; easy to add new product types by adding new creator subclasses.[1]
+- **Cons**: Extra subclass hierarchy and indirection; can proliferate creators.[1]
+- **Interview angle**: “When adding a new transport type, what changes?” → Only create a new `Logistics` subclass and override factory, no client changes (Open/Closed).[1]
 
 ***
 
-## Common Trade‑offs + Example Questions
+### Abstract Factory
 
-### Trade‑offs (high‑yield)
-
-- **Scalability vs consistency**  
-  - Sharding, replication, and async messaging often trade strict consistency for availability and throughput (CAP/BASE).[10][6]
-  - Expect to talk about eventual consistency, read‑your‑writes, and where you still need strong invariants.
-
-- **Performance vs complexity/cost**  
-  - Caching and denormalization improve latency but add invalidation and storage costs.[8][6]
-  - Microservices and EDA improve agility but require more infra: discovery, tracing, centralized config, observability.[14][5]
-
-- **Availability vs latency & resource usage**  
-  - Synchronous replication and quorum reads/writes increase durability but hurt latency and capacity.[7][10]
-  - Circuit breakers/bulkheads protect availability but can degrade features (degraded responses).[12][11]
-
-### Example questions to be ready for
-
-- Design a highly available, low‑latency **news feed / timeline** – where do you apply caching, sharding, replication, and async processing? What trade‑offs in consistency do you accept?[9][6]
-- Design a **payment/order pipeline** across multiple services and databases – how do you keep it consistent (saga), resilient (circuit breaker/bulkhead), and observable?[13][11]
-- Your **search/analytics** queries are slow under load – which patterns (caching, CQRS, read replicas, pre‑aggregation) would you introduce and why?[6][8]
+- **Intent**: Create **families of related objects** (e.g., all “Modern” UI widgets) without specifying concrete classes.[2]
+- **Use case**: `UIFactory` with `createButton()/createCheckbox()`; `WindowsUIFactory` vs `MacUIFactory` returning consistent UI sets; or furniture sets `ModernChair/ModernSofa`.[2]
+- **Pros**: Ensures products from a family are compatible; hides concrete variants behind interfaces; easy to add new families (new concrete factories).[2]
+- **Cons**: Many interfaces and factory classes; more complex than Factory Method.[2]
+- **Interview angle**: Compare to Factory Method—Abstract Factory manages **multiple related products per family**, not just one.[2]
 
 ***
 
-## Use Cases & Big‑Tech Blog References
+### Builder
 
-- **Netflix**  
-  - Uses microservices, Hystrix‑style circuit breakers, fallback, and bulkheads plus client‑side load balancing for resilience.[4][2]
-  - Migrated from monolith to AWS‑based distributed systems, with auto‑scaling groups, Zuul/API‑Gateway, Eureka discovery, and heavy use of caches/CDNs to meet global SLAs.[17][4]
-
-- **AWS / Azure cloud patterns**  
-  - Azure’s Cloud Design Patterns: circuit breaker, retry, bulkhead, queue‑based load leveling, throttling, cache‑aside, sharding, event sourcing, CQRS, and sidecar are canonical references.[3][2]
-  - AWS Architecture Blog stresses “reliable scalability”: stateless services, multi‑AZ, autoscaling, health checks, and queues for load leveling.[18][7]
-
-- **ByteByteGo / HighScalability style content**  
-  - Showcases sharding, caching, replication, and EDA patterns in real services like Twitter feed, YouTube, Uber, etc., with concrete diagrams and bottleneck analysis.[17][9][6]
+- **Intent**: Construct **complex objects step‑by‑step**, optionally producing different representations with the same process.[4]
+- **Use case**: Building complex DTOs, configuration objects, or SQL queries; building HTTP requests or domain aggregates with many optional fields.[4]
+- **Pros**: Readable chained construction, separates construction logic from representation, avoids telescoping constructors.[4]
+- **Cons**: Extra classes; can be overkill for simple objects.[4]
+- **Interview angle**: “When do you choose Builder over telescoping constructors or Factory?” → Many optional params or different construction paths for same type.[4]
 
 ***
 
-## Cheat‑sheet, Q&A Style
+### Prototype
 
-- **Q: What are the highest‑impact patterns for scalability?**  
-  - A: Stateless microservices + horizontal scaling, load balancing, caching at multiple layers, and data sharding/partitioning.[1][8]
-
-- **Q: How do you make a system highly available and resilient?**  
-  - A: Multi‑AZ/region deployment, replication, health checks + auto‑healing, plus circuit breakers, bulkheads, retries with backoff, and graceful degradation.[10][2][11]
-
-- **Q: How do you handle cross‑service consistency in microservices?**  
-  - A: Use sagas for long‑running workflows, idempotent operations, outbox/CDC for reliable event publishing, and choose where you need strong vs eventual consistency.[11][6][13]
-
-- **Q: When do you introduce event‑driven architecture?**  
-  - A: When many services need to react to the same domain events, or when you must decouple producers/consumers for scale and resilience, and can tolerate eventual consistency.[2][5]
-
-- **Q: How do you avoid cascading failures?**  
-  - A: Combine timeouts, circuit breakers, bulkheads, rate limiting, and backoff retries; test via chaos/latency injection.[12][6][11]
+- **Intent**: Create objects by **cloning existing prototypes** instead of using `new` from scratch.[4]
+- **Use case**: Duplicating expensive‑to‑create objects (preconfigured documents, trees, configuration graphs), or polymorphic copies when you don’t know concrete types.[4]
+- **Pros**: Avoids costly re‑creation; can clone at runtime without depending on concrete class.[4]
+- **Cons**: Deep/shallow copy complexity; ensuring correct clone semantics.[4]
+- **Interview angle**: “Prototype vs Factory?” → Factory builds from scratch, Prototype clones an existing instance.[4]
 
 ***
 
-## Data Structures & Algorithms Involved
+### Singleton
 
-- **Data structures**  
-  - **B‑trees/B+‑trees** – DB indexes for efficient queries at scale (SQL/NoSQL secondary indexes).[6][2]
-  - **LSM trees (SSTables + memtables)** – backing high‑write stores (Cassandra, HBase, RocksDB, many logs).[6]
-  - **Consistent hashing rings** – partitioning keys across shards/nodes while minimizing rebalancing.[9][6]
-  - **Queues & logs** – message queues (RabbitMQ/SQS) and partitioned logs (Kafka) as core async primitives.[15][2]
-
-- **Algorithms**  
-  - Load‑balancing strategies (round‑robin, least‑connections, consistent hashing).[8][9]
-  - Quorum algorithms (read/write majority) and leader election for replicated state.[10][13]
-  - Retry with exponential backoff + jitter; rate limiting (token bucket, leaky bucket).[5][2]
-  - Gossip and failure‑detection protocols for cluster membership.[13][6]
+- **Intent**: Guarantee a **single instance** with global access.[4]
+- **Use case**: Configuration registry, connection pool manager, logging facade.[4]
+- **Pros**: Simple access to shared resource; lazy init possible.[4]
+- **Cons**: Global mutable state, hidden dependencies, hard to test; often considered an anti‑pattern.[4]
+- **Interview angle**: “When avoid Singleton?” → When DI/container can manage lifetimes; prefer injecting dependencies.[4]
 
 ***
 
-## Tools / Frameworks / Software
+## Structural Patterns
 
-- **Scaling & statelessness** – Kubernetes, ECS, service meshes (Istio/Linkerd), Envoy/NGINX/HAProxy, API gateways.[4][8]
-- **Caching** – Redis, Memcached, CDN providers, app‑level cache libraries.[2][8]
-- **Datastores** – Sharded/replicated Postgres/MySQL; Cassandra, DynamoDB, MongoDB for distributed persistence.[9][6]
-- **Messaging & events** – Kafka, Pulsar, Kinesis, SQS/SNS, Event Hubs/Event Grid, RabbitMQ.[18][2]
-- **Resilience libraries** – Resilience4j, Netflix OSS (Hystrix legacy, Ribbon, Eureka), service‑mesh policies for retries/circuit‑breaking.[4][5]
-- **Observability** – Prometheus + Grafana, OpenTelemetry, Jaeger/Zipkin, cloud‑native monitoring (CloudWatch, Azure Monitor).[19][2]
+### Adapter
+
+- **Intent**: Convert one interface into another **expected** by clients.[4]
+- **Use case**: Wrap legacy service or third‑party API to match your internal port interface; adapting payment gateways or external HTTP clients.[4]
+- **Pros**: Integrates incompatible APIs without touching client code; isolates vendor changes.[4]
+- **Cons**: More layers; if misused can hide poor domain modeling.[4]
+- **Interview angle**: “How to plug a new payments provider without touching domain logic?” → Implement an Adapter to your `PaymentPort`.[4]
 
 ***
 
-## Concise Summary: Important Terms & Keywords
+### Bridge
 
-- Scalability, availability, reliability, performance (4 pillars).[1]
-- Stateless services, horizontal scaling, load balancing, auto‑scaling.[7][8]
-- Caching (cache‑aside, read‑through, write‑through, write‑back), CDN, reverse proxy.[8][2]
-- Sharding/partitioning, replication, quorum, consistent hashing, multi‑AZ/region.[9][6]
-- Microservices, bounded context, API gateway, service mesh.[14][5]
-- Event‑driven architecture, message queues vs event streams, Kafka‑style logs.[15][2]
-- Circuit breaker, bulkhead, retry/backoff, timeout, fallback, saga, CQRS.[12][11][13]
+- **Intent**: **Decouple abstraction from implementation** so they can vary independently.[4]
+- **Use case**: `RemoteControl` abstraction with various `Device` implementations (TV, Radio); or persistence abstraction with different databases.[4]
+- **Pros**: Avoids combinatorial explosion of subclasses; supports switching implementations at runtime.[4]
+- **Cons**: Extra indirection; can feel abstract if overused.[4]
+- **Interview angle**: Compare to Adapter—Bridge is **designed up‑front** to separate dimensions; Adapter is reactive integration.[4]
 
-[1](https://www.designgurus.io/blog/4-basic-pillars-of-system-design)
-[2](https://learn.microsoft.com/en-us/azure/architecture/patterns/)
-[3](https://learn.microsoft.com/en-us/archive/msdn-magazine/2009/may/patterns-for-high-availability-scalability-and-computing-power-with-microsoft-azure)
-[4](https://www.netguru.com/blog/cloud-native-patterns-examples)
-[5](https://dev.to/tutorialq/mastering-distributed-systems-essential-design-patterns-for-scalability-and-resilience-35ck)
-[6](https://www.freecodecamp.org/news/design-patterns-for-distributed-systems/)
-[7](https://aws.amazon.com/blogs/architecture/architecting-for-reliable-scalability/)
-[8](https://www.imaginarycloud.com/blog/scalability-patterns-for-distributed-systems-guide)
-[9](https://blog.bytebytego.com/p/scalability-patterns-for-modern-distributed)
-[10](https://www.geeksforgeeks.org/system-design/reliability-vs-scalability/)
-[11](https://dev.to/geampiere/mastering-microservices-patterns-circuit-breaker-fallback-bulkhead-saga-and-cqrs-4h55)
-[12](https://www.geeksforgeeks.org/system-design/distributed-system-patterns/)
-[13](https://codemia.io/knowledge-hub/path/Distributed-System-Design-Patterns)
-[14](https://marutitech.com/software-architecture-patterns/)
-[15](https://www.geeksforgeeks.org/system-design/message-queues-vs-event-streams-in-system-design/)
-[16](https://www.systemdesignhandbook.com/guides/message-queue-system-design/)
-[17](https://highscalability.com)
-[18](https://workat.tech/system-design/article/best-engineering-blogs-articles-videos-system-design-tvwa05b8bzzr)
-[19](https://signiance.com/system-design-principles/)
-[20](https://dev.to/fahimulhaq/complete-guide-to-system-design-oc7)
-[21](https://namastedev.com/blog/scalable-system-architecture-patterns/)
-[22](https://vfunction.com/blog/application-scalability/)
+***
+
+### Composite
+
+- **Intent**: Treat individual objects and **hierarchies (trees)** uniformly.[4]
+- **Use case**: File system (file vs folder), UI component tree, organization hierarchy.[4]
+- **Pros**: Uniform operations on leaves and composites; simplifies recursive logic.[4]
+- **Cons**: Can blur differences between leaf/composite responsibilities.[4]
+- **Interview angle**: “How would you model a menu tree or ACL hierarchy?” → Composite of nodes implementing common interface.[4]
+
+***
+
+### Decorator
+
+- **Intent**: Attach **additional responsibilities dynamically** by wrapping objects, instead of subclassing.[4]
+- **Use case**: Add caching, logging, metrics, encryption to repositories or services; HTTP client wrappers.[4]
+- **Pros**: Composable behaviors; avoids subclass explosion; open for extension.[4]
+- **Cons**: Deep wrapper stacks can be hard to debug; care needed for identity/equality.[4]
+- **Interview angle**: “How to add caching to a repository without modifying it?” → Decorator implementing same interface and delegating.[4]
+
+***
+
+### Facade
+
+- **Intent**: Provide a **simple API over a complex subsystem**.[4]
+- **Use case**: `OrderFacade.placeOrder()` hides orchestration across inventory, payments, notifications; simplifies use for controllers.[2][4]
+- **Pros**: Shields clients from complexity; centralizes orchestration; good seam for testing.[4]
+- **Cons**: Can become a “god object” if it grows too broad.[4]
+- **Interview angle**: Distinguish from Abstract Factory—Facade simplifies **usage** of subsystem, Abstract Factory simplifies **creation**.[2]
+
+***
+
+### Flyweight
+
+- **Intent**: Share **heavy intrinsic state** among many objects, keeping only extrinsic state per instance.[4]
+- **Use case**: Large numbers of similar value objects that share configuration, fonts, metadata; caching immutable domain objects.[4]
+- **Pros**: Drastically reduces memory footprint.[4]
+- **Cons**: More complex lifecycle and identity semantics.[4]
+- **Interview angle**: “How to handle millions of nearly identical nodes?” → Flyweight + indexing extrinsic data.[4]
+
+***
+
+### Proxy
+
+- **Intent**: Provide a **surrogate** that controls access to a real object (remote, lazy, protected, cached).[4]
+- **Use case**: Remote proxies (RPC stub), lazy loading, security checks, caching/protection proxies on repositories.[4]
+- **Pros**: Cross‑cutting concerns at the boundary; works well with AOP/DI.[4]
+- **Cons**: Can obscure control flow; debugging goes through extra layers.[4]
+- **Interview angle**: Differentiate from Decorator—Proxy focuses on **access control/indirection**, Decorator on **adding behavior**.[4]
+
+***
+
+## Behavioral Patterns
+
+### Chain of Responsibility
+
+- **Intent**: Pass a request along a **chain of handlers** until one handles it.[4]
+- **Use case**: HTTP middleware, validation pipelines, approval workflows.[4]
+- **Pros**: Flexible handler ordering; easy to add/remove steps.[4]
+- **Cons**: Harder to trace which handler processed what; termination conditions must be clear.[4]
+
+***
+
+### Command
+
+- **Intent**: Encapsulate **requests as objects** (with `execute` and often `undo`).[4]
+- **Use case**: Task queues, undo/redo in editors, audit logging of operations.[4]
+- **Pros**: Queue, log, replay operations; decouples invoker from receiver.[4]
+- **Cons**: Many small classes; need to think about idempotency and serialization.[4]
+
+***
+
+### Iterator
+
+- **Intent**: Provide a standard way to **traverse collections** without exposing internal structure.[4]
+- **Use case**: Encapsulate traversal over custom aggregates (trees, graph results).[4]
+- **Pros**: Simplifies traversal; supports multiple traversal strategies.[4]
+- **Cons**: In languages with built‑in iterators, explicit pattern is less visible.[4]
+
+***
+
+### Mediator
+
+- **Intent**: Centralize **communications between objects**, reducing direct coupling.[4]
+- **Use case**: Chat room server, event bus within a module, coordinating UI widgets.[4]
+- **Pros**: Simpler participants; interactions isolated in mediator.[4]
+- **Cons**: Mediator can grow complex, effectively a “god object”.[4]
+
+***
+
+### Memento
+
+- **Intent**: Capture and restore an object’s **internal state** without exposing its internals.[4]
+- **Use case**: Undo/redo, checkpoints in workflows.[4]
+- **Pros**: Encapsulated snapshots; originator remains encapsulated.[4]
+- **Cons**: Memory overhead storing snapshots; security concerns if state is sensitive.[4]
+
+***
+
+### Observer
+
+- **Intent**: Let objects **subscribe** to events and get notified on state changes.[4]
+- **Use case**: Domain events, pub/sub in microservices, event sourcing subscribers.[4]
+- **Pros**: Loose coupling between publishers and subscribers.[4]
+- **Cons**: Event storms, ordering issues, harder debugging.[4]
+
+***
+
+### State
+
+- **Intent**: Let an object **change its behavior** when its internal state changes by delegating to state objects.[4]
+- **Use case**: Order lifecycle (NEW → PAID → SHIPPED), connection lifecycle, workflow engines.[4]
+- **Pros**: Avoids big `switch` on state; each state encapsulates rules.[4]
+- **Cons**: Many small state classes; a bit heavyweight for simple workflows.[4]
+
+***
+
+### Strategy
+
+- **Intent**: Define a family of **algorithms** and make them interchangeable at runtime via a common interface.[3]
+- **Use case**: Different pricing strategies, routing algorithms, serialization strategies.[3]
+- **Pros**: Replaces conditionals over algorithm choice; easy to extend.[3]
+- **Cons**: More classes; client must know which strategy to pick (or use a factory).[3]
+
+***
+
+### Template Method
+
+- **Intent**: Define **skeleton of an algorithm** in a base class, allowing subclasses to override specific steps.[1][4]
+- **Use case**: Abstract job runners, framework hooks for request handling or lifecycle events.[4]
+- **Pros**: Code reuse; enforces sequence while allowing variation in steps.[4]
+- **Cons**: Inflexible inheritance‑based reuse; can drift into fragile base class.[4]
+
+***
+
+### Visitor
+
+- **Intent**: Separate **operations from data structures**, allowing adding new operations without changing element classes.[4]
+- **Use case**: AST processing (compilers), reporting over object graphs, cross‑cutting traversals.[4]
+- **Pros**: Easy to add new operations; centralizes traversal logic.[4]
+- **Cons**: Adding new element types requires updating all visitors.[4]
+
+***
+
+## Quick Interview Checklist
+
+- **Creational**:  
+  - Factory Method vs Abstract Factory vs Builder vs Prototype vs Singleton.[1][2][4]
+- **Structural**:  
+  - Adapter vs Bridge vs Facade vs Proxy vs Decorator vs Composite vs Flyweight.[4]
+- **Behavioral**:  
+  - Strategy vs State vs Template Method vs Command vs Chain vs Observer vs Mediator vs Visitor vs Memento vs Iterator.[3][4]
+
+[1](https://refactoring.guru/design-patterns/factory-method)
+[2](https://refactoring.guru/design-patterns/abstract-factory)
+[3](https://refactoring.guru/design-patterns/strategy)
+[4](https://refactoring.guru)
+[5](https://refactoring.guru/replace-constructor-with-factory-method)
+[6](https://www.reddit.com/r/csharp/comments/pvz5r1/trying_to_understand_factory_method_from_this/)
+[7](https://www.reddit.com/r/learnprogramming/comments/1bikubq/difference_between_factory_method_and_abstract/)
+[8](https://www.ombulabs.com/blog/code-refactor/refactoring-with-design-patterns.html)
+[9](https://sourcemaking.com)
+[10](https://www.reddit.com/r/cpp/comments/qvsdu0/factory_method_why_create_a_separate_class_for/)
+[11](https://officialcto.com/interview-section/refactoring/patterns-principles)
+[12](https://springframework.guru/gang-of-four-design-patterns/)
+[13](https://www.youtube.com/watch?v=J9xiplE49ow)
+[14](https://github.com/barneydellar/RefactoringToTheStrategyPattern)
+[15](https://github.com/HugoMatilla/Refactoring-Summary)
+[16](https://www.tracylum.com/blog/2017-03-17-refactoring-with-the-strategy-pattern/)
+[17](https://www.reddit.com/r/softwaredevelopment/comments/18q1147/software_design_patterns/)
+[18](https://stackoverflow.com/questions/78428798/understanding-factory-design-pattern-in-python)
+[19](https://www.geeksforgeeks.org/system-design/strategy-pattern-set-1/)
+[20](https://sourcemaking.com/design_patterns)
+[21](https://www.reddit.com/r/csharp/comments/sdfqq1/factory_method_design_pattern_in_c/)

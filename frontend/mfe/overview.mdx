@@ -1,0 +1,684 @@
+Micro-frontends on AWS: structured summary for interview prep[1]
+
+***
+
+## 1. Introduction page: “Understanding and implementing micro-frontends on AWS”   
+
+**Key concepts & intent**  
+- Micro-frontends = decomposition of a large frontend into independently developed, tested, and deployed artifacts, analogous to microservices on the backend.   
+- Can be frontend-only (shared API layer) or full‑stack (each micro-frontend owns its backend/BFF).   
+- Works with CSR or SSR; SSR can be combined with hydration, or plain server-side rendering with hyperlinks between parts.   
+
+**Why micro-frontends / when to use**  
+- Fit for: many teams working on same product, needing decentralized decisions and end‑to‑end ownership.   
+- Reduce team cognitive load: each team owns one bounded context (UI, state, data, business logic, flow).   
+- Enable faster independent releases and business agility without affecting other parts of the system.   
+
+**Bounded context and isolation**  
+- Each micro-frontend owns: UI, data, state/session, domain logic, user flow for its bounded context.   
+- Share as little business logic and data as possible; when sharing is needed, use explicit interfaces (custom events, reactive streams).   
+- Cross-cutting concerns (design system, logging, observability) can be intentionally shared and centrally provided.   
+
+**Team model & org**  
+- Recommended: cross-functional teams owning the slice end‑to‑end from backend to frontend to operations.   
+- Emphasis on team autonomy plus operational responsibility in production.   
+
+**Trade-offs / best practices**  
+- Benefits: autonomy, independent deployability, reduced coupling, better scalability of teams.   
+- Risks: complexity in composition, routing, dependency management; need strong contracts and governance.   
+- Best practice: treat micro-frontends as distributed systems, not just modularized components.   
+
+**Potential interview questions (Q&A)**  
+- Q: What is a micro-frontend and how does it relate to microservices?  
+  A: It is a self-contained frontend service for a bounded context, mirroring microservice principles (independent ownership, deployment, and domain focus) on the UI layer.   
+- Q: When would you choose full‑stack micro-frontends vs frontend‑only?  
+  A: Full‑stack when teams require end‑to‑end autonomy over API and data; frontend‑only when a shared API layer already exists and is stable.   
+
+***
+
+## 2. Foundational concepts page: DDD, distributed systems, cloud[1]
+
+**Domain-driven design (DDD)**  
+- Micro-frontends inherit DDD ideas: ubiquitous language, bounded contexts around business concerns, not technical layers.[1]
+- Bounded context = self-contained solution to one business concern; multiple bounded contexts integrate via well-defined patterns.[1]
+- For a page like flight booking: search form and results list can be separate bounded contexts/micro-frontends; individual UI elements like buttons are too fine-grained.[1]
+
+**Distributed systems thinking**  
+- Distinction: modular vs distributed. Modules share lifecycle; distributed subsystems are independently deployable and own their own lifecycle.[1]
+- Distributed systems require strong error handling, performance, security, integration testing, observability.[1]
+- Micro-frontends extend microservice principles from backend to frontend: domain-driven, team-owned, independently deployed.[1]
+
+**Cloud computing support**  
+- Cloud (AWS) gives pay‑as‑you‑go infra, global rollout, and managed services (APIs, DBs, containers, serverless) that free teams to focus on product.[1]
+- Micro-frontends benefit from: managed infra, per-team choice of compute (Lambda, containers), storage (SQL/NoSQL/cache) and higher-level toolkits like AWS Amplify.[1]
+- Cloud makes end‑to‑end ownership feasible for cross-functional teams without heavy infra overhead.[1]
+
+**Trade-offs / best practices**  
+- Carefully model bounded contexts around business and communication patterns (who talks frequently with whom and what data).[1]
+- Avoid over-fragmentation (buttons/components) or over-broad contexts (whole page) – look for cohesive, independently valuable slices.[1]
+- Integrate micro-frontends as distributed systems: contract tests, typed interfaces, robust monitoring and logging.[1]
+
+**Potential interview questions (Q&A)**  
+- Q: How does DDD influence micro-frontend boundaries?  
+  A: Boundaries follow business domains/subdomains and their communication patterns, not technical layers, mapping each bounded context to a micro-frontend.[1]
+- Q: Why is cloud a good fit for micro-frontends?  
+  A: It offers managed, composable services and global infra, enabling each team to own and operate its slice end‑to‑end with minimal undifferentiated heavy lifting.[1]
+
+***
+
+## 3. Routing and communication page   
+
+**Routing options**  
+- Client-side composition + vertical split: can use server-side routing (MPA) or client-side routing (SPA).   
+- Mixed split (multiple micro-frontends per page, nested hierarchies): requires client-side routing.   
+- Edge-side or server-side composition: align with server-side or edge routing (e.g., CloudFront + Lambda@Edge).   
+
+**Cross-micro-frontend communication**  
+- Goal: reduce coupling; prefer asynchronous events over synchronous function calls across micro-frontends.   
+- Use DDD: first identify which domain events cross bounded-context boundaries.   
+- Mechanisms: native DOM CustomEvents, event emitters, or platform-provided reactive streams.   
+- Publishers/subscribers are decoupled; the contract is the event definition, not direct references.   
+
+**Trade-offs / best practices**  
+- Prefer event-based communication, not shared global state or tight component references.   
+- Align routing strategy with composition style (client-side vs server-side vs edge).   
+- Clearly document event schemas and version them when evolving contracts.   
+
+**Potential interview questions (Q&A)**  
+- Q: How should micro-frontends communicate without creating tight coupling?  
+  A: Use asynchronous events via DOM CustomEvents or reactive streams; publishers and subscribers only share event contracts, not direct references.   
+- Q: How do composition and routing choices relate?  
+  A: Client-side composition favors SPA-style routing; server-side/edge composition fits server-side/edge routing, especially when HTML is assembled on the server/edge.   
+
+***
+
+## 4. Managing dependencies page   
+
+**Why dependency management is hard**  
+- Two main concerns: performance penalty of large code downloads and compute overhead from duplicated libraries.   
+- Organizations should mandate strategies for dependency maintenance; ad hoc approaches easily become anti-patterns.   
+
+**Strategy 1 – Share nothing**  
+- Each micro-frontend bundles its dependencies; no sharing at integration/runtime.   
+- Pros: maximum agility and independence; no runtime coupling on shared libraries.   
+- Cons: code duplication and larger bundles; needs disciplined performance optimization.   
+
+**Strategy 2 – Shared libraries or modules**  
+- Libraries delivered via CDNs or package registries; micro-frontends either load at runtime or integrate at build time.   
+- Private package registries help integrate common libraries at build time and reduce runtime breakage but require governance for version alignment.   
+- Performance: externalize libraries to CDN-cached chunks (e.g., CloudFront).   
+
+**Tech options: import maps & module federation**  
+- Import maps or System.js: control where modules are loaded from at runtime.   
+- Webpack Module Federation: load remote modules and resolve shared dependencies across independent builds.   
+- Can use dynamic loading of import maps via discovery endpoints for flexibility.   
+
+**Shared state guidance**  
+- Avoid global state stores shared by all micro-frontends (e.g., one global Redux store) to prevent tight coupling.   
+- Prefer local state per micro-frontend; share via asynchronous messaging.   
+- If unavoidable, use read-only shared interfaces and browser primitives (URL, storage) or events for communication.   
+- If extensive shared state is needed, reconsider boundaries; may indicate misaligned design or domain evolution.   
+- Server-side sessions can be used: each micro-frontend fetches data using a shared session ID but keeps its own session-specific data.   
+
+**Trade-offs / best practices**  
+- Default to share-nothing, then introduce shared libraries only when justified and governed.   
+- Optimize bundles and leverage CDNs for shared lib caching.   
+- Clearly define contracts and versioning for shared dependencies and shared state interfaces.   
+
+**Potential interview questions (Q&A)**  
+- Q: When would you choose share-nothing vs shared libraries?  
+  A: Share-nothing when team autonomy and independent evolution matter most; shared libs when bundle size and UX performance become primary concerns and governance is strong.   
+- Q: How do you avoid tight coupling through shared state?  
+  A: Keep state local, communicate via events, and only expose read-only global interfaces where necessary; otherwise revisit the domain boundaries.   
+
+***
+
+## 5. Important terms & keywords (from these pages only)  
+
+- Micro-frontend, bounded context, ubiquitous language.[1]
+- Frontend-only vs full‑stack micro-frontend.   
+- Client-side rendering, server-side rendering, hydration.   
+- Backend-for-frontend (BFF).   
+- Domain-driven design (DDD), distributed systems, cloud computing.[1]
+- Modular vs distributed system, independent lifecycle.[1]
+- Edge routing, Lambda@Edge, Amazon CloudFront.   
+- Vertical split, mixed split, client-side routing, server-side routing.   
+- Asynchronous messaging, DOM CustomEvents, event emitters, reactive streams.   
+- Share-nothing strategy, import maps, System.js, webpack Module Federation.   
+- Private package registry, CDN-cached chunks.   
+- Global state anti-pattern, local state, server-side sessions.   
+
+You are right; the earlier answer only covered 4 of your links. Below is the next chunk. Because of the tool-call limit, this message covers only the two pages just fetched; the rest (composition, frameworks, feature flags, etc.) can be done in follow‑ups in the same style.
+
+***
+
+## Comparing micro-frontends with alternatives[1]
+
+### Key topics & ideas  
+- Micro-frontends are one option among monoliths, n‑tier, and microservices+SPA; choice must follow org principles and delivery pain points.[1]
+- If you adopt micro-frontends, you must be ready to handle distributed-system challenges (network boundaries, contracts, operations).[1]
+
+### Monoliths  
+- Good for: small apps or early product stage; fastest way to market, easy to deploy as one artifact.[1]
+- Problems at scale: codebase degradation, unintended coupling, difficult maintenance when many teams contribute unevenly.[1]
+- Leads to velocity loss, outages, and imbalance of responsibility between feature teams and maintainers.[1]
+
+### N-tier applications  
+- Typical 3‑tier: presentation, application, data, with REST/GraphQL between frontend and backend.[1]
+- Allows some independent evolution between tiers, but deployment of new features is complex: API, DB schema, backend, frontend must coordinate.[1]
+- Example pain: a feature requiring schema changes plus API changes plus frontend work may take weeks because of cross‑team backlogs and coordination.[1]
+
+### Microservices (backend)  
+- Backend decomposed into small services, each for one bounded context; interfaces defined via network APIs (HTTP).[1]
+- Supports independent development, deployment, and ops per service; still needs strong contracts and boundaries similar to well‑crafted monoliths.[1]
+
+### Choosing the approach  
+- Monoliths/n‑tier bundle multiple domain concerns; easier internal data flow and dependency management but harder, slower delivery.[1]
+- If few teams and no pain from coupling or long lead time, micro-frontends may be unnecessary complexity.[1]
+- Distributed/micro-frontend architectures fit complex, fast‑moving, multi‑team environments with high change frequency and autonomy needs.[1]
+
+### Best practices & trade-offs  
+- Start simple (monolith or n‑tier) for small/early products; evolve to microservices/micro-frontends when actual pain justifies it.[1]
+- Avoid “micro-frontends by default”; evaluate organizational scale, team topology, and release bottlenecks first.[1]
+- Maintain DDD-style boundaries and contracts even in monoliths and n‑tier designs to ease future evolution.[1]
+
+### Interview Q&A snippets  
+- Q: When are micro-frontends the wrong choice?  
+  A: When a small set of teams can ship quickly with a monolith or n‑tier system and are not suffering from cross‑team coupling or long release cycles.[1]
+
+- Q: How do monoliths, n‑tier, microservices, and micro-frontends compare?  
+  A: They trade off simplicity and cohesion (monolith, n‑tier) versus autonomy and independent deployability (microservices, micro-frontends). More distribution increases operational and governance complexity.[1]
+
+***
+
+## Identifying micro-frontend boundaries   
+
+### DDD and bounded contexts  
+- Decompose business capabilities into subdomains and bounded contexts, each owned by an autonomous team and exposed as a micro-frontend.   
+- Aim: minimal functional overlap and minimal runtime communication between contexts; where needed, use event-driven patterns like in microservices.   
+- Design for future extensions: new teams should be able to plug in new micro-frontends while preserving a consistent UX.   
+
+### Vertical split (user journey)  
+- Applicable when business domains form stages of a user journey (e.g., Catalog → Checkout → Invoice).   
+- Each journey stage delivered as its own micro-frontend, often with its own team and possibly backend/BFF.   
+- Optimizes for autonomy per journey step and clear routing between stages. [web
+
+Below covers the two newly-fetched pages; the remaining URLs (API integration, styling, org, governance, contracts, feature flags, discovery, balance autonomy) will still need another round.  
+
+***
+
+## Composing pages and views with micro-frontends[1]
+
+### Key topics  
+- Three composition patterns: client-side composition, edge-side composition, server-side composition.[1]
+- Trade-offs across skills required, fault tolerance, performance, caching, and deployment complexity.[1]
+
+### Client-side composition  
+- Approach: shell app runs in browser, dynamically loads micro-frontends as DOM fragments from CDNs or S3/CloudFront.[1]
+- Requirements:  
+  - A shell app or framework for discovery, loading, and rendering at runtime.[1]
+  - Strong HTML/CSS/JS expertise and deep understanding of browser environment.[1]
+  - Careful JS size optimization and avoidance of global namespace clashes.[1]
+- Example AWS serverless architecture:  
+  - Shell loads, calls CloudFront → discovery manifest endpoint (API Gateway + Lambda + DynamoDB) to get micro-frontend metadata (name, URL, version, fallback).[1]
+  - Bundles (JS/CSS/HTML) stored in S3 and served via CloudFront.[1]
+  - Each team owns its pipeline to deploy new versions and update manifest.[1]
+
+### Edge-side composition  
+- Approach: CDN/proxy (CloudFront with ESI-compatible stack, HAProxy/Varnish/NGINX with SSI) composes HTML fragments before sending to client.[1]
+- Best suited to: legacy apps already using transclusion-like mechanisms.[1]
+- Requirements: CDN/proxy with ESI/SSI capability and clear understanding of their limitations.[1]
+
+### Server-side composition  
+- Approach: origin server composes pages from HTML fragments produced by micro-frontends using technologies like PHP/JSP/templating or server-side JS frameworks like Next.js.[1]
+- Cache behavior: rendered pages cached on CDNs; on new micro-frontend versions, must re-render and refresh caches.[1]
+- Requirements: deep knowledge of server environment, deployment patterns, server-side discovery, cache invalidation.[1]
+
+### Example AWS server-side composition architecture  
+- CloudFront as unique entry point, with two origins: S3 for static files and a UI composer service.[1]
+- UI composer runs on AWS Fargate; uses streaming and multithreaded rendering if needed.[1]
+- Parameter Store (AWS Systems Manager) acts as a simple discovery key–value store for micro-frontend endpoints.[1]
+- Example micro-frontends:  
+  - Notifications: JS bundle in S3, rendered on client (needs interaction).[1]
+  - Reviews: Lambda + DynamoDB, fully rendered HTML fragment on server.[1]
+  - Product details: low-code micro-frontend using Step Functions Express Workflow to render HTML and manage caching.[1]
+
+### Best practices & trade-offs  
+- Client-side: maximum client flexibility and independent deployments; more responsibility on frontend performance and JS discipline.[1]
+- Edge-side: niche; primarily for incrementally modernizing legacy transclusion-based apps.[1]
+- Server-side: better initial performance and cacheability; more complex cache invalidation and server orchestration.[1]
+
+### Interview cheat-sheet Q&A  
+- Q: When would you choose client-side vs server-side composition?  
+  A: Client-side when teams need high autonomy and frequent UI deployments with strong frontend skills; server-side when initial render performance, SEO, and edge caching dominate.[1]
+
+- Q: How does AWS typically implement client-side composition?  
+  A: With a shell app loading manifests via CloudFront/API Gateway/Lambda/DynamoDB and fetching bundles from S3/CloudFront per micro-frontend.[1]
+
+***
+
+## Frameworks and tools for micro-frontends   
+
+### General framework considerations  
+- Most frontend frameworks (Angular, Next.js, etc.) weren’t originally built for micro-frontends; they may lack direct support for composition and dependency sharing.   
+- Performance is critical because multiple micro-frontends may run on the same page; choose frameworks with minimal runtime and bundle overhead.   
+- Focus rendering-wise on CSR and SSR; SSG is less central because micro-frontends are mainly composed at runtime.   
+
+### CSR frameworks / mechanisms  
+- Two main options for client-side composition:  
+  - single-spa: lightweight meta-framework for composing multiple micro-frontends in one page and handling dependency clashes.   
+  - Module Federation (webpack 5, now MF 2.0 for Rspack/webpack/esbuild/JS): addresses most micro-frontend challenges, especially runtime dependency management across independently built artifacts.   
+- Alternative: no framework at all  
+  - Modern browsers (≈98% share) support Web Components/custom elements natively.   
+  - Combine custom elements with small libraries (events, i18n, etc.) where needed.   
+
+### SSR frameworks / mechanisms  
+- Two primary strategies:  
+  - Use an SSR framework (e.g., Next.js) and apply micro-frontend principles plus Module Federation.   
+  - Use HTML-over-the-wire: exchange HTML fragments representing micro-frontends and compose them into templates at runtime (e.g., Podium).   
+
+### Best practices & trade-offs  
+- Avoid over-frameworking; consider Web Components for long-lived, framework-agnostic contracts.   
+- Module Federation is powerful but adds build/runtime complexity; requires good governance around shared libraries and versioning.   
+- Single-spa is simpler to adopt but primarily solves routing/composition; dependency management may still need complementary strategies.   
+
+### Interview cheat-sheet Q&A  
+- Q: How does Module Federation help micro-frontends?  
+  A: It lets independently built bundles share dependencies and load remote modules at runtime, reducing duplication and avoiding version clashes.   
+
+- Q: Why might you choose Web Components over a full framework for micro-frontends?  
+  A: To minimize overhead, avoid framework lock-in, and expose stable, browser-native contracts across teams and tech stacks.   
+
+***
+
+## New important terms & keywords (from these two pages)  
+
+- Client-side composition, shell application.[1]
+- Discovery manifest, manifest endpoint, micro-frontends discovery service.[1]
+- CloudFront, API Gateway, Lambda, DynamoDB, S3, Fargate, Step Functions, Parameter Store.[1]
+- Edge-side composition, Edge Side Includes (ESI), Server Side Includes (SSI), transclusion.[1]
+- Server-side composition, UI composer, HTML-over-the-wire.[1]
+- Single-spa, Module Federation, Module Federation 2.0.   
+- Web Components, custom elements.   
+- Next.js, Podium.
+Below covers API/BFF and styling. Remaining org/governance/contracts/feature-flags/discovery/balance pages will still need another round.
+
+***
+
+## API integration – Backend for Frontend (BFF)[1]
+
+### Core idea  
+- In micro-frontends, a BFF is a server-side service owned by and scoped to a single micro-frontend’s bounded context. It must not be shared across other bounded contexts.[1]
+- It does not model the domain; it is an API layer that prepares data for that micro-frontend.[1]
+
+### When a BFF is useful  
+- Authorization to private backend APIs on behalf of the micro-frontend.[1]
+- Aggregating data from multiple backend services into a shape tailored for the UI.[1]
+- Transforming data to reduce network chattiness and payload size, optimizing for frontend consumption.[1]
+
+### Deployment options on AWS  
+- AWS AppSync GraphQL API as the BFF.[1]
+- A set of AWS Lambda functions.[1]
+- A container-based BFF on ECS, EKS, or AWS AppRunner.[1]
+
+### Before vs after BFF  
+- Without BFF: micro-frontends directly call many microservice endpoints and must aggregate/transform on the client.[1]
+- With BFF: each micro-frontend calls its own backend which aggregates and tailors data for that UI or channel.[1]
+
+### Best practices & trade-offs  
+- Keep BFF strictly within the micro-frontend’s bounded context; no cross-context sharing.[1]
+- Use BFFs to remove complex orchestration from UI code and simplify performance-sensitive interactions.[1]
+- Trade-off: more deployable units and operational overhead; mitigated by serverless/container platforms.[1]
+
+### Interview cheat-sheet Q&A  
+- Q: How does a BFF differ from a regular domain microservice?  
+  A: It doesn’t own domain logic; it focuses on UI-specific API shaping, aggregation, authorization, and transformation for one micro-frontend or channel.[1]
+
+- Q: When would you introduce a BFF in a micro-frontend architecture?  
+  A: When the micro-frontend talks to many services, needs custom aggregation, or requires secure access that should not live in the browser.[1]
+
+***
+
+## Styling and CSS in micro-frontends   
+
+### CSS challenge in micro-frontends  
+- CSS cascades, so styles from one micro-frontend can override another (e.g., both styling the body element).   
+- Need explicit strategy aligned with dependency management: share-something (design system), share-nothing (encapsulated CSS), or share-all (global CSS).   
+
+***
+
+### Design systems – share-something approach  
+
+**Concept & usage**  
+- A design system is a reusable set of components and styling rules, usually maintained by a core team with broad contributions.   
+- Delivered as a JS (and CSS) library; micro-frontends compose UIs (forms, buttons, dropdowns) from prebuilt components instead of writing raw CSS.   
+- Bundling: design system can be externalized via Module Federation or similar so micro-frontends ship logic without re-bundling the system.   
+
+**Advantages**  
+- High visual and behavioral consistency across micro-frontends.   
+- Good performance with minimal shared bundles orchestrated by the shell and on-demand loading.   
+- Excellent DX: teams focus on composition and domain flows, not reinventing basic elements.   
+
+**Disadvantages / trade-offs**  
+- The design system is a dependency that must be versioned and upgraded; may require orchestrating multiple versions or coordinated migrations.   
+- Often spans more than CSS (JS tools, patterns), which needs cross-team alignment and governance.   
+- Typically requires leadership sponsorship and dedicated time across engineering, design, and product.   
+
+**Migration tactics**  
+- Use feature flags to roll micro-frontends from design-system version 3.0 to 3.1 with minimal risk.   
+
+**Interview Q&A**  
+- Q: Why is a design system a good fit for micro-frontends?  
+  A: It centralizes low-level styling and components, giving consistency and performance while still allowing each micro-frontend some override capability.   
+
+***
+
+### Fully encapsulated CSS – share-nothing approach  
+
+**Concept & mechanisms**  
+- Each micro-frontend scopes its CSS to itself, e.g., unique class names (not IDs) and conventions to avoid collisions.   
+- The shell typically loads each micro-frontend’s styles after insertion; some tools bundle CSS via JS.   
+
+**Advantages**  
+- Minimal risk of cross-micro-frontend CSS conflicts.   
+- Good isolation and DX: teams can release and test in isolation without worrying about global CSS.   
+
+**Disadvantages / trade-offs**  
+- Potential visual inconsistency across micro-frontends; no central mechanism to enforce or measure consistency.   
+- Performance risk if many micro-frontends duplicate large common styles.   
+- Requires extra governance if using visual regression tools (e.g., automated screenshots via headless browsers) to catch inconsistencies.   
+
+**When to use**  
+- Small number of teams or domains where low consistency is acceptable.   
+- As an initial step while a design system is being built.   
+
+**Interview Q&A**  
+- Q: What are the downsides of a pure share-nothing CSS strategy?  
+  A: Fragmented look & feel and increased payload due to duplicated styles, unless mitigated by governance and tooling.   
+
+***
+
+### Shared global CSS – share-all approach  
+
+**Concept**  
+- All styles in a central repo; a build creates a single CSS bundle served via CDN and included by the shell.   
+- Devs work against the same global stylesheet, often with preprocessors like Sass.   
+
+**Advantages**  
+- High consistency and low risk of cross-micro-frontend conflicts.   
+- Good performance from a single, cacheable CSS bundle.   
+
+**Disadvantages / trade-offs**  
+- Styles divorced from markup/logic, so it’s harder to understand and evolve them.   
+- Temptation to add new classes instead of cleaning up old ones → bundle bloat and inconsistency.   
+- Not ideal when many teams collaborate; becomes a bottleneck and reduces autonomy.   
+
+**Recommended usage**  
+- Acceptable as a monolith-to-micro-frontends starting point.   
+- For mature micro-frontend setups, invest in a design system and use share-nothing while the system matures.   
+
+**Interview Q&A**  
+- Q: Why is global CSS usually a poor fit for large micro-frontend organizations?  
+  A: It centralizes styling decisions, creating bottlenecks and coupling that counter the autonomy benefits of micro-frontends.   
+
+***
+
+## New important terms & keywords (these pages)  
+
+- Backend for Frontend (BFF).[1]
+- Authorization proxy, aggregation, data transformation for UI.[1]
+- AppSync, Lambda, ECS, EKS, AppRunner (BFF hosting).[1]
+- CSS cascade, design system, Module Federation as external dependency.   
+- Fully encapsulated CSS, share-nothing styling.   
+- Visual regression via headless browser screenshots.   
+- Shared global CSS bundle, Sass/preprocessors.
+
+Below: organization/ways-of-working and governance. Final batch (API contracts, feature flags, discovery, balance autonomy) will still be pending.
+
+***
+
+## Organization and ways of working[1]
+
+### Agile development  
+- Micro-frontends only pay off when combined with real agile: frequent production delivery via CI/CD, with runtime infrastructure and ops owned by the team.[1]
+- Agile principles emphasized: deliver working software frequently, build around motivated/self-organizing teams, give them environment/support, and trust them.[1]
+- Waterfall-style, centralized control is explicitly discouraged for micro-frontends.[1]
+
+### Team composition and size  
+- Teams must be autonomous, owning planning, UX, implementation, and delivery; “ticket-taking” teams that just implement external specs are not truly autonomous.[1]
+- Teams should be small enough to limit communication complexity; Amazon’s “two-pizza rule” is given as a heuristic for maximum team size.[1]
+- When splitting a large team, split along natural domain boundaries so each new team gets clear ownership of one or more micro-frontends.[1]
+
+### DevOps culture  
+- DevOps is about culture and integrated lifecycle, not just tools; avoids siloed specialist teams (design, build, test, ops) and handover friction.[1]
+- CI/CD and Infrastructure as Code (IaC) are highlighted: automated build/integration/testing/release, automated infra provisioning and updates.[1]
+- Micro-frontends need DevOps: fast, low-friction releases and end-to-end team responsibility for their services.[1]
+
+### Orchestrating across multiple teams  
+- Two key supporting teams:  
+  - Platform team: provides infra, shared runtime capabilities, CI/CD pipelines, monitoring, collaboration tooling.[1]
+  - Enablement team: maintains shared UI library/design system, standards (framework choice, performance budgets, interoperability rules), and training.[1]
+- Platform team offers a “product” but does not own runtime; micro-frontend teams still own operations of their services on the platform.[1]
+- Enablement focuses on consistency and governance; platform focuses on removing undifferentiated heavy lifting.[1]
+
+### Deploying micro-frontends  
+- North star: each micro-frontend team has an independent automated path to production (ideal for share-nothing).[1]
+- Pipelines typically: build frontend assets → deploy to hosting → update registries/caches for discoverability and delivery.[1]
+- Client-side composition: upload bundles to hosting (e.g., S3), expose via CDN, manage browser caches/service workers.[1]
+- Server-side composition: deploy new server component and update micro-frontend registry; use blue/green or canary for safe rollout.[1]
+
+### Interview cheat-sheet Q&A  
+- Q: What organizational preconditions are needed for micro-frontends to succeed?  
+  A: Cross-functional, autonomous, self-organizing teams with DevOps culture, CI/CD, and infra ownership; support from platform and enablement teams for shared concerns.[1]
+
+- Q: How do platform and enablement teams support micro-frontend teams without becoming central bottlenecks?  
+  A: Platform supplies self-service infra and pipelines as a product; enablement supplies standards/design systems and training, while individual teams still own runtime and domain decisions.[1]
+
+***
+
+## Governance   
+
+### Governance goals  
+- Many personas work on micro-frontends; governance must balance autonomy with alignment, avoiding both chaos and overbearing processes that kill velocity and morale.   
+- Successful orgs empower local decision-making and escalate only when needed, using lightweight mechanisms instead of heavy upfront design committees.   
+
+### Governance mechanisms (high level)  
+The page lists five main mechanisms that structure governance across teams:   
+
+- API contracts  
+- Cross-interactivity using events  
+- Balancing autonomy with alignment  
+- Feature flags  
+- Service discovery  
+
+(Each mechanism has its own detailed article in your remaining URLs; this page sets them up as part of the governance toolkit.)   
+
+### Best practices & trade-offs  
+- Under-governance: teams diverge in frameworks, APIs, and UX; integration pain and inconsistent product.   
+- Over-governance: heavy processes, centralized approvals, or architecture boards that slow releases and hurt morale/ownership.   
+- Aim for clear, documented contracts and standards (events, APIs, discovery, feature flags) with local autonomy within those boundaries.   
+
+### Interview cheat-sheet Q&A  
+- Q: What are the main governance levers in a micro-frontend ecosystem?  
+  A: API contracts, cross-micro-frontend event conventions, alignment mechanisms, feature flags, and service discovery. Together they balance autonomy and consistency.   
+
+- Q: How do you avoid overbearing governance in micro-frontends?  
+  A: Use lightweight, codified mechanisms and contracts, empower teams to decide locally, and reserve hierarchical escalation for exceptional cases only.   
+
+***
+
+## New important terms & keywords (these two pages)  
+
+- Agile Manifesto principles, CI/CD, infrastructure as code (IaC).[1]
+- Two-pizza rule, self-organizing teams, end-to-end ownership.[1]
+- DevOps culture, version-control-driven pipelines.[1]
+- Platform team, enablement team, Team Topologies.[1]
+- Blue/green deployments, canary deployments.[1]
+- API contracts, cross-interactivity via events, feature flags, service discovery (as governance mechanisms).
+
+Below covers API contracts and feature flags. The last two URLs (discovery, balance autonomy/alignment) will still be left.
+
+***
+
+## API contracts[1]
+
+### Key topics  
+- A micro-frontend encapsulates its own opinions, logic, and complexity; cross-cutting concerns include: design system usage, composition with shell, API interactions, and inter-micro-frontend interactivity (events, navigation).[1]
+- Standardizing how these interfaces and dependencies are declared and documented is crucial for consumption, troubleshooting, and DX.[1]
+
+### Documentation & metadata  
+- Initial approach: human-curated wikis describing contracts and dependencies.[1]
+- Scalable approach: store contract info as structured metadata in code, then centralize via automation for search and history tracking.[1]
+- Unified contracts reduce communication overhead when many teams collaborate on micro-frontends.[1]
+
+### OpenAPI for HTTP APIs  
+- OpenAPI is recommended to define HTTP API interfaces and contracts in a unified, language-agnostic format.[1]
+- Works well with Amazon API Gateway as well as container/VM-hosted frameworks.[1]
+- Benefit: automatic generation of consistent API documentation so multiple teams can share knowledge with low extra effort.[1]
+
+### Communities of practice / guilds  
+- When many teams build micro-frontends, groups (guilds, chapters) can form to:[1]
+  - Define/document ownership boundaries.[1]
+  - Discuss cross-cutting concerns and identify duplicated efforts.[1]
+  - Contribute to shared standards for contracts, composition, and design system usage.[1]
+
+### Best practices & trade-offs  
+- Prefer machine-readable contracts (OpenAPI, metadata files) over only informal docs; easier to automate validation and discovery.[1]
+- Central contract registry + search capabilities improves onboarding and troubleshooting but must not become a central approval bottleneck.[1]
+
+### Interview cheat-sheet Q&A  
+- Q: Why are API contracts so important in micro-frontend architectures?  
+  A: They formalize how each micro-frontend interacts with shells, backends, and peers, reducing communication overhead and enabling safe independent deployments.[1]
+
+- Q: How would you implement API contracts in AWS for micro-frontends?  
+  A: Use OpenAPI to define HTTP APIs in API Gateway or container-based services, store contract metadata in code, and centralize it for searchable documentation and automation.[1]
+
+***
+
+## Feature flags   
+
+### Core idea & usage  
+- Feature flags centralize Boolean decisions in a store and drive runtime behavior from those values.   
+- Common use: coordinate multi-team feature releases without blocking deployments, by hiding or showing functionality based on a flag.   
+
+### Coordinating releases across micro-frontends  
+- Example: two micro-frontends must launch a combined feature on a specific date.   
+  - Teams create a shared Boolean flag in a DB, read it via a shared feature-flags API at render time.   
+  - They can deploy both micro-frontends independently to test/stage environments with the flag set to True for validation.   
+  - On launch date, flipping the DB flag immediately exposes the feature in production without a synchronized deploy.   
+- Flags can be overridden via query string or cookies for targeted testing by product owners.   
+
+### Context-based feature flags  
+- Flags can depend on context (e.g., language, country) so features are only active for certain segments.   
+- Example: use Accept-Language header to provide country/language-aware behavior via context-based flags.   
+
+### Risks & mitigation  
+- Long-lived flags increase complexity, bundle size, and technical debt, making troubleshooting harder.   
+- Mitigations include:  
+  - Unit tests per flagged feature to reduce bug probability in pipelines.   
+  - Tooling to measure bundle size change per commit and enforce budget in code reviews.   
+  - Post-launch cleanup to remove old code paths behind flags.   
+
+### A/B testing and AWS edge support  
+- AWS supports A/B testing at the edge using CloudFront Functions or Lambda@Edge.   
+- These help integrate or offload experimentation logic when using SaaS experimentation platforms.   
+
+### Best practices & trade-offs  
+- Use flags to decouple deployment from release, not as a permanent configuration system.   
+- Keep a clear lifecycle: introduce flag → test → release → remove flag and old behavior.   
+- Balance flexibility with complexity: too many flags across many micro-frontends can quickly become unmanageable.   
+
+### Interview cheat-sheet Q&A  
+- Q: How do feature flags help in micro-frontend architectures?  
+  A: They allow teams to deploy independently while coordinating user-visible release timing, reducing cross-team coupling and risk.   
+
+- Q: What are the main risks of heavy feature-flag usage, and how do you mitigate them?  
+  A: Risks are technical debt, larger bundles, and troubleshooting complexity; mitigate via strict cleanup, tests per flag, and tooling to track bundle impact.   
+
+***
+
+## New important terms & keywords (these pages)  
+
+- API contracts, cross-cutting concerns, structured metadata.[1]
+- OpenAPI, Amazon API Gateway, contract registry, communities of practice/guilds.[1]
+- Feature flags store, Boolean flags, shared Feature Flags API.   
+- Context-based flags, Accept-Language header, query-string/cookie overrides.   
+- CloudFront Functions, Lambda@Edge, A/B testing on the edge.
+
+Below are the final two topics: service discovery and balancing autonomy/alignment.
+
+***
+
+## Service discovery[1]
+
+### Frontend discovery pattern  
+- Uses a shared configuration describing each micro-frontend’s entry point plus metadata (version, env, canary rules) for safe deployments.[1]
+- Config is consumed at runtime (client or server) rather than build time, enabling dynamic discovery and composition of micro-frontends.[1]
+
+### Splitting bundles and mapping MFEs  
+- Large apps (e.g., 6 MB SPA) can be split into multiple micro-frontends (home, product, cart) with smaller bundles loaded only when needed, improving first-load performance.[1]
+- Business boundaries map to teams and micro-frontends; split build packages and use configuration to map each micro-frontend and drive initial load and navigation orchestration.[1]
+- A shell app (client or server) calls a discovery API to fetch the list of micro-frontends and metadata, then composes them with caching and failover strategies.[1]
+
+### Canary releases with discovery  
+- Canary = gradual rollout (e.g., 10% of users, then 20%, etc.) instead of instant full replacement (blue/green).[1]
+- With discovery, canary rules live in the shared configuration; if monitoring detects bad metrics (e.g., errors, revenue drop), rollout can be halted and auto-rollback triggered.[1]
+- AWS provides a reference “Frontend Service Discovery on AWS” solution using DynamoDB-backed REST Admin API + REST Consumer API, deployable via CloudFormation and integrable into CI/CD.[1]
+
+### Best practices & trade-offs  
+- Keep discovery config as the single source of truth for micro-frontend locations, versions, and rollout strategies.[1]
+- Balance runtime flexibility with complexity: over-dynamic configs without governance can cause unexpected compositions or mismatched versions.[1]
+
+### Interview cheat-sheet Q&A  
+- Q: How does frontend service discovery work in a micro-frontend architecture?  
+  A: A shared configuration/registry describes micro-frontends and metadata; shells fetch it at runtime to know which bundles to load and which versions/canary rules to apply.[1]
+
+- Q: How do canary releases integrate with micro-frontend discovery?  
+  A: Discovery config assigns user buckets to versions; monitoring can auto-stop or roll back rollout so only a small fraction of users are affected by bad releases.[1]
+
+***
+
+## Balancing autonomy with alignment   
+
+### Overall theme  
+- Micro-frontends emphasize team autonomy, but leaders must decide where to allow diversity and where to enforce standards for security, performance, operational excellence, and reliability.   
+- Focus areas: creating micro-frontends, end-to-end testing, releasing, logging/monitoring, and alerting.   
+
+### Creating micro-frontends  
+- Start with written guidelines co-created by teams to align on practices and performance goals.   
+- Gradually adopt Cookiecutter-like templates to scaffold new micro-frontends with baked-in opinions (tooling, logging, security, layout).   
+- Trade-off: templates need significant investment and fast maintenance to avoid becoming blockers.   
+
+### End-to-end testing  
+- Unit tests remain team-local; cross-testing on a shared shell is essential to ensure integrated behavior pre- and post-release.   
+- Start with manual testing processes and documentation for technical and non-technical stakeholders, then evolve to automated E2E, including security and performance checks.   
+
+### Releasing micro-frontends  
+- Individual bespoke deployment processes per team add too much complexity; invest early in shared CI/CD strategy and templates.   
+- Use pre-approved pipeline templates and shared infra for multi-environment releases, eventually adding automated rollback on top of metrics and alerts.   
+
+### Logging and monitoring  
+- Apply Cookiecutter again: provide a shared logging/metrics library every micro-frontend can use, while allowing custom event definitions and dashboards.   
+- Standardized event delivery enables cross-journey analysis (e.g., Product → Cart → Purchase) and closer product–engineering collaboration.   
+
+### Alerting  
+- Standardize how alerts are triggered and routed based on shared metrics streams, while allowing teams to define thresholds and reactions.   
+- Examples: elevated JS errors on a browser, degraded render time, spikes in 5xx API responses.   
+
+### Maturity evolution (from the table)  
+For each area, orgs move from experimentation to consolidation:   
+
+- Create MFEs: experiment & document → invest in scaffolding tools → consolidate scaffolding and push adoption.   
+- Test E2E: manual testing → invest in automated security/performance & feature flags/service discovery → consolidate discovery and automated E2E testing in prod.   
+- Release MFEs: shared CI/CD & multi-env releases → consolidate CI/CD with manual rollback → add automated rollback driven by metrics/alerts.   
+- Observe performance: shared monitoring infra & logging library → consolidate monitoring/alerting with cross-team dashboards → standardize schemas, optimize cost, and alert on complex business metrics.   
+
+### Interview cheat-sheet Q&A  
+- Q: How do you balance autonomy and alignment in micro-frontends?  
+  A: Use shared templates, CI/CD, logging/monitoring and alerting frameworks, while letting teams own domain logic and local decisions within those aligned guardrails.   
+
+- Q: Where should you standardize versus allow flexibility?  
+  A: Standardize around scaffolding, release pipelines, observability and testing frameworks; allow flexibility in implementation details and domain-specific choices per micro-frontend.
+
+[1](https://docs.aws.amazon.com/prescriptive-guidance/latest/micro-frontends-aws/introduction.html)
+

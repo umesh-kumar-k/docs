@@ -1,0 +1,168 @@
+Tree shaking is the process of statically removing unused code (dead code) from JavaScript bundles to reduce size and improve load/parse/execute performance.[1]
+
+***
+
+## Core Concept
+
+**Key points**
+
+- Goal: eliminate code that is never used by the application from the final bundle (“dead code elimination”).[1]
+- Benefits: smaller JS payload → less download, faster parse, sometimes less execution time.[1]
+- Works by analyzing code as a graph/AST and including only the parts reachable from the entry point.[1]
+
+**Mental model**
+
+- Think of your app (and deps) as an abstract syntax tree; “shaking” it removes unreachable branches (unused exports, unreachable statements).[1]
+
+***
+
+## Internal Mechanics / Graph Model
+
+**Key points**
+
+- Input treated as a dependency graph: nodes = “parts” (top-level statements), edges = references/imports.[1]
+- Algorithm: start from entry file, traverse all parts with side effects and their dependencies → mark as “included”; anything not reached is dropped.[1]
+
+**Side-effect awareness**
+
+- Every “part” is annotated as *has side effects* or *no side effects*.[1]
+- Example:  
+  - `let firstName = 'Jane'` → no side effects; safe to drop if unused.[1]
+  - `let firstName = getName()` → side effects because `getName()` might do observable work, so cannot be removed even if `firstName` is unused.[1]
+
+**Best practices**
+
+- Keep expensive logic out of top-level expressions unless needed; top-level calls are often marked as having side effects, preventing removal.[1]
+
+***
+
+## ES Modules & Imports
+
+### ES2015 modules only
+
+**Key points**
+
+- Effective tree shaking requires ES2015 `import`/`export` syntax; CJS `require` is not statically analyzable in the same way.[1]
+- Bundlers like webpack/Rollup rely on static structure of ES modules to know what is imported/used.[1]
+
+### Example: selective import
+
+**Example**  
+
+`utilities.js`:
+
+```js
+export function read(props) {
+  return props.book;
+}
+
+export function nap(props) {
+  return props.winks;
+}
+```
+
+`index.js`:
+
+```js
+import { read } from 'utilities';
+
+eventHandler = (e) => {
+  read({ book: e.target.value });
+};
+```
+
+- `read` is used; `nap` is never referenced and is excluded from the bundle by tree shaking.[1]
+
+**Best practices**
+
+- Prefer named exports and selective imports (`import { read }`) rather than `import * as utils` when possible, to give bundler finer-grained information.[1]
+- Ensure your published libraries ship ES module builds (e.g., `module` field in `package.json`) to be tree-shakable.[1]
+
+***
+
+## Side Effects (Module-Level)
+
+### Module side effects
+
+**Key points**
+
+- Importing an ES module executes it immediately once; code at top level can mutate global state (e.g., polyfills, global styles).[1]
+- If a module has such side effects when imported, it cannot simply be dropped even when its exports are unused.[1]
+
+**Implication**
+
+- A module that both exports things and has global side effects may be marked as *not tree-shakable* by the bundler.[1]
+
+**Best practices**
+
+- Separate pure modules (no side effects) from side-effectful modules (polyfills, global CSS/JS).[1]
+- Use `sideEffects` field in `package.json` to annotate which files are safe to tree-shake and which must always be included; webpack docs give detailed guidance.[1]
+
+***
+
+## Best Practices & Trade-offs (Architect Perspective)
+
+**Best practices**
+
+- For apps:  
+  - Use ES modules end-to-end; avoid mixing in dynamic `require` where not needed.[1]
+  - Keep module top-level scope as pure as possible (no global mutations, listeners, non-trivial I/O).[1]
+  - Structure code into smaller, focused modules to maximize dead-code elimination.[1]
+- For libraries:  
+  - Ship an ES module build (`"module"` or `"exports"` conditions) with minimal side effects.[1]
+  - Avoid re-exporting entire large dependencies at a single entry if you only need a few parts.[1]
+
+**Trade-offs**
+
+- Over-optimizing for tree shaking can lead to overly fragmented modules and less readable code; balance modularity vs maintainability.[1]
+- Some patterns (e.g., dynamic plugin systems with runtime `require`) sacrifice tree-shakability for flexibility.[1]
+
+***
+
+## Advanced / Big-Tech Style Considerations
+
+*(Patterns.dev points to webpack docs and modern bundlers rather than specific company case studies; typical big-tech optimizations align with these.)*[1]
+
+- Heavily rely on ES modules across FE codebase and shared design systems.[1]
+- Use strict linting rules to forbid side-effects in shared/pure modules (e.g., only allow side effects in dedicated “entry” or “polyfill” modules).[1]
+- Configure bundler `sideEffects` correctly so tree shaking works for large dependency graphs (e.g., large UI libraries with many components).[1]
+
+For deep config guidance, webpack’s “Tree Shaking” documentation is referenced as canonical.[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What is tree shaking and why is it important?**  
+- It’s static elimination of unused code from bundles, reducing JS size and improving download, parse, and sometimes execution performance.[1]
+
+**Q2: Why do bundlers require ES modules for effective tree shaking?**  
+- ES `import`/`export` are statically analyzable; bundlers can see which exports are used. Dynamic `require`/CJS obscures dependency graph and prevents reliable dead-code elimination.[1]
+
+**Q3: How does a bundler decide what code to remove during tree shaking?**  
+- It builds a graph of top-level “parts” from the entry point, traverses only reachable, side-effectful paths, and drops any parts not reached.[1]
+
+**Q4: What are side effects in the context of tree shaking?**  
+- Any observable behavior when importing a module (global mutations, polyfills, DOM writes, logging). Modules with side effects cannot simply be removed even if exports are unused.[1]
+
+**Q5: How can side effects in modules prevent tree shaking?**  
+- If a module has top-level side effects, bundlers must include it whenever it’s imported to preserve behavior, even if none of its exports are referenced.[1]
+
+**Q6: What coding and packaging practices improve tree-shakability?**  
+- Use ES modules, keep modules pure at top level, use named exports/imports, split side-effectful code into dedicated files, and correctly configure `sideEffects` metadata in `package.json`.[1]
+
+**Q7: Give an example of code that *is* and *is not* safe to remove.**  
+- `let a = 'Jane'` with no reads is safe to remove. `let a = getName()` is not, because `getName()` may have side effects even if `a` is unused.[1]
+
+***
+
+## Important Terms & Keywords
+
+- Tree shaking, dead code elimination, dead code.[1]
+- Abstract Syntax Tree (AST), dependency graph, “parts” (top-level statements).[1]
+- ES2015 modules, `import`, `export`, named exports, selective imports.[1]
+- Side effects, module side effects, global scope mutation, polyfills, global styles.[1]
+- `sideEffects` (package.json), webpack tree-shaking docs.[1]
+- Bundlers: webpack, Rollup (as typical tree-shaking engines).[1]
+
+[1](https://www.patterns.dev/vanilla/tree-shaking/)

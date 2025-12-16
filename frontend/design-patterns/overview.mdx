@@ -1,0 +1,149 @@
+Below is a **concise**, pattern‑by‑pattern cheat sheet focused on core ideas, frontend use cases, pros/cons, and interview angles.[1]
+
+***
+
+## Singleton Pattern
+
+**Essence**  
+- Ensures only **one instance** of an object/class exists and provides a **global access point**.[1]
+
+**JS example & behavior**  
+- Counter with `increment/decrement/getCount`, guarded constructor (throws if an instance already exists), exported as a **frozen** singleton so consumers can’t mutate it.[1]
+- Multiple modules import the *same* instance, sharing state across files (e.g., red/blue button increment same global counter).[1]
+
+**Use cases (frontend)**  
+- Centralized logging, feature flags, in‑memory config, simple in‑browser store (historically).[1]
+
+**Trade‑offs / anti‑pattern notes**  
+- Testing pain: all tests share the same mutable global instance; order‑dependent behavior.[1]
+- Hidden dependency: modules can indirectly modify singleton without callers realizing.[1]
+- Global mutable state → hard‑to‑reason data flow, racey behavior as app grows.[1]
+- In JS, a simple exported object (`export const counter = {...}`) usually suffices; full “class singleton” is overkill.[1]
+
+**Modern alternative**  
+- Use React Context / Redux style **read‑only** global state with controlled mutation via actions/reducers rather than ad‑hoc mutable singletons.[1]
+
+**Interview Q&A**  
+- Q: When avoid singletons in frontend?  
+  A: When they hide global mutable state—prefer dependency injection or state containers (Redux/Context).[1]
+
+***
+
+## Proxy Pattern
+
+**Essence**  
+- A **stand‑in object** that intercepts operations (`get`, `set`, etc.) to add behavior around access to a target object.[1]
+
+**Core API**  
+- `new Proxy(target, handler)` with traps like:  
+  - `get(target, prop)` – runs on property read.  
+  - `set(target, prop, value)` – runs on property write.[1]
+
+**Frontend use cases**  
+- Validation of data assignments (e.g., `age` must be number; `name` min length).[1]
+- Logging / debugging interactions with state or config.[1]
+- Safe access (warn on non‑existent keys).[1]
+
+**Reflect helper**  
+- Use `Reflect.get` / `Reflect.set` instead of `obj[prop]` for cleaner, more consistent semantics inside traps.[1]
+
+**Trade‑offs**  
+- Powerful but **easy to overuse**; heavy logic in traps can hurt performance.[1]
+- Not ideal for performance‑critical paths (tight loops, hot state updates).[1]
+
+**Interview Q&A**  
+- Q: How would you enforce invariants on a config object?  
+  A: Wrap with a `Proxy` that validates in `set`, maybe leverages `Reflect` for actual writes.[1]
+
+***
+
+## Observer Pattern
+
+**Essence**  
+- One **observable** notifies many **observers** (subscribers) when events occur.[1]
+
+**Observable structure**  
+- `observers`: array of subscriber functions.  
+- `subscribe(fn)`: add observer.  
+- `unsubscribe(fn)`: remove observer.  
+- `notify(data)`: call all observers with `data`.[1]
+
+**Frontend use cases**  
+- UI event fan‑out: button click / toggle triggers logging + toast notifications simultaneously.[1]
+- Async/event‑based data: notify components when data loaded, messages arrive, etc.[1]
+
+**Case study**  
+- RxJS: observables + operators (`fromEvent`, `merge`, `sample`, `mapTo`) to manage event streams (e.g., drag detection).[1]
+
+**Pros / cons**  
+- Pros: strong **separation of concerns**; decoupled emitters and listeners.[1]
+- Cons: if observers are heavy/complex, notifications can become a bottleneck.[1]
+
+**Interview Q&A**  
+- Q: Compare Observer with pub‑sub / event emitter.  
+  A: Very similar; Observer often more explicit in OO form, while pub‑sub uses an event bus.[1]
+
+***
+
+## Flyweight Pattern
+
+**Essence**  
+- Share **intrinsic state** across many similar objects to save memory; only extrinsic data varies per instance.[1]
+
+**Example**  
+- `Book` with `title`, `author`, `isbn` (intrinsic), and copies with `availability`, `sales`.[1]
+- Use a `Map`/`Set` keyed by `isbn` to reuse same `Book` instance for multiple copies.[1]
+
+**Frontend use cases**  
+- Historically for memory‑heavy object graphs (e.g., many identical icons, glyphs). In modern JS, often handled via prototypes or shared data structures.[1]
+
+**Trade‑offs**  
+- Extra indirection/lookup logic; beneficial mainly at very large scale.[1]
+- Today, large RAM and prototypal inheritance reduce need, but concept still relevant for memory‑sensitive environments.[1]
+
+**Interview Q&A**  
+- Q: When would you consider Flyweight on the frontend?  
+  A: Massive visualizations or trees with many repeating nodes where shared shape/state matters.[1]
+
+***
+
+## Other Requested Patterns (high‑level)
+
+You asked for many additional URLs (prototype, module, mixin, mediator, factory, command, provider, static import) but the single tool call limit only fetched some. Given the time and length constraints and that you requested a **concise** summary, here is a compact conceptual mapping you can use for interviews:
+
+- **Prototype pattern**: Use JS’s `Object.create`/`prototype` to share behavior between instances; basis of JS inheritance. Good for memory reuse and method sharing.  
+- **Module pattern**: Encapsulate private state + public API via closures/ES modules (`export` / `import`), avoiding global scope and enabling testability.  
+- **Mixin pattern**: Share behavior across unrelated objects by copying methods/properties (composition over inheritance); watch for name clashes.  
+- **Mediator pattern**: Central “hub” object coordinates interactions between many components (chat room mediator, UI event hub) to reduce pairwise coupling.  
+- **Factory pattern**: Encapsulate object creation; return different concrete types based on input (e.g., `createChart(type)`); aids testing and decoupling.  
+- **Command pattern**: Encapsulate actions as objects/functions (with `execute`/`undo`), enabling undo/redo stacks, macro commands; very relevant for editors.  
+- **Provider pattern (frontend)**: In React, context providers expose dependencies or state to subtrees without prop drilling (DI‑like).  
+- **Static import pattern**: `import` at top level; enables tree‑shaking and predictable loading, vs dynamic `import()` for lazy loading.
+
+***
+
+## Interview Quick Q&A (Cross‑pattern)
+
+- Q: When is Singleton an anti‑pattern in JS?  
+  A: When it hides mutable global state; use exported objects or state containers with explicit mutation pipelines.[1]
+
+- Q: Practical use of Proxy in a frontend app?  
+  A: Wrap config/state to validate writes and log reads/writes for debugging.[1]
+
+- Q: Observer vs Mediator?  
+  A: Observer: many listeners watch one subject. Mediator: a hub coordinates peers, encapsulating their interactions.  
+
+- Q: Flyweight vs Prototype?  
+  A: Flyweight shares **data objects** to save memory; Prototype shares **behavior/methods** via prototypes.[1]
+
+***
+
+## Key Terms & Keywords (for skim)
+
+- Singleton, global instance, global state, `Object.freeze`, anti‑pattern.[1]
+- Proxy, handler, `get`, `set`, `Reflect.get`, `Reflect.set`, validation.[1]
+- Observable, observer, `subscribe`, `unsubscribe`, `notify`, RxJS, event streams.[1]
+- Flyweight, intrinsic vs extrinsic state, object sharing, memory optimization.[1]
+- Prototype, module, mixin, mediator, factory, command, provider, static import (conceptual anchors for JS patterns).
+
+[1](https://www.patterns.dev/vanilla/compression/)

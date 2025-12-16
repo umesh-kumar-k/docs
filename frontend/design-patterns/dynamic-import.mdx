@@ -1,0 +1,184 @@
+Dynamic import lets you load JavaScript modules *on demand* instead of at initial page load, enabling finer-grained bundle splitting and significantly smaller initial bundles while keeping the UI responsive and interactive.[1]
+
+***
+
+## Core Scenario & Motivation
+
+**Key topics**
+
+- Chat app example: `UserInfo`, `ChatList`, `ChatInput`, `EmojiPicker`.  
+- Only some components are needed immediately.[1]
+
+**Key points**
+
+- Initial view only needs `UserInfo`, `ChatList`, `ChatInput`; `EmojiPicker` is hidden until the user opens it.[1]
+- Statically importing `EmojiPicker` puts it into the main bundle even if the user never opens it, unnecessarily increasing initial JS size and load time.[1]
+
+**Goal**
+
+- Dynamically import `EmojiPicker` so its code is loaded only when needed, reducing the initial bundle and improving perceived performance.[1]
+
+***
+
+## React Suspense + `lazy` (CSR Dynamic Import)
+
+**Key topics**
+
+- `React.lazy` and `React.Suspense`.  
+- Suspended loading with a `fallback`.[1]
+
+**Key points**
+
+- Replace static imports with `React.lazy(() => import('...'))`, which tells bundler/runtime to create a separate chunk and load it only on demand.[1]
+- Wrap dynamic content in `<Suspense fallback={...}>` so UI can render while the module is fetched; `fallback` shows a loading indicator.[1]
+
+**Code sketch**
+
+```jsx
+import React, { Suspense, lazy } from "react";
+
+const Send  = lazy(() => import(/* webpackChunkName: "send-icon" */ "./icons/Send"));
+const Emoji = lazy(() => import(/* webpackChunkName: "emoji-icon" */ "./icons/Emoji"));
+const Picker = lazy(() =>
+  import(/* webpackChunkName: "emoji-picker" */ "./EmojiPicker")
+);
+
+const ChatInput = () => {
+  const [pickerOpen, togglePicker] = React.useReducer(v => !v, false);
+
+  return (
+    <Suspense fallback={<p id="loading">Loading...</p>}>
+      <div className="chat-input-container">
+        <input type="text" placeholder="Type a message..." />
+        <Emoji onClick={togglePicker} />
+        {pickerOpen && <Picker />}
+        <Send />
+      </div>
+    </Suspense>
+  );
+};
+```
+
+**Bundle effect**
+
+- Example output:[1]
+  - `emoji-picker.bundle.js` ~1.48 KiB.  
+  - `main.bundle.js` ~1.33 MiB.  
+  - `vendors~emoji-picker.bundle.js` ~171 KiB.  
+- Initial bundle reduced from ~1.5 MiB to ~1.33 MiB by moving `EmojiPicker` out.[1]
+- The `EmojiPicker` code executes only after user toggles it (verified in console logs).[1]
+
+**Best practices / trade-offs**
+
+- Use Suspense+lazy for purely client‑side React applications to lazily load non‑critical components (dialogs, editors, pickers, heavy widgets).[1]
+- Trade-off: first interaction with the lazy component incurs a fetch + parse cost; mitigate by prefetching if you can predict usage.[1]
+
+***
+
+## Loadable Components (SSR-Compatible Dynamic Import)
+
+**Key topics**
+
+- Suspense limitations with SSR.  
+- `@loadable/component` as alternative.[1]
+
+**Key points**
+
+- SSR currently doesn’t fully support React Suspense for data/code loading in production; `loadable-components` works in SSR environments.[1]
+- `loadable()` wraps a dynamic import and provides a `fallback` while loading, similar to Suspense.[1]
+
+**SSR example**
+
+```jsx
+import React from "react";
+import loadable from "@loadable/component";
+
+import Send from "./icons/Send";
+import Emoji from "./icons/Emoji";
+
+const EmojiPicker = loadable(() => import("./EmojiPicker"), {
+  fallback: <div id="loading">Loading...</div>,
+});
+
+const ChatInput = () => {
+  const [pickerOpen, togglePicker] = React.useReducer(v => !v, false);
+
+  return (
+    <div className="chat-input-container">
+      <input type="text" placeholder="Type a message..." />
+      <Emoji onClick={togglePicker} />
+      {pickerOpen && <EmojiPicker />}
+      <Send />
+    </div>
+  );
+};
+```
+
+**CSR with loadable**
+
+- `loadable` also works for CSR apps, giving a Suspense‑like pattern without adopting Suspense:[1]
+
+```jsx
+const EmojiPicker = loadable(() => import("./components/EmojiPicker"), {
+  fallback: <p id="loading">Loading...</p>,
+});
+```
+
+**Best practices**
+
+- Use `@loadable/component` for SSR frameworks (Next.js older versions / custom SSR) where Suspense for code splitting isn’t fully supported.[1]
+- Use route‑level and component‑level loadables to ensure critical content is in the server HTML while deferring heavy, non‑critical JS.[1]
+
+***
+
+## Advanced Considerations
+
+**Chunk naming & observability**
+
+- `/* webpackChunkName: "emoji-picker" */` hints bundler to name chunks predictably (useful for debugging, monitoring, and cache rules).[1]
+
+**UX design**
+
+- Always provide a `fallback` that clearly indicates loading, so users don’t assume the app froze when dynamic imports occur.[1]
+- For very small modules, dynamic import may not be worth the overhead; focus on heavy or rarely used parts.[1]
+
+**Big-tech style usage**
+
+- Dynamic import is widely used to:  
+  - Split per route, per experiment, or per heavy widget (editors, visualizations, WYSIWYG, MFE entry points).  
+  - Reduce base bundle while allowing responsive UI with graceful loading states.[1]
+
+***
+
+## Interview Cheat Sheet (Q&A)
+
+**Q1: What is dynamic import and why is it useful?**  
+- It’s a mechanism (often via `import()` / `React.lazy` / `loadable`) to load modules on demand instead of up front, enabling finer‑grained bundle splitting and smaller initial bundles.[1]
+
+**Q2: How does React Suspense help with dynamic imports?**  
+- `React.lazy` creates lazily loaded components; `Suspense` wraps them and shows a `fallback` while the bundle is being fetched and executed, so the rest of the UI can render immediately.[1]
+
+**Q3: Give a practical example where dynamic import improves UX.**  
+- In a chat app, dynamically import `EmojiPicker` only when the emoji button is clicked; initial bundle shrinks from ~1.5 MiB to ~1.33 MiB while still loading the main chat UI instantly.[1]
+
+**Q4: Why might you use `@loadable/component` instead of Suspense?**  
+- Because current SSR support for Suspense is limited; `loadable-components` supports SSR + CSR and offers a similar lazy + fallback pattern in both environments.[1]
+
+**Q5: What trade-offs does dynamic import introduce?**  
+- Users may face a slight delay when first using a lazy feature; also, too many tiny dynamic chunks can add overhead. It’s best for heavy, infrequently used, or route‑specific modules.[1]
+
+**Q6: How do you keep track of dynamic chunks in production?**  
+- Use bundler chunk naming comments (`webpackChunkName`), observability on network requests, and bundle analysis tools to understand which dynamic imports create which chunks.[1]
+
+***
+
+## Important Terms & Keywords
+
+- Dynamic import, lazy loading, code splitting.[1]
+- `React.lazy`, `React.Suspense`, `fallback`.[1]
+- `@loadable/component`, `loadable`, SSR‑compatible lazy loading.[1]
+- Initial bundle, lazy bundle, per‑feature chunk (`emoji-picker.bundle.js`).[1]
+- `webpackChunkName` comment, vendors chunk (`vendors~emoji-picker.bundle.js`).[1]
+- FCP, LCP, TTI improvements via reduced initial JS.[1]
+
+[1](https://www.patterns.dev/vanilla/compression/)
