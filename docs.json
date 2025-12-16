@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Interview Preparation Guide",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
@@ -11,309 +11,8 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Java",
         "groups": [
-          {
-            "group": "Index",
-            "pages": [
-              "index/toc"
-            ]
-          },
-          {
-            "group": "Design Patterns",
-            "pages": [
-              "patterns/overview"
-            ]
-          },
-          {
-            "group": "Docker",
-            "pages": [
-                "docker/angular",
-                "docker/overview"
-            ]
-          },
-           {
-            "group": "Jenkins",
-            "pages": [
-                "jenkins/overview"
-            ]
-          },
-          {
-            "group": "Git",
-            "pages": [
-                "git/advanced",
-                "git/overview",
-                "git/workflows"
-            ]
-          },
-          {
-            "group": "Frontend",
-            "pages": [
-              "frontend/performance/critical-rendering-path",
-              "frontend/performance/service-worker",
-              "frontend/performance/best-practice-embed",
-              "frontend/performance/angular",
-              "frontend/performance/web-vitals",
-              "frontend/performance/css",
-              "frontend/performance/overview",
-              "frontend/performance/responsive",
-              "frontend/performance/best-practice-font",
-              "frontend/performance/core-web-vitals",
-              "frontend/layout/grid",
-              "frontend/layout/flexbox",
-              "frontend/mfe/module-federation-plugin",
-              "frontend/mfe/advanced-ng",
-              "frontend/mfe/angular",
-              "frontend/tools/linter",
-              "frontend/tools/bundler",
-              "frontend/state-mgmt/ngrx/actions",
-              "frontend/state-mgmt/ngrx/effects",
-              "frontend/state-mgmt/ngrx/reducers",
-              "frontend/state-mgmt/ngrx/store",
-              "frontend/state-mgmt/ngrx/selectors",
-              "frontend/state-mgmt/ngrx/action-groups",
-              "frontend/state-mgmt/ngrx/feature-creator",
-              "frontend/state-mgmt/ngrx/meta-reducers",
-              "frontend/state-mgmt/ngrx/signal-state",
-              "frontend/state-mgmt/ngrx/signal-store",
-              "frontend/state-mgmt/redux/async",
-              "frontend/state-mgmt/redux/dataflow",
-              "frontend/state-mgmt/redux/overview",
-              "frontend/state-mgmt/redux/patterns",
-              "frontend/state-mgmt/redux/state-action-reducers",
-              "frontend/state-mgmt/redux/store",
-              "frontend/state-mgmt/redux/summary"
-            ]
-          },
-          {
-            "group": "Javascript",
-            "pages": [
-                "javascript/engine",
-                "javascript/promise",
-                "javascript/hoisting",
-                "javascript/closures",
-                "javascript/prototype",
-                "javascript/generators-iterators",
-                "javascript/xss",
-                "javascript/durable-functions",
-                "javascript/csrf",
-                "javascript/event-loop",
-                "javascript/streaming",
-                "javascript/async-await"
-            ]
-          },
-          {
-            "group": "Typescript",
-            "pages": [
-                "typescript/classes",
-                "typescript/interfaces",
-                "typescript/basic-type",
-                "typescript/advanced-type",
-                "typescript/modules",
-                "typescript/functions",
-                "typescript/generics"
-            ]
-          },
-          {
-            "group": "Angular Forms",
-            "pages": [
-                "angular/forms/validation",
-                "angular/forms/reactive",
-                "angular/forms/overview",
-                "angular/forms/signal-forms-generator",
-                "angular/forms/signal-forms",
-                "angular/forms/control-value-accessor",
-                "angular/forms/advanced",
-                "angular/forms/strongly-typed"
-            ]
-          },
-          {
-            "group": "Angular CD",
-            "pages": [
-                "angular/cd/onpush",
-                "angular/cd/introduction",
-                "angular/cd/zoneless",
-                "angular/cd/ngDoCheck",
-                "angular/cd/overview"
-            ]
-          },
-          {
-            "group": "Angular Lifecycle",
-            "pages": [
-                "angular/lifecycle/hooks",
-                "angular/lifecycle/destroy-ref",
-                "angular/lifecycle/constructor-ngonint"
-            ]
-          },
-          {
-            "group": "Angular Security",
-            "pages": [
-                "angular/security/tokens",
-                "angular/security/overview"
-            ]
-          },
-          {
-            "group": "Angular Components",
-            "pages": [
-                "angular/component/overview",
-                "angular/component/testing"
-            ]
-          },
-          {
-            "group": "Angular RxJS",
-            "pages": [
-                "angular/rxjs/best-practice",
-                "angular/rxjs/caching",
-                "rxjs/error-handling",
-                "rxjs/state-mgmt",
-                "rxjs/overview",
-                "rxjs/subjects",
-                "rxjs/rxjs-overview",
-                "rxjs/observable",
-                "rxjs/frequent-operators",
-                "rxjs/higher-order",
-                "rxjs/signals-interop",
-                "rxjs/softchris/bahaviour-subject",
-                "rxjs/softchris/combinational-operators",
-                "rxjs/softchris/replay-subject",
-                "rxjs/softchris/producer",
-                "rxjs/softchris/error",
-                "rxjs/softchris/observable-promise",
-                "rxjs/softchris/time-operators",
-                "rxjs/softchris/hot-cold",
-                "rxjs/softchris/mathematical-operators",
-                "rxjs/softchris/grouping-operators",
-                "rxjs/softchris/async-subject",
-                "rxjs/softchris/observables",
-                "rxjs/softchris/subject",
-                "rxjs/softchris/async",
-                "rxjs/softchris/testing",
-                "rxjs/softchris/observer",
-                "rxjs/softchris/higher-order",
-                "rxjs/softchris/basic-operators"
-            ]
-          },
-          {
-            "group": "Angular http",
-            "pages": [
-                "angular/http/resource-api",
-                "angular/http/client"
-            ]
-          },
-          {
-            "group": "Angular State",
-            "pages": [
-                "angular/state/ngrx"
-            ]
-          },
-          {
-            "group": "Angular SSR",
-            "pages": [
-                "angular/ssr/overview"
-            ]
-          },
-          {
-            "group": "Angular Misc",
-            "pages": [
-                "angular/misc/accessibility-tools",
-                "angular/misc/accessibility",
-                "angular/misc/ddd",
-                "angular/misc/module-standalone-migration",
-                "angular/misc/control-flow",
-                "angular/misc/shopping-cart",
-                "angular/misc/directive-composition",
-                "angular/misc/coding-style",
-                "angular/misc/mistakes-to-avoid",
-                "angular/misc/app-at-scale",
-                "angular/misc/google-analytics",
-                "angular/misc/observability-practical-guide",
-                "angular/misc/telemetry"
-            ]
-          },
-          {
-            "group": "Angular DI",
-            "pages": [
-                "angular/di/singleton",
-                "angular/di/introduction",
-                "angular/di/advanced"
-            ]
-          },
-          {
-            "group": "Angular Signals",
-            "pages": [
-                "angular/signals/rules",
-                "angular/signals/resource-api",
-                "angular/signals/overview",
-                "angular/signals/streaming-resource",
-                "angular/signals/input",
-                "angular/signals/options",
-                "angular/signals/push-pull",
-                "angular/signals/effective-use",
-                "angular/signals/component-communication",
-                "angular/signals/effects"
-            ]
-          },
-          {
-            "group": "Angular Routing",
-            "pages": [
-              "angular/routing/summary",
-              "angular/routing/lazy-loading",
-              "angular/routing/lazy-loading-defer",
-              "angular/routing/deep-dive",
-              "angular/routing/overview",
-              "angular/routing/standalone-api",
-              "angular/routing/lazy-loading-standalone"
-            ]
-          },
-          {
-            "group": "Design Patterns",
-            "pages": [
-              "patterns/anti-corruption",
-              "patterns/api-health",
-              "patterns/back-presssure",
-              "patterns/bff",
-              "patterns/bulkhead",
-              "patterns/cache-aside",
-              "patterns/circuit-breaker",
-              "patterns/compensating-transaction",
-              "patterns/cqrs",
-              "patterns/event-sourcing",
-              "patterns/materialized-view",
-              "patterns/pub-sub",
-              "patterns/rate-limiter",
-              "patterns/retry",
-              "patterns/saga",
-              "patterns/side-car",
-              "patterns/strangler-fig",
-              "patterns/valet-key"
-            ]
-          },
-          {
-            "group": "Microservices",
-            "pages": [
-              "microservices/architecture",
-              "microservices/microservice-monolith",
-              "microservices/monitoring",
-              "microservices/optimization",
-              "microservices/overview",
-              "microservices/api-gateway",
-              "microservices/api-design",
-              "microservices/compute",
-              "microservices/communication",
-              "microservices/container",
-              "microservices/deployment",
-              "microservices/rollback",
-              "microservices/data-consideration",
-              "microservices/container-orchestration",
-              "microservices/ddd",
-              "microservices/ci-cd",
-              "microservices/rules",
-              "microservices/architecture",
-              "microservices/security",
-              "microservices/service-catalog",
-              "microservices/testing"
-            ]
-          },
           {
             "group": "Spring",
             "pages": [
@@ -334,24 +33,99 @@
             ]
           },
           {
-            "group": "Security",
+            "group": "Java",
             "pages": [
-              "security/authorization",
-              "security/bCrypt",
-              "security/hashing",
-              "security/pki",
-              "security/sCrypt"
+              "java/concurrency",
+              "java/virtual-thread",
+              "java/volatile"
             ]
-          },
+          }
+        ]
+      },
+      {
+        "tab": "Observability",
+        "groups": [
           {
-            "group": "Observability",
+            "group": "Overview",
             "pages": [
               "observability/overview",
               "observability/observability-java",
               "observability/observability-monitoring",
               "observability/observability-spring-boot",
               "observability/observability-distributed-systems",
-              "observability/tools"
+              "observability/tools",
+              "angular/misc/google-analytics",
+              "angular/misc/observability-practical-guide",
+              "angular/misc/telemetry"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Design Patterns",
+        "groups": [
+          {
+            "group": "Design Patterns",
+            "pages": [
+              "patterns/overview"
+            ]
+          },
+          {
+            "group": "Cloud Design Patterns",
+            "pages": [
+              "patterns/anti-corruption",
+              "patterns/api-health",
+              "patterns/back-presssure",
+              "patterns/bff",
+              "patterns/bulkhead",
+              "patterns/cache-aside",
+              "patterns/circuit-breaker",
+              "patterns/compensating-transaction",
+              "patterns/cqrs",
+              "patterns/event-sourcing",
+              "patterns/materialized-view",
+              "patterns/pub-sub",
+              "patterns/rate-limiter",
+              "patterns/retry",
+              "patterns/saga",
+              "patterns/side-car",
+              "patterns/strangler-fig",
+              "patterns/valet-key"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "System Design",
+        "groups": [
+          {
+            "group": "Components",
+            "pages": [
+              "system-design/high-availability",
+              "system-design/high-availability-summary",
+              "system-design/cdn",
+              "system-design/cdn-summary",
+              "system-design/caching",
+              "system-design/caching-summary",
+              "system-design/background-jobs",
+              "system-design/background-jobs-summary",
+              "system-design/data-partition",
+              "system-design/cloud-storage",
+              "system-design/clustering",
+              "system-design/consensus-algorithm",
+              "system-design/consistency-patterns",
+              "system-design/dns",
+              "system-design/cap",
+              "system-design/distributed-transaction",
+              "system-design/latency-throughput",
+              "system-design/load-balancer",
+              "system-design/nginx",
+              "system-design/performance-scalability",
+              "system-design/reverse-proxy",
+              "system-design/scalability",
+              "system-design/communication",
+              "system-design/protocols",
+              "system-design/rate-limiter"
             ]
           },
           {
@@ -416,35 +190,323 @@
               "database/document-db",
               "database/key-value"
             ]
+          }
+        ]
+      },
+      {
+        "tab": "Miscroservices",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "microservices/architecture",
+              "microservices/microservice-monolith",
+              "microservices/monitoring",
+              "microservices/optimization",
+              "microservices/overview",
+              "microservices/api-gateway",
+              "microservices/api-design",
+              "microservices/compute",
+              "microservices/communication",
+              "microservices/container",
+              "microservices/deployment",
+              "microservices/rollback",
+              "microservices/data-consideration",
+              "microservices/container-orchestration",
+              "microservices/ddd",
+              "microservices/ci-cd",
+              "microservices/rules",
+              "microservices/architecture",
+              "microservices/security",
+              "microservices/service-catalog",
+              "microservices/testing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Javascript",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+                "javascript/engine",
+                "javascript/promise",
+                "javascript/hoisting",
+                "javascript/closures",
+                "javascript/prototype",
+                "javascript/generators-iterators",
+                "javascript/xss",
+                "javascript/durable-functions",
+                "javascript/csrf",
+                "javascript/event-loop",
+                "javascript/streaming",
+                "javascript/async-await"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Angular",
+        "groups": [
+          {
+            "group": "Angular Forms",
+            "pages": [
+                "angular/forms/validation",
+                "angular/forms/reactive",
+                "angular/forms/overview",
+                "angular/forms/signal-forms-generator",
+                "angular/forms/signal-forms",
+                "angular/forms/control-value-accessor",
+                "angular/forms/advanced",
+                "angular/forms/strongly-typed"
+            ]
           },
           {
-            "group": "System Design",
+            "group": "Angular CD",
             "pages": [
-              "system-design/high-availability",
-              "system-design/high-availability-summary",
-              "system-design/cdn",
-              "system-design/cdn-summary",
-              "system-design/caching",
-              "system-design/caching-summary",
-              "system-design/background-jobs",
-              "system-design/background-jobs-summary",
-              "system-design/data-partition",
-              "system-design/cloud-storage",
-              "system-design/clustering",
-              "system-design/consensus-algorithm",
-              "system-design/consistency-patterns",
-              "system-design/dns",
-              "system-design/cap",
-              "system-design/distributed-transaction",
-              "system-design/latency-throughput",
-              "system-design/load-balancer",
-              "system-design/nginx",
-              "system-design/performance-scalability",
-              "system-design/reverse-proxy",
-              "system-design/scalability",
-              "system-design/communication",
-              "system-design/protocols",
-              "system-design/rate-limiter"
+                "angular/cd/onpush",
+                "angular/cd/introduction",
+                "angular/cd/zoneless",
+                "angular/cd/ngDoCheck",
+                "angular/cd/overview"
+            ]
+          },
+          {
+            "group": "Angular Lifecycle",
+            "pages": [
+                "angular/lifecycle/hooks",
+                "angular/lifecycle/destroy-ref",
+                "angular/lifecycle/constructor-ngonint"
+            ]
+          },
+          {
+            "group": "Angular Security",
+            "pages": [
+                "angular/security/tokens",
+                "angular/security/overview"
+            ]
+          },
+          {
+            "group": "Angular Components",
+            "pages": [
+                "angular/component/overview",
+                "angular/component/testing"
+            ]
+          },
+          {
+            "group": "RxJS",
+            "pages": [
+                "angular/rxjs/best-practice",
+                "angular/rxjs/caching",
+                "rxjs/error-handling",
+                "rxjs/state-mgmt",
+                "rxjs/overview",
+                "rxjs/subjects",
+                "rxjs/rxjs-overview",
+                "rxjs/observable",
+                "rxjs/frequent-operators",
+                "rxjs/higher-order",
+                "rxjs/signals-interop",
+                "rxjs/softchris/bahaviour-subject",
+                "rxjs/softchris/combinational-operators",
+                "rxjs/softchris/replay-subject",
+                "rxjs/softchris/producer",
+                "rxjs/softchris/error",
+                "rxjs/softchris/observable-promise",
+                "rxjs/softchris/time-operators",
+                "rxjs/softchris/hot-cold",
+                "rxjs/softchris/mathematical-operators",
+                "rxjs/softchris/grouping-operators",
+                "rxjs/softchris/async-subject",
+                "rxjs/softchris/observables",
+                "rxjs/softchris/subject",
+                "rxjs/softchris/async",
+                "rxjs/softchris/testing",
+                "rxjs/softchris/observer",
+                "rxjs/softchris/higher-order",
+                "rxjs/softchris/basic-operators"
+            ]
+          },
+          {
+            "group": "Angular http",
+            "pages": [
+                "angular/http/resource-api",
+                "angular/http/client"
+            ]
+          },
+          {
+            "group": "Angular State",
+            "pages": [
+                "angular/state/ngrx"
+            ]
+          },
+          {
+            "group": "Angular SSR",
+            "pages": [
+                "angular/ssr/overview"
+            ]
+          },
+          {
+            "group": "Angular Misc",
+            "pages": [
+                "angular/misc/accessibility-tools",
+                "angular/misc/accessibility",
+                "angular/misc/ddd",
+                "angular/misc/module-standalone-migration",
+                "angular/misc/control-flow",
+                "angular/misc/shopping-cart",
+                "angular/misc/directive-composition",
+                "angular/misc/coding-style",
+                "angular/misc/mistakes-to-avoid",
+                "angular/misc/app-at-scale"
+            ]
+          },
+          {
+            "group": "Angular DI",
+            "pages": [
+                "angular/di/singleton",
+                "angular/di/introduction",
+                "angular/di/advanced"
+            ]
+          },
+          {
+            "group": "Angular Signals",
+            "pages": [
+                "angular/signals/rules",
+                "angular/signals/resource-api",
+                "angular/signals/overview",
+                "angular/signals/streaming-resource",
+                "angular/signals/input",
+                "angular/signals/options",
+                "angular/signals/push-pull",
+                "angular/signals/effective-use",
+                "angular/signals/component-communication",
+                "angular/signals/effects"
+            ]
+          },
+          {
+            "group": "Angular Routing",
+            "pages": [
+              "angular/routing/summary",
+              "angular/routing/lazy-loading",
+              "angular/routing/lazy-loading-defer",
+              "angular/routing/deep-dive",
+              "angular/routing/overview",
+              "angular/routing/standalone-api",
+              "angular/routing/lazy-loading-standalone"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Frontend",
+        "groups": [
+          {
+            "group": "Typescript",
+            "pages": [
+                "typescript/classes",
+                "typescript/interfaces",
+                "typescript/basic-type",
+                "typescript/advanced-type",
+                "typescript/modules",
+                "typescript/functions",
+                "typescript/generics"
+            ]
+          },
+          {
+            "group": "Layout",
+            "pages": [
+              "frontend/layout/grid",
+              "frontend/layout/flexbox"
+            ]
+          },
+          {
+            "group": "Micro Front Ends",
+            "pages": [
+              "frontend/mfe/module-federation-plugin",
+              "frontend/mfe/advanced-ng",
+              "frontend/mfe/angular"
+            ]
+          },
+          {
+            "group": "Performance",
+            "pages": [
+              "frontend/performance/critical-rendering-path",
+              "frontend/performance/service-worker",
+              "frontend/performance/best-practice-embed",
+              "frontend/performance/angular",
+              "frontend/performance/web-vitals",
+              "frontend/performance/css",
+              "frontend/performance/overview",
+              "frontend/performance/responsive",
+              "frontend/performance/best-practice-font",
+              "frontend/performance/core-web-vitals"
+            ]
+          },
+          {
+            "group": "State Management",
+            "pages": [
+              "frontend/state-mgmt/ngrx/actions",
+              "frontend/state-mgmt/ngrx/effects",
+              "frontend/state-mgmt/ngrx/reducers",
+              "frontend/state-mgmt/ngrx/store",
+              "frontend/state-mgmt/ngrx/selectors",
+              "frontend/state-mgmt/ngrx/action-groups",
+              "frontend/state-mgmt/ngrx/feature-creator",
+              "frontend/state-mgmt/ngrx/meta-reducers",
+              "frontend/state-mgmt/ngrx/signal-state",
+              "frontend/state-mgmt/ngrx/signal-store",
+              "frontend/state-mgmt/redux/async",
+              "frontend/state-mgmt/redux/dataflow",
+              "frontend/state-mgmt/redux/overview",
+              "frontend/state-mgmt/redux/patterns",
+              "frontend/state-mgmt/redux/state-action-reducers",
+              "frontend/state-mgmt/redux/store",
+              "frontend/state-mgmt/redux/summary"
+            ]
+          },
+          {
+            "group": "Tools",
+            "pages": [
+              "frontend/tools/linter",
+              "frontend/tools/bundler"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Misc",
+        "groups": [
+          {
+            "group": "Docker",
+            "pages": [
+                "docker/angular",
+                "docker/overview"
+            ]
+          },
+           {
+            "group": "Jenkins",
+            "pages": [
+                "jenkins/overview"
+            ]
+          },
+          {
+            "group": "Git",
+            "pages": [
+                "git/advanced",
+                "git/overview",
+                "git/workflows"
+            ]
+          },
+          {
+            "group": "Security",
+            "pages": [
+              "security/authorization",
+              "security/bCrypt",
+              "security/hashing",
+              "security/pki",
+              "security/sCrypt"
             ]
           }
         ]
