@@ -1,0 +1,108 @@
+**E-commerce System Design** (Amazon/Flipkart): **Containerized stores** (Docker per seller) + **hybrid consistency** (SQL ACID payments, ES eventual search). Selling-end: StoreCreator. Buying-end: Recs/Search/Cart/Order/Warehouse.[1]
+
+## Key Topics Section-Wise
+**Functional Requirements**
+- Sellers: Add/delete/modify products.
+- Buyers: Search, recommendations, cart/wishlist, order, payment.
+
+**Non-Functional Requirements**
+```
+High consistency: Payment/inventory (ACID)
+High availability: Search (eventual consistency)
+Low latency: Homepage/search
+```
+
+**Store Creation (Selling-End)**
+```
+StoreCreator → Docker Container (EC2)
+├── API Gateway (store-specific)
+├── C=CustomerTable, P=ProductsTable, O=OrdersTable
+└── Isolated per seller (S1..Sn)
+```
+
+## Architecture Diagrams (ASCII)
+**Store Template**[1]
+```
+StoreCreator → Template → EC2 Instance
+                           ├── API Layer
+                           ├── C (Customers)
+                           ├── P (Products) 
+                           └── O (Orders)
+```
+
+**Homepage/Search (Buying-End)**[1]
+```
+User → Homepage → Recommendation Service ← Kafka ← {Search/Cart/Wishlist}
+                                    ↓
+                              Redis (UserData) ←→ MySQL
+                                    ↓
+                       Hadoop/Spark (Analytics)
+```
+
+**Order Placement Flow**[1]
+```
+Cart → OrderPlacement → MySQL (Orders) → Warehouse → Payment → Kafka → ES
+     ↑                           ↓
+   Redis (copy)              Rollback if fail
+```
+
+## Components Breakdown
+| Service | DB | Purpose |
+|---------|----|---------|
+| **StoreCreator** | - | Docker container per store |
+| **Recommendation** | Hadoop | User history analytics |
+| **Search** | Elasticsearch | Kafka-fed product index |
+| **Cart/Wishlist** | MySQL | Separate DBs (TTL diff) |
+| **OrderPlacement** | MySQL | ACID transactions |
+| **Warehouse** | Index | Inventory count |
+| **Payment** | 3rd-party | External service |
+
+## Design Patterns
+```
+1. Micro-stores: Docker isolation per seller
+2. Event-driven: Kafka connects all services
+3. Hybrid consistency: SQL(ACID payments) + ES(eventual search)
+4. Cache-first: Redis user data → MySQL
+5. Async analytics: Spark Streaming → Hadoop
+```
+
+## Best Practices
+**Data Flow**
+```
+Store/Product changes → Kafka → ES (search index)
+Order success → Kafka → ES (availability update)
+Order fail → Warehouse rollback
+```
+
+**Consistency Model**
+```
+Strong: Payment/inventory (MySQL ACID)
+Eventual: Search/recs (ES + Kafka)
+```
+
+**User Data**
+```
+Redis hit → Direct response
+Redis miss → MySQL → Redis populate
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "Seller isolation?"**  
+A: "Docker containers per store. StoreCreator provisions EC2+API+DBs."[1]
+
+**Q: "Search consistency?"**  
+A: "Eventual. Kafka consumers update ES from store changes."[1]
+
+**Q: "Order flow?"**  
+A: "Cart→Order MySQL→Warehouse deduct→Payment→Kafka→ES update."[1]
+
+**Q: "Why separate Cart/Wishlist DB?"**  
+A: "Different TTLs. Cart short-lived, Wishlist persistent."[1]
+
+**Q: "Recommendation source?"**  
+A: "Search/Cart/Wishlist events → Spark → Hadoop analytics."[1]
+
+## Key Terms & Keywords
+- E-commerce design, containerized stores (Docker/EC2), StoreCreator template, API Gateway per store, hybrid consistency (MySQL ACID + ES eventual), Kafka event bus, Spark Streaming analytics, Redis user cache, Warehouse inventory index, Recommendation Service (Hadoop), Cart/Wishlist separate MySQL, OrderPlacement ACID flow.[1]
+
+[1](https://www.scribd.com/document/628498463/System-Design-Interview-Amazon-2F-Flipkart-2F-Ebay-o)

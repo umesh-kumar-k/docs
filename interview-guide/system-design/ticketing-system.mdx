@@ -1,0 +1,187 @@
+**Ticketmaster Design** (10M users, 100:1 read ratio, &ltg;500ms search) prioritizes **no double-booking** (consistency) + high read throughput. Core: View/Search/Book events. Deep dives: Redis locks, ES search, virtual queue.[1]
+
+## Key Topics Section-Wise
+**Requirements**
+- **Core Functional**: View events, search events, book tickets.[1]
+- **Out-of-scope**: User bookings view, admin events, dynamic pricing.[1]
+- **Core Non-Functional**: Consistency (no double-book), scale (10M users/1 event), low-latency search (%ltg;500ms), read-heavy (100:1).[1]
+
+**Entities/APIs**
+```
+Entities: Event, User, Performer, Venue, Ticket, Booking
+APIs:
+├── GET /events/:id → Event+Venue+Performer+Tickets (seat map)
+├── GET /events/search?kw=date → Event[]
+└── POST /bookings/:eventId {ticketIds,payment} → bookingId
+```
+
+**High-Level Flow**
+```
+Client → API Gateway → Event/Search/Booking Services → Postgres
+                           ↓ Redis (locks) ↓ ES (search)
+Virtual Queue (WebSocket) for popular events
+```
+
+## Important Classes/Interfaces
+```java
+class Ticket { id, eventId, seat, price, status: AVAILABLE/RESERVED/SOLD }
+class Booking { id, userId, ticketIds[], status: IN_PROGRESS/CONFIRMED }
+interface BookingService {
+  String reserveTickets(`List<String>` ticketIds, Duration ttl);
+  boolean confirmBooking(String bookingId, Payment payment);
+}
+```
+
+## Design Patterns
+| Pattern | Use Case | Implementation |
+|---------|----------|----------------|
+| **Dealing with Contention** | No double-booking | Redis SETNX lock + TTL |
+| **Scaling Reads** | 100:1 read ratio | Redis/Memcached + read-through |
+| **Real-time Updates** | Virtual queue | WebSocket + Redis queue |
+| **Multi-step** | Reserve→Pay→Confirm | Status enum + expiration |
+
+## Best Practices
+**Booking Anti-Double-Book**
+```
+1. Redis SETNX ticketId:lock TTL=10min
+2. DB: status=RESERVED + bookingId
+3. Pay success → SOLD + CONFIRMED
+4. TTL expire → AVAILABLE (auto)
+```
+
+**Search Evolution**
+```
+SQL LIKE → Indexes → Full-text → ES (fuzzy + facets)
+```
+
+**Popular Events**
+```
+WebSocket queue → Dequeue front → Allow booking → Notify client
+```
+
+## Advanced Topics
+**Reservation Strategies**
+| Approach | Pros | Cons |
+|----------|------|------|
+| **DB Lock** | Simple | Long transactions |
+| **Status+TTL+Cron** | No locks | Cron lag |
+| **Redis TTL** | Auto-expire | Redis dependency |
+| **Redis WATCH** | Optimistic | Retry storms |
+
+**Search Scaling**
+```
+Postgres GiST → ES (fuzzy/facets) + CDC sync
+Cache: "search:kw=2024-01-01" TTL=24h
+```
+
+**Level Expectations**
+| Level | Depth | Bar |
+|-------|-------|-----|
+| **Mid** | Basic lock + seat map | Status+TTL |
+| **Senior** | Redis lock + ES search | Virtual queue |
+| **Staff+** | 3+ deep dives + innovations | Queue + cache invalidation |
+
+## Interview Cheat Sheet (Q&A)
+**Q: "No double-booking?"**  
+A: "Redis SETNX + 10min TTL. Pay success→SOLD. Expire→AVAILABLE."
+
+**Q: "10M users 1 event?"**  
+A: "Virtual WebSocket queue. Dequeue front→allow booking."
+
+**Q: "Search &ltg;500ms?"**  
+A: "ES fuzzy + facets. Cache query params TTL=24h."
+
+**Q: "Read scaling?"**  
+A: "Event/venue cache (read-through). 95% hit rate."
+
+**Q: "Lock failure?"**  
+A: "WATCH optimistic lock + retry. Fallback cron TTL."
+
+## Key Terms & Keywords
+- Ticketmaster design, no double-booking (Redis SETNX), virtual queue (WebSocket), search scaling (ES+CDC), read-heavy (100:1), reservation patterns (lock/TTL/WATCH), seat map caching, booking service (reserve/confirm), Postgres+Redis+ES stack, popular event handling.[1]
+
+**Ticketmaster System Design** (100M DAU → 115K RPS → 1,562 peak servers; 21GB/mo storage) from **both sources**. HelloInterview: Redis locks + ES search + WS queue. Handbook: Optimistic/pessimistic locking + hybrid SQL/NoSQL.[1][2]
+
+## Key Topics (HelloInterview.com)[2]
+**Requirements**: View/Search/Book (top 3). 100:1 reads, &ltg;500ms search, no double-book, 10M/event scale.
+**Deep Dives**: Redis SETNX (10min TTL), ES+CDC fuzzy search, WebSocket virtual queue, read-through cache (eventId:event TTL).
+**Level Bar**: Senior=Redis/ES/queue; Staff+=3+ deep dives.
+
+## Key Topics (SystemDesignHandbook.com)[1]
+**Requirements**: List cities/venues, search events, reserve/purchase, manage bookings, generate tickets.
+**Estimations**: 
+```
+100M DAU × 100 reqs = 10B/day = 115K RPS → 2 servers
+Peak: 100M RPS → 1,562 servers
+Storage: 1K cities×5 cinemas×1K seats×2 shows×70B = 700MB/day
+```
+**APIs**: GET /search(location,time), POST /book(seats), POST /confirm, GET /booking/:id, DELETE /cancel.
+**DB**: SQL (ACID bookings) + NoSQL (availability cache).
+
+## Merged Architecture
+```
+Client → API Gateway → {Event/Search/Booking/User/Location Services}
+                        ↓ Redis(locks/cache) ↓ Postgres(Txns) ↓ ES(Search)
+High-demand: WebSocket Queue → Dequeue → Notify → Book
+```
+
+## Design Patterns (Both)
+| Pattern | HelloInterview | Handbook |
+|---------|----------------|----------|
+| **Contention** | Redis SETNX TTL | Optimistic/Pessimistic/Distributed locks |
+| **Reads** | Read-through cache | Cache static data (venues/events) |
+| **Real-time** | WebSocket queue | Pub-sub notifications |
+| **Search** | ES+CDC fuzzy | REST search APIs |
+
+## Best Practices
+**No Double-Book Flows**:
+```
+HelloInterview: Redis lock → DB RESERVED → Stripe webhook → SOLD+DEL
+Handbook: Version# optimistic OR Redis/Zookeeper pessimistic
+```
+**Search**:
+```
+SQL indexes → Full-text → ES(fuzzy/facets+CDC) → Cache "search:kw+date"
+```
+**Scale**:
+```
+Stateless services + LB(RR/LeastConn) + Cache 95% hit + Horizontal scale
+```
+
+## Advanced Topics
+**Lock Strategies**:
+| Type | Pros | Cons |
+|------|------|------|
+| **Optimistic** | Low contention OK | High retry rate |
+| **Pessimistic** | No conflicts | Queueing delays |
+| **Redis TTL** | Auto-unlock | Redis single point |
+| **Zookeeper** | Distributed | Complex |
+
+**High Availability** (Handbook):
+```
+Redundancy (multi-instances) + Replication + Auto-failover
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "100M DAU servers?"**  
+A: "115K RPS=2 servers. Peak 100M=1,562 servers (64K RPS/server)."[1]
+
+**Q: "No double-book?"**  
+A: "Redis SETNX 10min TTL → RESERVED → SOLD on payment."[2]
+
+**Q: "10M users 1 event?"**  
+A: "WebSocket queue → dequeue → notify → book."[2]
+
+**Q: "&ltg;500ms search?"**  
+A: "ES fuzzy+facets+CDC. Cache queries TTL=24h."[2]
+
+**Q: "DB choice?"**  
+A: "SQL ACID bookings + NoSQL availability."[1]
+
+## Key Terms & Keywords
+- Ticketmaster (100M DAU, 115K RPS, 1,562 peak servers), no double-booking (Redis SETNX/optimistic/pessimistic/Zookeeper), virtual queue (WebSocket), search (ES+CDC fuzzy/facets), read scaling (100:1 cache TTL), entities (Event/Venue/Performer/Ticket/Booking), APIs (search/book/confirm), hybrid DB (SQL ACID + NoSQL cache), concurrency (locks/replication/failover), security (RBAC/encryption/fraud ML).[1][2]
+
+[1](https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster)
+[2](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/c70055d1-27f7-4138-8787-cbdb9f46c424/sd-chapter2.pdf)
+
+[1](https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster)

@@ -1,0 +1,62 @@
+Chapter 4 designs a server-side API rate limiter for high-scale systems, covering algorithms, distributed implementation with Redis, and operational considerations—essential for Senior Architect discussions on API protection and scalability.[1]
+
+## Key Topics Section-Wise
+- **Problem & Benefits**: Controls client/service traffic (e.g., 2 posts/sec/user, 10 accounts/day/IP); prevents DoS, reduces costs (3rd-party APIs), avoids server overload.[1]
+- **Requirements**: Accurate limiting, low latency, low memory, distributed, exception handling (HTTP 429), high fault tolerance.[1]
+- **High-Level Design**: Middleware/gateway (not client-side); counters in Redis (INCR/EXPIRE); rules from config files.[1]
+- **Algorithms**: Token Bucket (Amazon/Stripe), Leaky Bucket (Shopify), Fixed Window, Sliding Window Log/Counter.[1]
+- **Distributed Challenges**: Race conditions (Lua/sorted sets), synchronization (central Redis, no sticky sessions).[1]
+- **Ops**: Multi-DC edge servers (Cloudflare), monitoring (rule effectiveness), headers (X-Ratelimit-Remaining/Limit/Retry-After).[1]
+
+## Tradeoffs
+| Algorithm | Pros | Cons |
+|-----------|------|------|
+| **Token Bucket** [1] | Burst support, simple, memory efficient (Amazon/Stripe) | Tuning bucket size/refill rate tricky |
+| **Leaky Bucket** [1] | Fixed outflow rate (Shopify), memory efficient | Bursts fill queue, drops recent requests |
+| **Fixed Window** [1] | Simple, memory efficient | Edge bursts allow 2x quota (e.g., 10 req/min → 20 at boundary) |
+| **Sliding Log** [1] | Most accurate (rolling window) | High memory (stores all timestamps) |
+| **Sliding Counter** [1] | Memory efficient, smooths spikes (Cloudflare: 0.003% error) | Approximation (assumes even distribution) |
+| **Server vs Gateway** [1] | Server: full algorithm control; Gateway: quick setup (microservices) | Server: perf overhead; Gateway: limited algorithms |
+
+## Components/Tools/Frameworks
+- **Redis**: INCR/EXPIRE counters, sorted sets for sliding log.[1]
+- **API Gateway**: Middleware for auth/rate limiting (Cloud microservices).[1]
+- **HTTP Headers**: 429 Too Many Requests, X-Ratelimit-* for client feedback.[1]
+- **Lyft Ratelimit**: Open-source rules engine (config-based).[1]
+
+## Design Patterns/Best Practices
+- **Centralized State**: Redis cluster for distributed counters (avoid sticky sessions).[1]
+- **Rule Config**: Domain/descriptor-based (e.g., `messagetype:marketing` → 5/day).[1]
+- **Race Prevention**: Lua scripts or Redis sorted sets (atomic ops).[1]
+- **Edge Computing**: Multi-DC (Cloudflare 194 edges) for low latency.[1]
+- **Monitoring**: Track dropped requests, rule effectiveness, burst handling.[1]
+- **Client Resilience**: Cache, backoff, exception handling.[1]
+
+## Advanced Topics
+- **Distributed Sync**: Eventual consistency across DCs; race conditions in concurrent INCR.[1]
+- **Hard vs Soft Limiting**: Hard (strict threshold) vs Soft (short bursts allowed).[1]
+- **Layered Limiting**: L7 (HTTP) + L3 (IPtables by IP).[1]
+- **Queue Rate-Limited Requests**: For non-drop use cases (e.g., orders).[1]
+
+## Big Tech References
+- **Twitter**: 300 tweets/3hrs.[1]
+- **Google Docs**: 300 read req/user/60s.[1]
+- **Amazon**: Token bucket in API Gateway.[1]
+- **Stripe**: Token bucket throttling.[1]
+- **Shopify**: Leaky bucket for REST API.[1]
+- **Cloudflare**: Sliding counter (0.003% error on 400M req).[1]
+- **Lyft**: Open-source ratelimit component.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: Why rate limit?** A: DoS protection, cost control (3rd-party APIs), server protection.[1]
+- **Q: Token vs Leaky Bucket?** A: Token allows bursts (Amazon); Leaky fixed rate (Shopify).[1]
+- **Q: Fixed vs Sliding Window?** A: Fixed simple but edge bursts (2x quota); Sliding accurate.[1]
+- **Q: Distributed race condition?** A: Redis Lua/sorted sets for atomic INCR; central cluster.[1]
+- **Q: Where implement?** A: Gateway (microservices) or server-side (full control).[1]
+- **Q: Scale globally?** A: Edge servers (Cloudflare), Redis cluster, X-Ratelimit headers.[1]
+- **Q: HTTP response?** A: 429 + X-Ratelimit-Remaining/Limit/Retry-After.[1]
+
+## Key Terms & Keywords
+- Rate limiter, token bucket, leaky bucket, fixed window, sliding window (log/counter), Redis INCR/EXPIRE, HTTP 429, X-Ratelimit-*, API gateway, race condition, Lua script, sorted sets, edge computing, hard/soft limiting, L7/L3 rate limiting, DoS protection.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/7e06e43c-ad7b-4ca8-b931-89f3f2e4e298/sd-chapter3.pdf)

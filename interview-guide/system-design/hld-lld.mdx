@@ -1,0 +1,72 @@
+**System Design: HLD vs LLD Roadmap** (HackerNoon): **HLD** = big-picture architecture (components + data flow). **LLD** = detailed implementation (classes + interfaces + algorithms). **Attachment limited** (paywall teaser, no diagrams).[1]
+
+## Key Topics Section-Wise
+**HLD (High-Level Design)**
+```
+Focus: WHAT system does
+- Requirements gathering (functional/non-functional)
+- System boundaries + scope
+- High-level components (services, DB, cache)
+- Data flow diagrams (Client→API→DB)
+- Capacity planning (DAU→QPS→servers)
+```
+
+**LLD (Low-Level Design)**
+```
+Focus: HOW system works
+- Class diagrams + interfaces
+- Object relationships (composition/inheritance)
+- Algorithm design + pseudocode
+- DB schema + indexes + queries
+- Error handling + edge cases
+```
+
+**HLD → LLD Flow**
+```
+1. Requirements → HLD (architecture blueprint)
+2. HLD → LLD (implementation details)
+3. LLD → Code (actual development)
+```
+
+## Comparison Table
+| Aspect | HLD | LLD |
+|--------|-----|-----|
+| **Scope** | System-wide | Component/module |
+| **Diagram** | Boxes+arrows | Class diagrams |
+| **Audience** | Architects/PMs | Developers |
+| **Questions** | "Scale to 1M?" | "Implement cache?" |
+| **Output** | Architecture doc | Design doc + code |
+
+## Best Practices
+**HLD Checklist**
+```
+- Clarify top 3 reqs first
+- Draw simple boxes+arrows
+- Estimate QPS/storage/servers
+- Discuss trade-offs (SQL vs NoSQL)
+```
+
+**LLD Checklist**
+```
+- Define interfaces first
+- Use composition > inheritance
+- Handle all edge cases
+- Write pseudocode for complex logic
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "HLD or LLD question?"**  
+A: **HLD**: "Architecture + scale." **LLD**: "Classes + algorithms."
+
+**Q: "Design TinyURL (HLD)"**  
+A: "API Gateway → URL Service → Redis → DB shards."
+
+**Q: "LLD URL shortener?"**  
+A: "class URLMapper { shorten(), expand(), collisionCheck() }."
+
+## Key Terms & Keywords
+- HLD (high-level design/architecture/requirements/QPS estimation), LLD (low-level design/classes/interfaces/pseudocode/DB schema), design progression (reqs→HLD→LLD→code), trade-offs discussion, capacity planning, component diagrams vs class diagrams.[1]
+
+**Note**: Full diagrams/content behind paywall in attachment. Summary from available teaser text only.[1]
+
+[1](https://hackernoon.com/the-indepth-crystalclear-roadmap-to-learning-system-design-endtoend-hld-and-lld)

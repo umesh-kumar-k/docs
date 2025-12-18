@@ -172,7 +172,7 @@ module.exports = {
   - `compress(a + b) <= compress(a) + compress(b)`; compressing one large chunk yields smaller total size vs many small chunks.[1]
   - Data suggests 5–10% size loss for smaller chunks; unbundled extremes can see ~20% total increase.[1]
 - Each chunk has overhead: IPC, I/O, cache lookups, script tag management.[1]
-- V8 streaming/parsing threshold ~30 KB: chunks <30 KB often parse on the critical path even if non‑critical.[1]
+- V8 streaming/parsing threshold ~30 KB: chunks $ltg;30 KB often parse on the critical path even if non‑critical.[1]
 - Therefore, **larger chunks** can be better for pure download and browser performance.[1]
 
 **Goal 2 – Improve cache efficiency**

@@ -1,0 +1,129 @@
+**System Design Interview Guide (2025)** uses **RESHADED framework** for FAANG-level interviews: **R**eqs → **E**stimation → **S**torage → **H**igh-level → **A**PIs → **D**etailed → **E**valuation → **D**istinctive. Senior focus: 40% breadth/60% depth, justify trade-offs, proactive deep dives.[1]
+
+## Detailed Interview Structure (45-60min)
+```
+Phase          | Junior | Mid   | Senior | Focus
+---------------|--------|-------|--------|-----------------------
+Requirements   | 10min  | 7min  | 5min   | Functional + SPARCS
+Estimation     | 5min   | 5min  | 5min   | BOTEC (QPS/storage)
+High-level     | 10min  | 7min  | 5min   | SLIC FAST components
+Detailed       | 10min  | 15min | 20min  | 2-3 deep dives
+Evaluation     | 10min  | 10min | 15min  | Bottlenecks/trade-offs
+```
+
+## Core Principles (SPARCS) - Detailed
+| Principle | Definition | Techniques | Trade-offs |
+|-----------|------------|------------|------------|
+| **S**calability | Handle growth | Horizontal (add servers), Vertical (upgrade CPU) | Horizontal: Complex; Vertical: Limits |
+| **P**erformance | Low latency | Cache (Redis), CDN, algo optimization | Cache: Stale data risk |
+| **A**vailability | Uptime "nines" | 99.999%=5.26min/year downtime | 5-nines: Expensive redundancy |
+| **R**eliability | Fault tolerance | Redundancy, failover | Cost vs resilience |
+| **C**onsistency | Data agreement | CAP: Pick 2/3 (CP/AP) | Strong: Slow; Eventual: Fast |
+| **S**ecurity | Defense-in-depth | Encryption + ACL + firewalls | Secure: Performance hit |
+
+## Building Blocks (SLIC FAST) - Implementation
+```
+SLIC FAST Architecture Template:
+┌─ CDN ──────┐  ┌─ Load Balancer ─┐
+│ Edge Cache │◄─┤ Health Checks   │
+└────────────┘  └─► Front Servers  │
+                  │ Cache (Redis)  │
+                  └─► API Gateway   │
+                             │
+                  ┌─ Task Queue ─┐ ┌─ Storage ───────┐
+                  │ SQS/Celery   │ │ SQL/NoSQL/Blob  │
+                  └──────────────┘ └─ Analytics ─────┘
+```
+
+## Level Expectations (FAANG Bar)
+| Level | Breadth:Depth | Deliverables | Interviewer Role |
+|-------|---------------|--------------|------------------|
+| **Junior** | 80:20 | APIs + basic diagram | Drives deep dives |
+| **Mid** | 60:40 | + Spatial index basics | Guides trade-offs |
+| **Senior** | 40:60 | 2+ deep dives (Redis locking) | Minimal guidance |
+| **Staff+** | 20:80 | 3+ innovations; interviewer learns | Focuses only |
+
+## Detailed Best Practices
+### Phase Execution
+```
+1. Requirements (Ask!):
+   Q: "Core use cases? DAU/QPS? Edge cases? Security needs?"
+   → List: Must-haves vs Nice-to-haves + SPARCS non-functional
+
+2. Estimation (BOTEC):
+   Ex: Instagram: 1M posts/day × (50%img@1MB + 50%vid@20MB) = 10.5TB/day
+   Servers: 50M reqs/day ÷ 86K/sec ÷ 1K reqs/sec/server = 600 servers
+
+3. High-level (SLIC FAST):
+   Draw: CDN→LB→Front→Cache→API→DB/TaskQ→Analytics/Storage
+
+4. Detailed (Non-functional focus):
+   SQL: ACID/joins → ERP/CRM
+   NoSQL: Scale → Social/Real-time
+   Justify: "ACID needed for money transfer"
+
+5. Evaluation:
+   Bottlenecks: DB writes → Sharding
+   Trade-offs: "SQL consistency vs NoSQL scale"
+```
+
+### Communication Framework
+```
+Think Aloud Template:
+"I'm considering [Option A] for [Reason X] because [Req Y]. 
+Trade-off: [Downside Z]. Alternative [Option B] better if [Scenario]. 
+I'll choose A because [Justification]."
+```
+
+## Advanced Topics (Senior+ Depth)
+**Latencies (Memorize)**
+```
+L1: 0.9ns | SSD: 200μs | Disk: 4ms | SF→NYC: 71ms
+```
+
+**CAP Theorem Choices**
+```
+CP: Banking (consistent/partition-tolerant)
+AP: Social (available/partition-tolerant)
+```
+
+**Database Matrix**
+| Use Case | SQL | NoSQL | Vector |
+|----------|-----|-------|--------|
+| ERP/CRM | ✅ ACID | ❌ | ❌ |
+| Social | ❌ | ✅ Scale | ❌ |
+| Fraud | ❌ | ❌ | ✅ Similarity |
+
+**Cache Strategies**
+```
+Write-through: Consistent, slow writes
+Write-back: Fast writes, crash risk
+Cache-aside: Flexible, cache miss penalty
+```
+
+## Big Tech Practices
+- **Meta**: "Pirate" SDI + "Pirate X" (API/Product).[1]
+- **Netflix**: NoSQL for 1B streaming hours/week.[1]
+- **Azure/FB**: Distributed systems evolution (2000s→now).[1]
+
+## Interview Cheat Sheet (Q&A)
+**Q: "Why SQL for TinyURL?"**  
+A-Junior: "Easier + consistent"  
+A-Senior: "ACID mapping guarantee; sharding by shortcode prefix"  
+
+**Q: "5M DAU servers?"**  
+A: "50M reqs/day = 600rps. 1K rps/server = 600 servers + 20% buffer = 720"  
+
+**Q: "Cache invalidation?"**  
+A: "TTL(1hr) + write-through + LRU eviction policy"  
+
+**Q: "99.999% availability?"**  
+A: "5.26min/year = multi-AZ + LB health checks + DB replication"  
+
+**Q: "Single DB failure?"**  
+A: "Master-slave async repl. Master fail→promote slave (15s)"  
+
+## Key Terms & Keywords
+- **RESHADED**, **SPARCS** (Scalability/Performance/Availability/Reliability/Consistency/Security), **SLIC FAST** (Search/LB/CDN/Cache/Front/Analytics/Storage/TaskQ), **CAP/PACELC**, **BOTEC** (back-of-envelope), **nines** (99.999%=5.26min/yr), **horizontal/vertical scaling**, defense-in-depth, SQL ACID vs NoSQL scale, Redis persistence (RDB/AOF), load balancer health checks, distributed locks.[1]
+
+[1](https://www.systemdesignhandbook.com/guides/system-design-interview/)

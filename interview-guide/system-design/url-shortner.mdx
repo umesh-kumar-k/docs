@@ -1,0 +1,48 @@
+Chapter 8 designs a URL shortener (TinyURL-like) handling 100M URLs/day (~1.2K WPS, 12K RPS reads), using base62 ID conversion for 7-char short URLs supporting 3.5T unique mappings.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Shorten long URLs → short aliases; redirect short→long; 100M/day (~1.2K WPS); 365TB/10yrs storage.[1]
+- **APIs**: `POST /shorten` (longURL→shortURL); `GET /:shortURL` (301/302 redirect).[1]
+- **Hash Functions**: Collision resolution (CRC32+append) vs Base62 conversion (ID→7-char).[1]
+- **Data Model**: Table `{id, shortURL, longURL}`; unique ID generator (Ch7 Snowflake).[1]
+- **Flows**: Shorten: check dup → gen ID → base62 → store; Redirect: cache → DB → 301.[1]
+
+## Tradeoffs
+| Approach | Pros | Cons |
+|----------|------|------|
+| **301 vs 302 Redirect** [1] | 301: Reduces load (browser caches) | 302: Better analytics (tracks all clicks) |
+| **Hash Collision** [1] | Simple (CRC32/MD5 first 7 chars) | DB checks per collision (expensive) |
+| **Base62 Conversion** [1] | Guaranteed unique (ID-based) | Needs distributed ID generator |
+| **Cache vs DB** [1] | Cache: Fast reads (10:1 ratio) | Cache misses hit DB |
+
+## Components/Tools/Frameworks
+- **Base62**: 0-9a-zA-Z (62^n); 7 chars = 3.5T URLs.[1]
+- **Unique ID**: Snowflake (Ch7) for global sequential IDs.[1]
+- **Bloom Filter**: Collision check optimization.[1]
+- **Cache**: shortURL→longURL (read-heavy).[1]
+
+## Design Patterns/Best Practices
+- **Counter-Based**: Unique ID → base62 (vs hash collisions).
+- **Read Cache**: Cache short→long (10:1 read ratio).
+- **301 Default**: Reduce server load unless analytics needed.
+- **Dup Check**: Shorten existing URLs (no duplicates).
+
+## Advanced Topics
+- **Base62 Math**: `ID / 62^n = digit`; e.g., 11157₁₀ → "2TX"₆₂.[1]
+- **Collision Resolution**: Append string + Bloom filter.[1]
+
+## Big Tech References
+- **TinyURL**: Real-world base62 implementation.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: 100M/day capacity?** A: 1.2K WPS; 62^7=3.5T URLs (7 chars).[1]
+- **Q: Base62 vs Hash?** A: Base62: unique via ID; Hash: collisions need resolution.[1]
+- **Q: 301 vs 302?** A: 301 reduces load; 302 enables analytics.[1]
+- **Q: Shorten flow?** A: Dup check → ID gen → base62 → store.[1]
+- **Q: Redirect flow?** A: Cache hit → DB → 301 redirect.[1]
+- **Q: Storage?** A: 365B URLs ×100B = 365TB/10yrs.[1]
+
+## Key Terms & Keywords
+- URL shortener, base62 conversion, hash collision resolution, 301/302 redirect, unique ID generator, Bloom filter, shortURL→longURL cache, REST API (`POST/shorten`, `GET/:shortURL`).[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/0b58fcde-a837-4634-a409-6d60c997b250/sd-chapter7.pdf)

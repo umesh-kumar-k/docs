@@ -1,0 +1,48 @@
+Chapter 15 designs Google Drive-like cloud storage (10M DAU, 500PB total, 240 QPS uploads) with block-level sync (4MB chunks), delta sync (modified blocks only), strong consistency (ACID DB), long polling notifications.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Upload/download/sync (≤10GB files), mobile/web, encryption, versioning, sharing, notifications.[1]
+- **Single Server → Scale**: Web/DB/storage → LB + sharded DB + S3 (multi-region replication).[1]
+- **Block Storage**: Files → 4MB blocks (hash+compress+encrypt) → S3; reconstruct by order.[1]
+- **Flows**: Parallel metadata upload + block upload; notification → pull metadata → download blocks.[1]
+- **Conflict Resolution**: First-write-wins; show both versions for merge/override.[1]
+
+## Tradeoffs
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Whole File vs Blocks** [1] | Blocks: Delta sync, dedupe | Whole: Simple |
+| **Client vs Server Chunking** [1] | Server: Centralized logic | Client: Faster (1 transfer) |
+| **Long Poll vs WebSocket** [1] | Long poll: Unidirectional | WebSocket: Bidirectional overhead |
+| **SQL vs NoSQL** [1] | SQL: ACID consistency | NoSQL: Scale but eventual |
+
+## Components/Tools/Frameworks
+- **Block Servers**: Chunk(4MB)/compress(gzip)/encrypt → S3.[1]
+- **S3**: Multi-region replication; Glacier for cold data.[1]
+- **Metadata DB**: `user/device/namespace/file/fileversion/block` (ACID).[1]
+- **Notification**: Long polling (1M connections/server).[1]
+
+## Design Patterns/Best Practices
+- **Delta Sync**: Upload modified blocks only (rsync algo).[1]
+- **Strong Consistency**: Invalidate cache on DB write + ACID.[1]
+- **De-duping**: Same hash blocks shared across users.[1]
+- **Version Limits**: Recent versions prioritized; oldest evicted.[1]
+
+## Advanced Topics
+- **Cold Storage**: Glacier for inactive data.[1]
+- **Offline Queue**: Missed notifications queued for reconnect.[1]
+- **Presence Service**: Separate online/offline tracking.[1]
+
+## Big Tech References
+- **Dropbox**: 4MB blocks, long polling (1M conn/server), rsync delta.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: 10M DAU scale?** A: 240 QPS uploads; block servers + S3 multi-region.[1]
+- **Q: Sync efficiency?** A: 4MB blocks + delta (modified only) + compression.[1]
+- **Q: Conflicts?** A: First-write-wins; show both for merge.[1]
+- **Q: Notifications?** A: Long polling (unidirectional); offline queue.[1]
+- **Q: Storage savings?** A: De-dup (hash), version limits, Glacier cold.[1]
+
+## Key Terms & Keywords
+- Google Drive, block storage (4MB), delta sync (rsync), S3 multi-region, metadata DB (ACID), long polling notifications, file versioning, de-duplication (hash), cold storage (Glacier), resumable upload.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/0a493ce5-1f86-42bb-8a7f-a1e9fdf46ad7/sd-chapter15.pdf)

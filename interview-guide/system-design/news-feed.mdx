@@ -1,0 +1,49 @@
+Chapter 11 designs a news feed system (Facebook-like) for 10M DAU, supporting post publishing and reverse-chronological feed retrieval for users with ~5K friends, using hybrid fanout (push popular, pull celebrities).[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Mobile/web, publish posts (text/media), view friends' feeds (reverse chrono), 10M DAU, 5K friends max.[1]
+- **APIs**: `POST /v1/me/feed` (publish), `GET /v1/me/feed` (retrieve).[1]
+- **Publishing**: Post → DB/cache → fanout service (friends list → queue → workers → newsfeed cache).[1]
+- **Retrieval**: Newsfeed service → cache (post IDs) → hydrate (user/post caches) → JSON.[1]
+- **Fanout Models**: Push (write-time, fast read) vs Pull (read-time, no hotkeys); hybrid for celebrities.[1]
+
+## Tradeoffs
+| Model | Pros | Cons |
+|-------|------|------|
+| **Fanout on Write (Push)** [1] | Real-time, fast reads (pre-computed) | Hotkey problem (celebrities), waste for inactive users |
+| **Fanout on Read (Pull)** [1] | No hotkeys, efficient for inactive | Slow reads (on-demand) |
+| **Hybrid** [1] | Push popular + pull celebrities | Complex logic |
+
+## Components/Tools/Frameworks
+- **Cache Layers**: Newsfeed (post IDs), Content (posts), Social Graph, Action (likes), Counters.[1]
+- **Graph DB**: Friend relationships/recommendations.[1]
+- **CDN**: Media (images/videos).[1]
+- **Message Queue**: Fanout workers.[1]
+
+## Design Patterns/Best Practices
+- **Newsfeed Cache**: Store post IDs only (`postid, userid`); hydrate on read.
+- **Hybrid Fanout**: Push for normal, pull for high-follower users.
+- **Consistent Hashing**: Mitigate hotkey problem.[1]
+- **Stateless Web**: Auto-scale with LB.
+- **User Settings**: Mute/selective sharing filters.
+
+## Advanced Topics
+- **Cache Limits**: Configurable size (low miss rate for recent posts).[1]
+- **Hydration**: Fetch user/post objects from separate caches.[1]
+- **Rate Limiting**: Prevent spam posts.[1]
+
+## Big Tech References
+- **Facebook News Feed**: Status/photos/videos/likes from friends/pages.[1]
+- **Neo4j**: Friend recommendations/graph DB.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: 10M DAU, 5K friends?** A: Hybrid fanout (push normal, pull celebrities).[1]
+- **Q: Push vs Pull?** A: Push: fast read; Pull: no hotkeys; Hybrid best.[1]
+- **Q: Cache what?** A: Newsfeed: post IDs; hydrate user/post on read.[1]
+- **Q: Publishing flow?** A: Post → DB → fanout queue → friends' newsfeed cache.[1]
+- **Q: Hotkey fix?** A: Consistent hashing + pull model for celebrities.[1]
+
+## Key Terms & Keywords
+- News feed, fanout on write (push), fanout on read (pull), hybrid fanout, newsfeed cache (post IDs), content cache, social graph cache, hydration, consistent hashing (hotkey), graph DB (friends), reverse chronological.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/fe859900-1eda-42e6-904d-4bd690fe2c86/sd-chapter11.pdf)

@@ -1,0 +1,48 @@
+Chapter 7 designs a distributed unique ID generator (Twitter Snowflake-inspired) generating 64-bit, time-ordered, numeric IDs at 10K+/sec scale across datacenters/machines without central coordination.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Unique, numeric, 64-bit, time-ordered (evening > morning), 10K+ IDs/sec.[1]
+- **Rejected Approaches**: Multi-master (doesn't scale DCs), UUID (128-bit, not time-ordered), Ticket Server (SPOF).[1]
+- **Snowflake Design**: 64-bit = 1-bit sign + 41-bit timestamp (ms since 2010 epoch) + 5-bit DC ID + 5-bit machine ID + 12-bit sequence (4096/ms).[1]
+- **Generation**: Fixed DC/machine IDs at startup; timestamp + increment sequence (reset/ms).[1]
+- **Capacity**: 4096 IDs/ms/machine = 4M/sec/machine; 69-year lifespan (2^41 ms).[1]
+
+## Tradeoffs
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Multi-master** [1] | Uses DB autoincrement | Doesn't scale DCs; IDs not time-ordered |
+| **UUID** [1] | No coordination, scales perfectly | 128-bit, not numeric/time-ordered |
+| **Ticket Server** [1] | Simple numeric IDs | SPOF; sync issues with multiples |
+| **Snowflake** [1] | Time-ordered, 64-bit, distributed | Clock sync needed; fixed DC/machine IDs |
+
+## Components/Tools/Frameworks
+- **ID Layout**: `[0|timestamp(41)|DC(5)|machine(5)|sequence(12)]`.[1]
+- **Epoch**: Custom (Twitter: Nov 2010) extends lifespan to 69 years.[1]
+
+## Design Patterns/Best Practices
+- **Divide & Conquer**: Split 64-bit into independent fields (time + location + sequence).
+- **Fixed Identifiers**: DC/machine IDs set at startup (change = ID collision risk).
+- **Per-ms Reset**: Sequence rolls over every ms (4096 capacity).
+- **Clock Sync**: NTP assumed (multi-core/multi-machine challenge).[1]
+
+## Advanced Topics
+- **Clock Skew**: Multi-core/machine desync; NTP mitigates.[1]
+- **Section Tuning**: Trade sequence bits for more timestamp (low concurrency/long-term).[1]
+- **Post-69yr**: New epoch or hybrid approach.[1]
+
+## Big Tech References
+- **Twitter Snowflake**: Original 64-bit design (2010 blog).[1]
+- **Flickr Ticket Servers**: Centralized DB autoincrement approach.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: Why not DB autoincrement?** A: Doesn't scale distributed; single DB too small.[1]
+- **Q: Snowflake layout?** A: 1+41+5+5+12 bits (sign+ts+DC+machine+seq).[1]
+- **Q: 10K/sec capacity?** A: 4096/ms/machine = 4M/sec/machine.[1]
+- **Q: Time ordering?** A: 41-bit ms timestamp since 2010 epoch.[1]
+- **Q: Sequence rollover?** A: Reset to 0 every ms (12-bit=4096).[1]
+- **Q: Clock issues?** A: NTP sync; multi-core/machine skew risk.[1]
+
+## Key Terms & Keywords
+- Snowflake ID, 64-bit unique ID, timestamp (41-bit), DC ID (5-bit), machine ID (5-bit), sequence number (12-bit), custom epoch, clock synchronization (NTP), multi-master replication, UUID, ticket server.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/0b7dddec-66ad-4412-a061-58b727e326f3/sd-chapter6.pdf)

@@ -1,0 +1,140 @@
+**RabbitMQ Deep Dive**: **Traditional message broker** (Exchange → Queue → Binding). **Push model** (vs Kafka pull). **AMQP protocol**. Perfect for **RPC, task queues, pub/sub**. Use when **order + ACK needed**.[1][2]
+
+## Key Topics Section-Wise
+**Core Architecture**
+```
+Producer → Exchange (routing) → Queue → Consumer
+Bindings: Direct/Fanout/Topic/Headers
+```
+```
+Exchange Types:
+- Direct: Exact match (routing_key=queue)
+- Fanout: Broadcast all
+- Topic: Wildcards (*.log, error.*)
+- Headers: Metadata match
+```
+
+**Message Flow**
+```
+1. Producer publishes to Exchange
+2. Exchange routes via bindings → Queues
+3. Queue pushes to Consumer (prefetch)
+4. Consumer ACK → Message deleted
+```
+
+## Code Examples (Python)
+**Producer**:
+```python
+import pika
+connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+channel = connection.channel()
+channel.queue_declare(queue='task_queue')
+channel.basic_publish(exchange='', routing_key='task_queue', body='Hello World!')
+```
+
+**Consumer**:
+```python
+def callback(ch, method, properties, body):
+    print(body)
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+channel.basic_consume(queue='task_queue', on_message_callback=callback)
+```
+
+## When to Use RabbitMQ
+```
+✅ RPC (request-reply)
+✅ Task queues (Celery)
+✅ Simple pub/sub
+✅ Ordered delivery per queue
+✅ ACK-based reliability
+❌ High-throughput logs (use Kafka)
+```
+
+## Design Patterns
+| Pattern | Exchange Type | Use Case |
+|---------|---------------|----------|
+| **Work Queues** | Direct | Load balancing tasks |
+| **Pub/Sub** | Fanout | Broadcast notifications |
+| **Routing** | Topic | Filtered logs (error.*) |
+| **RPC** | Direct+Reply | Request-response |
+
+## Scalability & Reliability
+**Scaling**:
+```
+Queues: Multiple consumers (round-robin)
+Exchanges: Cluster mirroring
+Sharding: Consistent hashing (plugins)
+Federation: Geo-distribution
+```
+
+**Durability**:
+```
+Durable queues/exchanges
+Persistent messages
+Publisher confirms
+Consumer ACKs
+Mirrored queues (HA)
+```
+
+## Best Practices
+**Configuration**:
+```
+prefetch_count=1 (serial processing)
+durable=True (survive restart)
+lazy_queues=True (disk-backed)
+TTL/policies for cleanup
+```
+
+**Monitoring**:
+```
+Queue length, consumer count
+Message rates, ACK lag
+Memory/disk usage
+Cluster health
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "RabbitMQ vs Kafka?"**  
+A: "RabbitMQ: Queue (consume=delete, ACK). Kafka: Log (replayable, pull)."
+
+**Q: "Dead Letter Queue?"**  
+A: "Failed messages → DLQ (TTL + retry policy)."
+
+**Q: "Scale 1M msg/sec?"**  
+A: "Sharded queues + clustered exchanges + multiple consumers."
+
+**Q: "Message lost?"**  
+A: "Durable queue + persistent msg + publisher confirms + consumer ACKs."
+
+**Q: "Fanout vs Topic?"**  
+A: "Fanout: All consumers. Topic: Filtered (user.*)."
+
+## Advanced Topics
+**Clustering**:
+```
+Mirrored queues (HA)
+Federated exchanges (geo)
+Shovel plugin (bridging)
+```
+
+**Plugins**:
+```
+Federation (WAN)
+Sharding (scale)
+MQTT (IoT)
+STOMP (web)
+```
+
+**Consistency**:
+```
+Publisher confirms
+Consumer ACK/NACK
+DLQ + retry
+TTL + expiration
+```
+
+## Key Terms & Keywords
+- RabbitMQ architecture (Exchange/Queue/Binding), exchange types (Direct/Fanout/Topic/Headers), push model/ACKs, durable/persistent messages, prefetch_count, clustering (mirrored/federated), plugins (sharding/federation/MQTT), DLQ/retry policies, vs Kafka (queue vs log), RPC/work queues/pub-sub.[2][1]
+
+[1](https://igotanoffer.com/blogs/tech/meta-system-design-interview)
+[2](https://interviewing.io/guides/system-design-interview)

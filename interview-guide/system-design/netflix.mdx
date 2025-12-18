@@ -1,0 +1,167 @@
+**Netflix System Design** (180M+ users, 200+ countries) uses **AWS + Open Connect CDN** (98% cache hit). Microservices (Zuul/Hystrix/EVCache) + Cassandra/MySQL hybrid DB. Peak: 20M concurrent streams (~73 Tbps edge).[1]
+
+## Key Topics Section-Wise
+**Requirements**
+- **Functional**: Login/subscription, play/pause/rewind, offline download, recommendations.[1]
+- **Non-Functional**: Low latency, 99.99% availability, scalability (250M DAU).[1]
+
+**Capacity Estimation**
+```
+Peak: 20M concurrent × 3.65Mbps = 73 Tbps edge
+Origin: 98% cache hit → 1.46 Tbps
+Play starts: 500M/day = 5.8K QPS (peak 30K)
+Events: 75B/day = 37TB/day ingest
+```
+
+**High-Level Architecture**
+```
+Client → Zuul Gateway → Microservices (AWS) → Open Connect CDN
+                           ↓
+Recommendation (Spark/ML) ← Kafka ← Events (Chukwa)
+```
+
+**Content Pipeline**
+```
+Raw Video → Encoding (1100+ formats) → Chunking → OCAs Worldwide
+```
+
+## Components/Tools
+| Component | Purpose | Tech |
+|-----------|---------|------|
+| **Zuul** | API Gateway (routing/auth) | Dynamic rules, load testing |
+| **Hystrix** | Circuit breaker | Fail-fast, fallback |
+| **EVCache** | Distributed cache | Memcached wrapper, multi-zone |
+| **ELB** | 2-tier balancing | DNS RR → Instance RR |
+| **Cassandra** | Viewing history | 50+ clusters, 250K wps |
+| **MySQL** | Billing/users | Master-master sync, read replicas |
+
+## Design Patterns/Best Practices
+```
+Microservices: Independent + Hystrix isolation
+Caching: EVCache (zone-local reads, cluster-wide writes)
+Load Balancing: 2-tier (zone→instance)
+Data Pipeline: Kafka + Chukwa → S3 → Spark ML
+Encoding: Parallel chunk processing (AWS workers)
+```
+
+**Reliability**
+- Stateless servers (replaceable)
+- Critical paths independent
+- Negative caching (404s)
+
+## Advanced Topics
+**Personalization (Home/Search)**
+```
+Signals: Viewing history + metadata + context
+Flow: Candidates → Rank (GBDT/Neural) → Cache (EVCache)
+Search: BM25 + behavioral re-rank + facets
+```
+
+**Video Pipeline**
+```
+1. Transcode: 1100+ variants (4K→240p)
+2. Chunk: GOP-aligned segments
+3. Distribute: All OCAs worldwide
+4. ABR: Client-side bitrate switching
+```
+
+**Data Processing**
+```
+Events (500B/day) → Chukwa → Kafka → S3/Parquet
+ML Pipeline: Spark (row selection/ranking)
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "20M concurrent scale?"**  
+A: "73 Tbps edge (98% OC hit → 1.46 Tbps origin). EVCache >95% hit."
+
+**Q: "Microservices failure?"**  
+A: "Hystrix circuit breaker + stateless servers + Zuul routing."
+
+**Q: "Recommendation pipeline?"**  
+A: "Spark ML: Collaborative + Content-based. Cache per-profile pages."
+
+**Q: "DB choice?"**  
+A: "MySQL (ACID billing) + Cassandra (scale viewing history)."
+
+**Q: "Encoding scale?"**  
+A: "Chunk → parallel AWS workers → 1100+ variants → OCAs."
+
+## Key Terms & Keywords
+- Netflix architecture, Open Connect CDN (98% hit), Zuul gateway, Hystrix circuit breaker, EVCache (Memcached wrapper), 2-tier ELB, Cassandra viewing history, MySQL master-master, Apache Chukwa/Kafka events, Spark ML recommendations, ABR streaming, GOP chunking, 73 Tbps peak.[1]
+
+**"How NOT to Design Netflix"** exposes **common SDI pitfalls**: Jumping to solutions without requirements, over-engineering, ignoring trade-offs, poor time management. 45min structure: 5min reqs → 10min high-level → 20min deep dive → 10min trade-offs.[1]
+
+## Key Topics Section-Wise (Anti-Patterns)
+**Phase 1: Requirements (Common FAILURES)**
+- **JUMPING IN**: Start drawing without clarifying scale/reqs.
+- **VAGUE ASSUMPTIONS**: "Assume 1M users" vs "What's DAU? Peak QPS?"
+- **NO PRIORITIZATION**: Try designing everything (ratings + recommendations + offline).
+
+**Phase 2: High-Level (MISTAKES)**
+```
+❌ WRONG: CDN → LB → 50 microservices → 10 DBs
+✅ RIGHT: Client → API Gateway → Video Service → Open Connect CDN
+```
+
+**Phase 3: Deep Dive (PITFALLS)**
+- **TECHNOLOGY MEMORIZATION**: "Use Kafka because Netflix does."
+- **NO TRADE-OFFS**: "Cassandra because scale" (no why/when).
+- **VIDEO COMPLEXITY**: Encoding/CDN/ABR without simplifying.
+
+**Phase 4: Trade-offs (FAIL)**
+- **PERFECT SOLUTION**: No alternatives discussed.
+- **NO BOTTLENECKS**: Ignore QPS/storage/egress calculations.
+
+## Worst Practices (DO NOT DO)
+| Anti-Pattern | Why It Fails | Fix |
+|--------------|-------------|-----|
+| **"Netflix uses X"** | Shows memorization, not reasoning | "X fits because Y req" |
+| **50 Components** | No time for depth | 5-7 core components |
+| **No Estimation** | Can't justify scale choices | BOTEC: 20M streams = 73Tbps |
+| **Perfect Design** | Real systems have trade-offs | "CP for billing, AP for feeds" |
+| **Silent Drawing** | Interviewer can't follow thinking | "Choosing Redis because..." |
+
+## What Interviewers HATE
+```
+1. "Let me draw everything Netflix does" → Too complex
+2. No requirements clarification → Wrong problem solved
+3. Technology dumping → No understanding shown
+4. No numbers → Can't scale discussion
+5. Defensive on feedback → Can't iterate
+```
+
+## Best Practices (POSITIVE Framework)
+```
+1. ASK: "DAU? Peak hours? Offline support?"
+2. PRIORITIZE: Top 3 reqs only (play + search + recs)
+3. ESTIMATE: 250M DAU → 20M peak → 73Tbps
+4. SIMPLIFY: Client → Zuul → Open Connect → Done
+5. TRADE-OFFS: "SQL ACID billing vs Cassandra scale"
+6. DEPTH: Pick 1-2 (EVCache, Hystrix)
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "Design Netflix!"**  
+A: "First: Requirements? DAU? Peak QPS? Offline? → Top 3: Play/Search/Recs."
+
+**Q: "Why Cassandra?"**  
+A: ❌ "Netflix uses it"  
+A: ✅ "9:1 write:read viewing history → scale over joins."
+
+**Q: "20M concurrent?"**  
+A: "73Tbps edge (98% OC hit → 1.46Tbps origin). EVCache 95% hit."
+
+**Q: "Microservices failure?"**  
+A: "Hystrix circuit + stateless servers + Zuul reroute."
+
+**Interviewer Pushback:**
+- "Too complex?" → "Focus top 3 reqs, simplify to 5 components."
+- "Why this tech?" → "Fits X req, trade-off vs Y alternative."
+
+## Key Terms & Keywords (AVOID THESE MISTAKES)
+- SDI time management (5/10/20/10), requirements clarification, prioritize top 3, BOTEC estimation, simplify architecture, explicit trade-offs, think-aloud narration, technology justification, bottleneck analysis, interviewer feedback iteration.[1]
+
+[1](https://hackernoon.com/how-not-to-design-netflix-in-your-45-minute-system-design-interview-64953391a054)
+
+[1](https://www.geeksforgeeks.org/system-design/system-design-netflix-a-complete-architecture/)

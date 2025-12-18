@@ -1,0 +1,52 @@
+Chapter 12 designs a chat system (Messenger-like) for 50M DAU supporting 1-on-1 + small group chat (≤100 members), online presence, multi-device sync using WebSocket for real-time + KV store for history.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: 1-on-1 + group chat (≤100), 50M DAU, text only (&ltg;100K chars), online presence, multi-device, push notifications.[1]
+- **Protocols**: WebSocket (bidirectional) vs HTTP polling/long-polling; WS for both send/receive.[1]
+- **Architecture**: Stateless API servers (auth/profile) + Stateful chat/presence servers + KV store (history).[1]
+- **Data Model**: 1-on-1: `{messageid, from, to, content}`; Group: `{channelid, messageid, userid, content}` (local seq IDs).[1]
+- **Flows**: Service discovery (Zookeeper) → WS connect → message sync queues → multi-device sync (`curmaxmessageid`).[1]
+
+## Tradeoffs
+| Protocol | Pros | Cons |
+|----------|------|------|
+| **Polling** [1] | Simple | High overhead (frequent "no messages") |
+| **Long Polling** [1] | Better than polling | Stateless servers (LB issues), timeouts |
+| **WebSocket** [1] | Bidirectional, persistent | Connection management, server capacity |
+| **Global vs Local IDs** [1] | Global: Unique everywhere | Local: Simpler (per-channel seq) |
+
+## Components/Tools/Frameworks
+- **WebSocket**: Persistent client-server connections.[1]
+- **Zookeeper**: Service discovery (best chat server).[1]
+- **KV Store**: Chat history (HBase/Cassandra like Facebook/Discord).[1]
+- **Message Queues**: Per-user inboxes (group chat).[1]
+
+## Design Patterns/Best Practices
+- **Service Discovery**: Zookeeper picks geo-optimal chat servers.[1]
+- **Local Sequence IDs**: Per-channel (simpler than Snowflake).[1]
+- **Heartbeat**: 5s pings → 30s timeout for presence.[1]
+- **Pub-Sub Presence**: Friend-pair channels for status updates.[1]
+
+## Advanced Topics
+- **Multi-Device Sync**: `curmaxmessageid` per device → fetch newer.[1]
+- **Group Scaling**: Copy to each member's queue (≤100 OK; >100 needs optimization).[1]
+- **Presence Fanout**: Small groups: pub-sub; Large: on-demand fetch.[1]
+
+## Big Tech References
+- **Facebook Messenger**: HBase for messages, Erlang.[1]
+- **WhatsApp/Discord**: 60B msgs/day, Cassandra.[1]
+- **WeChat**: Group ≤500, similar queue-per-user.[1]
+- **Slack**: Geo-edge caching.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: WebSocket vs Long Polling?** A: WS bidirectional/persistent; LP stateless LB issues.[1]
+- **Q: 50M DAU scale?** A: Stateless APIs + stateful chat servers + Zookeeper discovery.[1]
+- **Q: Message ordering?** A: Local seq IDs per channel (not global Snowflake).[1]
+- **Q: Multi-device?** A: `curmaxmessageid` per device → sync newer msgs.[1]
+- **Q: Online presence?** A: Heartbeat (5s) + timeout (30s); pub-sub friend channels.[1]
+- **Q: Group chat?** A: Copy to each member's queue (≤100 scalable).[1]
+
+## Key Terms & Keywords
+- Chat system, WebSocket, service discovery (Zookeeper), presence servers, message sync queues, local sequence IDs, heartbeat presence, multi-device sync (`curmaxmessageid`), 1-on-1 vs group chat, pub-sub status channels.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/f7a7b3da-7c10-4245-bba5-9ff91f05a26c/sd-chapter12.pdf)

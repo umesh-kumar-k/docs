@@ -1,0 +1,93 @@
+**System Design in a Nutshell** (HackerNoon): **Core framework** for scalable architectures. Focus: **right tools for right problems** + **trade-offs**. Limited attachment content (newsletter teaser).[1]
+
+## Detailed Key Topics
+**Step-by-Step Framework**
+1. **Understand Requirements**
+   - Functional: "Users do X" (search, book, stream).
+   - Non-functional: Scale (DAU/QPS), latency, consistency.
+
+2. **High-Level Architecture**
+```
+Client → Load Balancer → App Servers (stateless)
+                             ↓
+                       Cache Layer (Redis)
+                             ↓
+                       Database Layer
+```
+
+3. **Identify Bottlenecks**
+   - **Traffic**: High RPS → LB + caching.
+   - **Storage**: Big data → sharding/replication.
+   - **Compute**: Heavy tasks → async queues.
+
+4. **Scale Strategies**
+```
+Vertical: ↑CPU/RAM (simple, hardware limits)
+Horizontal: Add servers + LB (complex, infinite scale)
+```
+
+**Core Components Breakdown**
+| Component | Purpose | Tech Examples |
+|-----------|---------|---------------|
+| **Load Balancer** | Distribute traffic | Nginx, HAProxy |
+| **Cache** | Hot data (95% hit) | Redis, Memcached |
+| **Database** | Persistence | Postgres, DynamoDB |
+| **Queue** | Async tasks | Kafka, SQS |
+| **Search** | Full-text | Elasticsearch |
+
+## Design Patterns
+```
+1. Cache-Aside: App checks cache → DB miss → populate
+2. Read Replicas: Scale reads (master for writes)
+3. Sharding: Split data (userId % N)
+4. CQRS: Separate read/write models
+```
+
+## Best Practices (Detailed)
+**Scaling Checklist**
+```
+High Reads: Cache + Read Replicas + CDN
+High Writes: Sharding + Write Queues
+High Availability: Multi-AZ + Auto-failover
+Low Latency: Edge cache + Regional DBs
+```
+
+**Front-End Considerations**
+```
+CDN (static assets)
+Service Workers (offline)
+SSR (SEO + perf)
+Http2 + Compression
+Lazy loading + Code splitting
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "1M concurrent users?"**  
+A: "LB → 1000 app servers (1K RPS each) + Redis (95% cache hit) → 50 DB shards."[1]
+
+**Q: "Database choice?"**  
+A: "SQL: ACID/relations (bookings). NoSQL: Scale/flex (feeds). Hybrid."[1]
+
+**Q: "Cache strategy?"**  
+A: "Cache-aside: App → Redis → DB. TTL=1hr. Write-through critical data."[1]
+
+**Q: "Single point failure?"**  
+A: "LB failover + Redis cluster + DB master-slave promotion."[1]
+
+## Advanced Topics
+**CAP Theorem Choices**
+```
+CP: Banking (consistent/partition tolerant)
+AP: Social feeds (available/partition tolerant)
+CA: Single DC (rare)
+```
+
+**Latency Numbers (Memorize)**
+```
+L1 Cache: 0.5ns | RAM: 100ns | SSD: 150μs | Disk: 10ms | NYC→SF: 80ms
+```
+
+## Key Terms & Keywords
+- System design framework (requirements/architecture/bottlenecks/scale), vertical/horizontal scaling, load balancer types, caching strategies (cache-aside/read-through), database sharding/replication, message queues (async), CAP theorem (CP/AP), latency numbers, front-end perf (CDN/SSR/Service Workers), CQRS pattern.[1]
+
+[1](https://hackernoon.com/system-design-in-a-nutshell)

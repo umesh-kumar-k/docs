@@ -1,0 +1,99 @@
+Design Uber ride-sharing service prioritizes **3 core functional reqs**: fare estimate, ride request, driver matching (&ltg;1min), driver accept/decline. Scales to 100K peak QPS with geospatial indexing, distributed locking, async queues.[1]
+
+## Key Topics Section-Wise
+**Functional Requirements**
+- **Core**: Fare estimate (pickup→dest), request ride, match nearby driver, driver accept/decline + navigation.[1]
+- **Out-of-scope**: Ratings, ride categories (XL), scheduling.[1]
+
+**Non-Functional Requirements** 
+- **Core**: &ltg;1min matching latency, strong consistency (no double-booking), 100K QPS peak.[1]
+- **Out-of-scope**: GDPR, CI/CD, monitoring.[1]
+
+**Core Entities/APIs**
+```
+Entities: Rider, Driver, Fare, Ride, Location
+APIs:
+├── POST /fare {pickup, dest} → Fare (Google Maps ETA/price)
+├── POST /rides {fareId} → Ride (status: requested)
+├── POST /drivers/location {lat, lng} → Update (5s heartbeat)
+└── PATCH /rides/:id {accept/deny} → Ride (status: accepted)
+```
+
+**High-Level Design**
+```
+Rider Client → API Gateway → Ride Service → 3rd Party Maps
+                           ↓
+Driver Client → Location Service (Redis Geo) → Ride Matching → Notification (APNS/FCM)
+```
+
+## Important Classes/Interfaces
+```java
+class Ride {
+  id, riderId, driverId, fareId, status, pickupLat, pickupLng, dropoffLat, dropoffLng
+}
+
+class Location {
+  driverId, lat, lng, timestamp, available
+}
+
+interface RideMatching {
+  `List<Driver>` findNearby(pickupLat, pickupLng, radius);
+  void assignDriver(rideId, driverId);
+}
+```
+
+## Design Patterns
+- **Real-time Updates**: WebSocket/APNS/FCM for driver notifications.[1]
+- **Multi-step Workflow**: Fare → Request → Match → Accept (async queue per step).[1]
+- **Leader Election**: Distributed lock (Redis) prevents double-booking.[1]
+
+## Best Practices
+- **Prioritize Top 3**: Draw "line" - focus ruthlessly.[1]
+- **Progressive Scale**: Single server → sharded → geo-replicated.[1]
+- **Geospatial Index**: Redis GEO (2M loc/sec) vs Postgres GiST.[1]
+- **Location Throttling**: 5-10s heartbeat (not continuous).[1]
+
+## Advanced Topics
+**Driver Location (2M writes/sec)**
+```
+Redis GEOHASH: ZSET by geohash → GEOSEARCH radius
+vs Elasticsearch: Geo_point + geo_distance query
+vs ScyllaDB: Geo tables with materialized views
+```
+
+**Ride Matching Lock**
+```
+Redis Distributed Lock: SETNX rideId:lock TTL=15s
+Race Condition Fix: WATCH + MULTI/EXEC optimistic locking
+```
+
+**Peak Load (100K QPS)**
+```
+Kafka Ride Queue → Matching Workers (geo-partitioned)
+Timeout Cascade: Driver1(10s) → Driver2 → ... → Fail
+```
+
+**Level Expectations**
+| Level | Breadth:Depth | Uber Bar |
+|-------|---------------|----------|
+| **Mid** | 80:20 | APIs + data model + basic spatial index |
+| **Senior** | 60:40 | 2+ deep dives (Redis/locking/queueing) |
+| **Staff+** | 40:60 | 3+ deep dives + innovative tradeoffs |
+
+## Interview Cheat Sheet (Q&A)
+**Q: "10M drivers location updates?"**  
+A: "Redis GEO (2M wps) + 5s heartbeat. Alternatives: ES geo_point, Scylla geo tables."[1]
+
+**Q: "Double booking prevention?"**  
+A: "Redis SETNX rideId:lock (TTL 15s) + WATCH optimistic lock."[1]
+
+**Q: "100K peak QPS matching?"**  
+A: "Kafka queue → geo-sharded workers + timeout cascade."[1]
+
+**Q: "Driver no response?"**  
+A: "10s timeout → next driver. Async queue prevents blocking."[1]
+
+## Key Terms & Keywords
+- Uber design, ride matching, geospatial index (Redis GEO), distributed locking (SETNX), location throttling, Kafka ride queue, timeout cascade, CAP tradeoffs, API gateway, fare estimation, driver heartbeat, multi-region replication.[1]
+
+[1](https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber)

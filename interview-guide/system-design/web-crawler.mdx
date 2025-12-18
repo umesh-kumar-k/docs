@@ -1,0 +1,52 @@
+Chapter 9 designs a scalable web crawler for search engine indexing (1B pages/month, ~400 QPS peak 800), using BFS with URL Frontier for politeness/prioritization/freshness, distributed downloaders, and duplicate detection.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: 1B HTML pages/month, store 5yrs (30PB), detect duplicates (29% web dupes), politeness, fresh content.[1]
+- **High-Level**: Seed URLs → URL Frontier → HTML Downloader → Parser → Content Seen? → URL Extractor → URL Filter → URL Seen? → back to Frontier.[1]
+- **URL Frontier**: Per-host queues (politeness), priority queues (PageRank/traffic), disk+memory hybrid.[1]
+- **Downloader**: Distributed, DNS cache, locality, short timeouts, robots.txt respect.[1]
+- **Duplicate Detection**: Content hash (Rabin fingerprint), URL Seen? (Bloom filter).[1]
+- **Robustness**: Consistent hashing, state persistence, exception handling, spider traps (URL length limits).[1]
+
+## Tradeoffs
+| Choice | Pros | Cons |
+|--------|------|------|
+| **BFS vs DFS** [1] | BFS: Polite (FIFO per host) | DFS: Deep recursion risk |
+| **Memory vs Disk Frontier** [1] | Memory: Fast | Disk: Durable, scales to 100M+ URLs |
+| **Hash vs Char Compare** [1] | Hash: Fast dup detection | Char-by-char: Accurate but slow |
+| **Strict vs Distributed Crawl** [1] | Distributed: Scale 1000s servers | Strict: Simple single-server |
+
+## Components/Tools/Frameworks
+- **URL Frontier**: Per-host FIFO + priority queues.[1]
+- **Bloom Filter**: URL Seen? (space-efficient).[1]
+- **DNS Cache**: Domain→IP (10-200ms savings).[1]
+- **Robots.txt**: Cache + periodic refresh.[1]
+
+## Design Patterns/Best Practices
+- **Politeness**: 1 page/host at a time + delays.[1]
+- **Prioritization**: PageRank/traffic/update frequency.[1]
+- **Freshness**: Recrawl based on update history.[1]
+- **Locality**: Geo-distributed crawlers near hosts.[1]
+
+## Advanced Topics
+- **Spider Traps**: Infinite dirs (limit URL length).[1]
+- **Dynamic Content**: Server-side rendering (JavaScript/AJAX).[1]
+- **Anti-Spam**: Hidden style similarity filtering.[1]
+
+## Big Tech References
+- **Googlebot**: HTML crawler for indexing.[1]
+- **Mercator**: Scalable extensible crawler.[1]
+- **PageRank**: URL prioritization (Google).[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: 1B pages/month?** A: 400 QPS peak 800; 500TB/month, 30PB/5yrs.[1]
+- **Q: Politeness?** A: Per-host FIFO queues + delays.[1]
+- **Q: Duplicates?** A: Content hash (29% web dupes); Bloom filter URLs.[1]
+- **Q: Frontier?** A: Priority (front) + politeness (back) queues.[1]
+- **Q: Scale?** A: Distributed crawlers, consistent hashing.[1]
+- **Q: Freshness?** A: Recrawl by update history + priority.[1]
+
+## Key Terms & Keywords
+- Web crawler, URL Frontier, politeness policy, BFS crawling, duplicate detection (content hash), Bloom filter (URL Seen?), robots.txt, PageRank prioritization, spider traps, distributed crawling, DNS cache, content parser, URL extractor.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/d5e14d59-8356-4e78-984c-f7f408346dde/sd-chapter9.pdf)

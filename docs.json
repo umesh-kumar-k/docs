@@ -11,6 +11,68 @@
   "navigation": {
     "tabs": [
       {
+        "tab": "Interview Guide",
+        "groups": [
+          {
+            "group": "System Design",
+            "pages": [
+              "interview-guide/rabbitmq",
+              "interview-guide/system-design/notifications",
+              "interview-guide/system-design/google-drive",
+              "interview-guide/system-design/url-shortner",
+              "interview-guide/system-design/guide",
+              "interview-guide/system-design/news-feed",
+              "interview-guide/system-design/estimation",
+              "interview-guide/system-design/ticketing-system",
+              "interview-guide/system-design/ecommerce",
+              "interview-guide/system-design/youtube",
+              "interview-guide/system-design/hld-lld",
+              "interview-guide/system-design/web-crawler",
+              "interview-guide/system-design/search-autocomplete",
+              "interview-guide/system-design/uber",
+              "interview-guide/system-design/consistent-hashing",
+              "interview-guide/system-design/netflix",
+              "interview-guide/system-design/rate-limiter",
+              "interview-guide/system-design/key-value-store",
+              "interview-guide/system-design/preparation",
+              "interview-guide/system-design/unique-id-generator",
+              "interview-guide/system-design/guidelines",
+              "interview-guide/system-design/scaling",
+              "interview-guide/system-design/chat-system",
+              "interview-guide/system-design/system-design-nutshell",
+              "interview-guide/system-design/concise-guide",
+              "interview-guide/kafka"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Practical Guide",
+        "groups": [
+          {
+            "group": "Observability",
+            "pages": [
+              "practical-guides/observability/implementation",
+              "practical-guides/observability/comprehensive"
+            ]
+          },
+          {
+            "group": "Micro Frontends",
+            "pages": [
+              "practical-guides/mfe/implementation"
+            ]
+          },
+          {
+            "group": "Java",
+            "pages": [
+              "java/concurrency",
+              "java/virtual-thread",
+              "java/volatile"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Java",
         "groups": [
           {

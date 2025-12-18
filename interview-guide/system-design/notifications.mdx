@@ -1,0 +1,53 @@
+Chapter 10 designs a scalable notification system supporting push (iOS/APNS, Android/FCM), SMS (Twilio/Nexmo), email (SendGrid/Mailchimp) at 16M/day scale (~185 QPS), using queues for decoupling and reliability.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Soft real-time (10M push, 1M SMS, 5M email/day), iOS/Android/laptop, client/server triggers, opt-out support.[1]
+- **Contact Gathering**: App signup → store device tokens/phone/email in DB (user/device tables).[1]
+- **High-Level**: Services → Notification servers (API/validation) → Queues (per-type) → Workers → 3rd-party (APNS/FCM/Twilio/SendGrid).[1]
+- **Reliability**: Notification log DB, retry queues, dedupe (event ID).[1]
+- **Features**: Templates, user settings (opt-in), rate limiting, security (appKey/secret), monitoring (queue length).[1]
+
+## Tradeoffs
+| Choice | Pros | Cons |
+|--------|------|------|
+| **Single vs Multi Server** [1] | Single: Simple | Multi: SPOF → Auto-scale + queues |
+| **Sync vs Async** [1] | Sync: Immediate | Async: Queues decouple, scale workers |
+| **At-least-once vs Exactly-once** [1] | At-least-once: Reliable | Exactly-once: Complex (dedupe helps) |
+| **301 vs 302** [1] | N/A for notifications | N/A |
+
+## Components/Tools/Frameworks
+- **3rd Party**: APNS (iOS), FCM (Android), Twilio/Nexmo (SMS), SendGrid/Mailchimp (email).[1]
+- **Queues**: Per-type (iOS-PN, Android-PN, SMS, Email) for isolation.[1]
+- **DB Tables**: `user` (email/phone), `device` (tokens), `notification_log`, `settings` (opt-in).[1]
+- **Cache**: User info/templates/settings (fast lookup).[1]
+
+## Design Patterns/Best Practices
+- **Per-Type Queues**: iOS outage doesn't block SMS/email.[1]
+- **Retry Mechanism**: Failed → queue (max retries → alert).[1]
+- **Event Dedupe**: Check event ID before processing.[1]
+- **Templates**: Pre-format (BODY: "ITEM back until DATE", CTA: "Order").[1]
+- **Opt-in Check**: Settings table before sending.[1]
+
+## Advanced Topics
+- **Security**: appKey/appSecret for API auth.[1]
+- **Monitoring**: Queue length (add workers if high).[1]
+- **Analytics**: Open/click rates via tracking pixels.[1]
+- **Rate Limiting**: Cap notifications/user to avoid opt-out.[1]
+
+## Big Tech References
+- **Twilio/Nexmo**: SMS providers.[1]
+- **SendGrid/Mailchimp**: Email delivery/analytics.[1]
+- **APNS/FCM**: Official mobile push.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: 16M/day scale?** A: ~185 QPS; queues + workers scale independently.[1]
+- **Q: iOS flow?** A: Provider → APNS (device token + payload).[1]
+- **Q: Reliability?** A: DB log + retry queues + event dedupe.[1]
+- **Q: Decoupling?** A: Per-type queues (iOS outage ≠ SMS outage).[1]
+- **Q: User control?** A: Opt-in settings table + rate limiting.[1]
+- **Q: Monitoring?** A: Queue length → auto-scale workers.[1]
+
+## Key Terms & Keywords
+- Notification system, APNS/FCM (push), Twilio/SendGrid (SMS/email), per-type queues, notification servers, workers, retry mechanism, event dedupe, templates, opt-in settings, rate limiting, device tokens, appKey/appSecret.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/2ed516d6-74b7-41d8-85b5-c278d4e4bf33/sd-chapter10.pdf)

@@ -1,0 +1,85 @@
+**Meta System Design Interview** (Pirate round, 45min) by ex-Meta interviewer: **No right answer**—tests **structured thinking + trade-offs + communication**. Collaborative whiteboard, iterate together.[1]
+
+## Detailed Key Topics
+**Core Philosophy**
+- Perfect design ≠ goal. Real systems evolve via trade-offs.
+- Interviewer = partner (ask/answer questions, co-iterate).
+- Success = clear reasoning > memorized architectures.
+
+**Phase Breakdown (45min)**
+```
+Phase 1 (5-7min): Requirements clarification
+  - "DAU? Peak QPS? Latency SLA? Top 3 functional reqs?"
+  - Prioritize: Must-haves vs nice-to-haves
+
+Phase 2 (10min): High-level design
+  - Boxes (services) + arrows (data flow)
+  - Core components only (5-7 max)
+
+Phase 3 (20min): Deep dives (pick 2-3)
+  - Cache strategy (eviction, consistency)
+  - DB choice (SQL ACID vs NoSQL scale)
+  - Load balancer (health checks, failover)
+
+Phase 4 (8-10min): Scale + failures
+  - BOTEC: DAU → QPS → servers
+  - "What breaks? How fix?"
+```
+
+## Common Mistakes (Detailed)
+| Mistake | Why Fails | Fix |
+|---------|-----------|-----|
+| **Jump to drawing** | Wrong problem solved | 5min reqs clarification |
+| **50 microservices** | No depth/time | 5-7 core components |
+| **Silent whiteboard** | Can't follow thinking | "Choosing X because Y..." |
+| **"Netflix uses Kafka"** | Memorization, no reasoning | "Kafka for [specific req]" |
+| **No numbers** | Unrealistic scale | "100M DAU = 115K RPS" |
+
+## Communication Framework (Verbatim Style)
+```
+1. State assumption: "Assuming 100M DAU peak hour..."
+2. Propose solution: "I'll use Redis cache here because..."
+3. Trade-off: "Downside: memory cost. Alternative: DB indexes slower."
+4. Justify: "Redis wins for 95% hit rate on hot reads."
+5. Diagram: Box+arrow+label (QPS, latency)
+```
+
+## Best Practices (Expanded)
+**Think-Aloud Template**
+```
+"I'm considering [Option A] for [Requirement X] because [Reason Y]. 
+Trade-off with [Option B]: [Pros/Cons]. 
+Given [constraint Z], prefer A. Let me draw this..."
+```
+
+**Diagram Standards**
+```
+✅ Boxes = services (EventService, BookingService)
+✅ Arrows = data flow (User→API→DB)
+✅ Labels = scale ("100K QPS", "<200ms")
+❌ Crowded diagrams, unlabeled arrows
+```
+
+**Proactive Depth**
+- Self-identify bottlenecks: "DB will bottleneck writes → sharding by eventId."
+- Ask interviewer: "Should I deep dive cache or DB first?"
+
+## Interview Cheat Sheet (Q&A)
+**Q: "Design newsfeed!"**  
+A: "Requirements first: DAU? Personalization? Real-time? Top 3: Post/Read/Like."[1]
+
+**Q: "Why Redis cache?"**  
+A: "Hot reads (95% hit). TTL=1hr. Write-through consistency. Miss→DB."[1]
+
+**Q: "100M DAU servers?"**  
+A: "100 reqs/day/user = 10B reqs = 115K RPS. 64K RPS/server = 2 avg, 20 peak."[1]
+
+**Q: "Single DB failure?"**  
+A: "Master-slave async repl. Promote slave (15s). Read replicas throughout."[1]
+
+**Pushback Response**: "Valid concern. Alternative: [X]. Still prefer original because [Y]."
+
+## Key Terms & Keywords
+- Meta Pirate interview, structured 45min flow (reqs/high-level/deep/trade-offs), think-aloud narration, trade-off justification (SQL vs NoSQL), BOTEC scale (DAU→QPS→servers), clear diagrams (boxes+arrows+labels), collaborative iteration, proactive bottlenecks, communication > perfection, top 3 requirements prioritization.[1]
+
+[1](https://hackernoon.com/i-led-dozens-of-meta-system-design-interviews-heres-the-right-way-to-prep)

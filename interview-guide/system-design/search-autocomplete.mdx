@@ -1,0 +1,52 @@
+Chapter 13 designs a search autocomplete (Google/Amazon-like) system for 10M DAU (~24K QPS peak 48K) returning top-5 prefix matches by popularity in &ltg;100ms using optimized Trie with cached top-k per node.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Prefix matching (beginning only), top-5 by frequency, English lowercase, no spellcheck, 10M DAU (24K QPS).[1]
+- **High-Level**: Data gathering (logs → aggregators → workers → Trie DB/cache) + Query service (prefix → top-5).[1]
+- **Trie Structure**: Nodes store char + frequency + top-5 cached queries; O(1) prefix lookup.[1]
+- **Data Flow**: Analytics logs → weekly aggregation → Trie rebuild → cache snapshot.[1]
+- **Scaling**: Smart sharding (historical data patterns), filter layer (remove bad queries).[1]
+
+## Tradeoffs
+| Approach | Pros | Cons |
+|----------|------|------|
+| **SQL Top-K** [1] | Simple | DB bottleneck at scale |
+| **Basic Trie** [1] | Prefix efficient | O(p + c log c) traversal slow |
+| **Optimized Trie** [1] | O(1) top-k (cached) | Space (top-5 per node) |
+| **Real-time vs Batch** [1] | Batch: Scalable | Real-time: Slow updates |
+
+## Components/Tools/Frameworks
+- **Trie Cache**: Distributed (in-memory top-k per prefix).[1]
+- **Trie DB**: Document (MongoDB snapshots) or KV (prefix→node data).[1]
+- **Workers**: Weekly Trie rebuild from aggregated logs.[1]
+- **Aggregators**: Raw logs → `{time, query, frequency}`.[1]
+
+## Design Patterns/Best Practices
+- **Cached Top-K**: Store results at nodes (trade space for O(1) time).[1]
+- **Prefix Limit**: Cap length (p≤50) → O(1) traversal.[1]
+- **Data Sampling**: Log 1/N queries to reduce volume.[1]
+- **Browser Cache**: 1hr TTL (Google uses `max-age=3600`).[1]
+- **AJAX**: Non-blocking requests.[1]
+
+## Advanced Topics
+- **Sharding**: First-char + historical patterns (s=1 shard, u-z=1 shard).[1]
+- **Filter Layer**: Block hateful/unsafe suggestions.[1]
+- **Multi-Language**: Unicode tries per country (CDN edge).[1]
+- **Trending**: Stream processing (Kafka/Spark) + recent weight.[1]
+
+## Big Tech References
+- **Facebook Typeahead**: &ltg;100ms p99 latency.[1]
+- **Prefixy**: Scalable prefix search service.[1]
+- **Google**: Browser caching (`max-age=3600 private`).[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: 10M DAU scale?** A: 24K QPS; Trie cache O(1) top-5.[1]
+- **Q: Trie time complexity?** A: O(1) with cached top-k + prefix limit.[1]
+- **Q: Data freshness?** A: Weekly rebuild; trending=stream processing.[1]
+- **Q: Storage?** A: Trie DB (Mongo snapshots) + distributed cache.[1]
+- **Q: Sharding?** A: Smart (historical patterns) vs naive first-char.[1]
+
+## Key Terms & Keywords
+- Search autocomplete, Trie (prefix tree), top-k cached nodes, O(1) prefix lookup, data sampling, weekly Trie rebuild, smart sharding, filter layer, browser caching (max-age), AJAX requests.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/dbfd0606-e8c1-4a6d-b441-2c0d97047bbb/sd-chapter13.pdf)

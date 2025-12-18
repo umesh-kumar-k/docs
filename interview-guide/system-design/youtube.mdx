@@ -1,0 +1,49 @@
+Chapter 14 designs YouTube-scale video platform (5M DAU, 150TB/day storage, $150K/day CDN cost) with upload (chunked + transcoding DAG), streaming (CDN + adaptive bitrate), using cloud blob/CDN + optimizations for cost/speed/safety.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Upload/watch videos (≤1GB), mobile/web/TV, international, encryption, 5M DAU (25M views/day).[1]
+- **Upload Flow**: Client chunks (GOP) → original storage → transcoding (DAG: encode/thumbnail/watermark) → CDN.[1]
+- **Streaming Flow**: CDN direct play (MPEG-DASH/HLS adaptive bitrate).[1]
+- **Transcoding**: Preprocessor (split/GOP/DAG) → scheduler → resource mgr → task workers (parallel).[1]
+- **Optimizations**: Geo-upload centers, parallelism (queues), pre-signed URLs, DRM/AES/watermark.[1]
+
+## Tradeoffs
+| Choice | Pros | Cons |
+|--------|------|------|
+| **Cloud vs Self-Built** [1] | Fast start, scalable | CDN cost ($150K/day) |
+| **Whole vs Chunk Upload** [1] | Chunk: Resumable, parallel | Whole: Simple |
+| **All-CDN vs Hybrid** [1] | Hybrid: Cost-saving (long-tail) | All-CDN: Simple/fast |
+
+## Components/Tools/Frameworks
+- **Blob Storage**: Original/transcoded videos (S3/Azure).[1]
+- **CDN**: CloudFront/Akamai (geo-delivery).[1]
+- **Transcoding Pipeline**: DAG scheduler, resource manager (task/worker queues).[1]
+- **Protocols**: MPEG-DASH/HLS (adaptive bitrate).[1]
+
+## Design Patterns/Best Practices
+- **GOP Chunking**: Client-side split for resumable/parallel upload.[1]
+- **DAG Transcoding**: Stages (video/audio/metadata) → parallel tasks.[1]
+- **Pre-signed URLs**: Secure direct upload to storage.[1]
+- **Hybrid CDN**: Popular=CDN, long-tail=own servers.[1]
+
+## Advanced Topics
+- **Resource Manager**: Priority task/worker queues + scheduler.[1]
+- **DRM**: FairPlay/Widevine/PlayReady encryption.[1]
+- **Long-tail**: 80% videos rarely watched → cost optimization.[1]
+
+## Big Tech References
+- **Netflix**: AWS CDN + Open Connect (ISP peering).[1]
+- **Facebook**: SVE (DAG transcoding at scale).[1]
+- **YouTube**: Long-tail distribution analysis.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: 5M DAU cost?** A: 150TB/day storage, $150K/day CDN → hybrid serving.[1]
+- **Q: Upload flow?** A: Chunk(GOP) → original storage → DAG transcode → CDN.[1]
+- **Q: Adaptive bitrate?** A: MPEG-DASH/HLS (switch quality by bandwidth).[1]
+- **Q: Transcoding scale?** A: DAG stages + resource mgr (task/worker queues).[1]
+- **Q: Cost optimization?** A: Long-tail=own servers; geo-upload centers.[1]
+
+## Key Terms & Keywords
+- YouTube design, video upload (GOP chunking), transcoding DAG, adaptive bitrate (DASH/HLS), CDN (CloudFront), pre-signed URLs, resource manager (task queues), long-tail optimization, DRM (FairPlay/Widevine), hybrid serving.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/5d5c7af7-30e9-4852-be66-60d47d3890d7/sd-chapter14.pdf)

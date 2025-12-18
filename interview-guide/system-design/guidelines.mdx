@@ -1,0 +1,80 @@
+Uber's System Design & Architecture interview (Latin America) features two distinct rounds for Senior Architect roles: **New Problem** (whiteboard high-level architecture for large-scale app) and **Past Project** (deep dive into personal contributions/technical challenges).[1]
+
+## Detailed Interview Structure
+- **New Problem Round**: Build end-to-end architecture for massive-scale application (e.g., design Uber-scale service).
+- **Past Project Round**: Present real-world project - focus on YOUR architecture decisions, challenges overcome, trade-offs made.
+- **Format**: Both use whiteboard-style (Miro for diagrams, CodeSignal for any coding).
+- **Duration**: 45-60 mins each; panel reviews diagrams post-interview.[1]
+
+## Key Topics Section-Wise (Expanded)
+### Preparation Phase
+- **Tools Mastery**: Practice CodeSignal (coding), Miro (diagramming) - know shortcuts/hotkeys.
+- **Diagram Types**: Component diagrams, data flow, sequence diagrams, deployment diagrams.[1]
+
+### Interview Execution
+1. **Clarify Requirements** (5 mins): Functional (features), non-functional (scale/latency), edge cases.
+2. **Simple Solution** (10 mins): Single server → basic DB → naive storage.
+3. **Scale Up** (15 mins): Load balancers → sharding → multi-region → caching.
+4. **Deep Dive** (15 mins): Pick 1-2 components (e.g., DB choice justification).
+5. **Trade-offs** (5 mins): Justify every major decision.[1]
+
+## Uber-Specific Tradeoff Examples
+| Dimension | Trade-off Examples | When to Choose |
+|-----------|-------------------|---------------|
+| **Consistency** | Strong (ACID SQL) vs Eventual (NoSQL) [1] | Strong: Money transfer; Eventual: Social feed |
+| **Availability** | CAP theorem choices [1] | AP: Social media; CP: Banking |
+| **Latency** | Cache everything vs Fresh data | Cache: Feeds; Fresh: Stock prices |
+| **Storage** | SQL (joins) vs NoSQL (partitioning) [1] | SQL: Relationships; NoSQL: Scale |
+
+## Detailed Best Practices
+### Communication
+- **Think Aloud Constantly**: "I'm considering X because Y, but Z is tradeoff..."
+- **Lead Proactively**: Don't wait for questions - present alternatives yourself.
+- **Justify Everything**: Tie decisions to clarified requirements.[1]
+
+### Technical Approach
+```
+Simple → Scale → Optimize → Tradeoffs
+┌─────────────┐    ┌──────────────┐    ┌──────────────┐
+│ Single Node │───▶│ Sharded DB   │───▶│ Multi-Region │
+│ Web/DB/FS   │    │ LB + Cache   │    │ CDN/Replica  │
+└─────────────┘    └──────────────┘    └──────────────┘
+```
+- **Progressive Disclosure**: Start naive → production-ready → optimizations.
+
+### Diagram Mastery
+```
+CRITICAL: Diagram = Hiring Artifact (Panel Review)
+├── Components (boxes)
+├── Data Flow (arrows)  
+├── Scale Indicators (#servers, regions)
+├── Caches/DBs (separate layers)
+└── Tradeoff Notes (callouts)
+```
+
+
+## Advanced Senior Architect Signals
+- **Deep Trade-off Knowledge**: Know when/why to choose SQL vs NoSQL beyond basics.
+- **Production Concerns**: Monitoring, alerting, cost optimization, failure modes.
+- **Don't Fake Uber Tech**: Use Kafka only if it fits - show genuine reasoning.[1]
+
+## Interview Cheat Sheet (Q&A)
+**Q: "How would you handle 1B users?"**  
+A: "Phase 1: LB+sharded DB. Phase 2: Multi-region + CDN. Phase 3: Async processing + caching."
+
+**Q: "Why SQL not NoSQL?"**  
+A: "Need ACID transactions for X, join performance acceptable at Y QPS."
+
+**Q: "Don't know something?"**  
+A: "Never fake. Say: 'I'd approach with X or Y - which aligns better?'"
+
+**Q: "How to show leadership?"**  
+A: Proactively discuss 3+ alternatives per major component.[1]
+
+## Key Terms & Keywords
+- **Uber SD Interview**: New problem + past project, Miro diagramming, CodeSignal, progressive scaling.
+- **Process**: Clarify reqs → simple → scale → deep dive → tradeoffs.
+- **Evaluation**: Diagrams (panel review), think-aloud, tradeoff justification, leadership.
+- **Tradeoffs**: Consistency/latency/availability (CAP), SQL/NoSQL, cache/freshness.[1]
+
+[1](https://www.uber.com/en-BR/blog/design-and-architecture-interview-latin-america/)

@@ -1,0 +1,52 @@
+Chapter 5 explains consistent hashing to solve rehashing problems during horizontal scaling, mapping keys/servers to a hash ring for minimal data movement (only K/N keys remapped) when servers change.[1]
+
+## Key Topics Section-Wise
+- **Rehashing Problem**: `serverIndex = hash(key) % N` works for fixed N servers but causes massive key redistribution when servers added/removed (e.g., server1 offline → all keys remap).[1]
+- **Hash Ring**: SHA-1 hash space (0 to 2^160-1) forms circle; servers/keys hashed onto ring; lookup = clockwise to first server.[1]
+- **Add/Remove Server**: Only fraction of keys move (e.g., add server4 → only key0 from server0 moves).[1]
+- **Problems**: Uneven partitions (remove s1 → s2 gets 2x space); non-uniform server distribution (most keys → one server).[1]
+- **Virtual Nodes**: Each server → multiple points (e.g., 3x: s00,s01,s02); balances partitions/keys (std dev 5-10% with 100-200 vnodes).[1]
+- **Affected Range**: Add s4 → redistribute s3→s4 anticlockwise; remove s1 → s0→s1 to s2.[1]
+
+## Tradeoffs
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Modulo Hashing** [1] | Simple, even for fixed N | Massive rehashing (all keys move on server change) |
+| **Basic Consistent Hash** [1] | Minimal remapping (K/N keys) | Uneven partitions/hotspots |
+| **Virtual Nodes** [1] | Balanced distribution (5-10% std dev) | More storage (200 vnodes/server), tuning needed |
+| **More VNodes** [1] | Better balance | Higher memory/overhead |
+
+## Components/Tools/Frameworks
+- **Hash Functions**: SHA-1 (0→2^160-1 ring).[1]
+- **Real Systems**: Amazon Dynamo partitioning, Cassandra cluster, Discord chat, Akamai CDN, Google Maglev LB.[1]
+
+## Design Patterns/Best Practices
+- **Hash Ring**: Servers/keys on circle; clockwise lookup to first server.
+- **Virtual Nodes**: 100-200 replicas/server for balance.
+- **Affected Range**: Anticlockwise from new/removed node to previous server.
+- **Hotspot Mitigation**: Virtual nodes spread celebrity keys (Katy Perry shard).
+
+## Advanced Topics
+- **Standard Deviation**: Measures partition balance; decreases with more vnodes.
+- **K/N Remapping**: Only 1/N keys affected vs all keys in modulo hashing.
+
+## Big Tech References
+- **Amazon Dynamo**: Partitioning component.[1]
+- **Apache Cassandra**: Data partitioning across cluster.[1]
+- **Discord**: Elixir chat scaling to 5M concurrent.[1]
+- **Akamai CDN**: Content distribution.[1]
+- **Google Maglev**: Network load balancer.[1]
+- **MIT Karger**: Original consistent hashing paper.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: Modulo hashing problem?** A: `hash(key)%N` → all keys remap when N changes (server add/remove).[1]
+- **Q: Consistent hashing?** A: Hash ring; clockwise to first server; only K/N keys remap.[1]
+- **Q: Add server4?** A: Keys from previous server (s3→s4 anticlockwise) move to s4.[1]
+- **Q: Uneven partitions?** A: Virtual nodes (s00,s01,s02); 100-200/server balances (5-10% std dev).[1]
+- **Q: Hotspot fix?** A: Virtual nodes spread celebrity keys across ring.[1]
+- **Q: Real systems?** A: Dynamo, Cassandra, Discord, Akamai, Maglev.[1]
+
+## Key Terms & Keywords
+- Consistent hashing, hash ring, virtual nodes/replicas, rehashing problem, K/N remapping, modulo hashing (`hash%N`), clockwise lookup, anticlockwise affected range, standard deviation, hotspots/celebrity problem, Dynamo partitioning, Cassandra clustering.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/5a9fa143-d522-451b-b5a9-54afd03ba579/sd-chapter4.pdf)

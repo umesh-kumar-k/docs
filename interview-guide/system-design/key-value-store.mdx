@@ -1,0 +1,58 @@
+Chapter 6 designs a distributed key-value store (like Dynamo/Cassandra) supporting `put(key,value)`/`get(key)` with small payloads (&ltg;10KB), focusing on big data, HA, tunable consistency via CAP tradeoffs, and automatic scaling.[1]
+
+## Key Topics Section-Wise
+- **Requirements**: Small KV pairs, big data, high availability, auto-scaling, tunable consistency, low latency.[1]
+- **CAP Theorem**: CP (consistency+partition) vs AP (availability+partition); real systems choose AP (eventual consistency).[1]
+- **Partitioning**: Consistent hashing (Ch5) for even distribution, minimal movement on scale.[1]
+- **Replication**: N=3 replicas (clockwise on ring), cross-DC for reliability.[1]
+- **Quorum Consensus**: W(write)+R(read) ≥ N for strong consistency; tune for read/write optimization.[1]
+- **Conflict Resolution**: Vector clocks detect siblings/ancestors; client resolves merges.[1]
+- **Failure Handling**: Gossip protocol detection, sloppy quorum+hinted handoff (temp), Merkle trees (permanent), multi-DC.[1]
+- **Architecture**: Decentralized nodes (coordinator per request); commit log → memcache → SSTables; Bloom filters for reads.[1]
+
+## Tradeoffs
+| Choice | Pros | Cons |
+|--------|------|------|
+| **CP vs AP** [1] | CP: Strong consistency (banks) | AP: Availability but eventual consistency (Dynamo) |
+| **Quorum Tuning** [1] | W=1/R=1: Fast; W+R>N: Consistent | High W/R: Slow (wait slowest replica) |
+| **Vector Clocks** [1] | Detects conflicts precisely | Client complexity; vector growth (prune old) |
+| **Memory vs Disk** [1] | Mem: Fast access | Disk: Durable but SSTable scans |
+| **Sloppy vs Strict Quorum** [1] | Sloppy: HA (skip failed nodes) | Strict: Guaranteed consistency |
+
+## Components/Tools/Frameworks
+- **Storage Engine**: Commit log (durability) → Memcache → SSTables (sorted KV).[1]
+- **Data Structures**: Bloom filter (SSTable key lookup), Merkle tree (anti-entropy).[1]
+- **Coordination**: Gossip protocol (decentralized failure detection).[1]
+- **Real Systems**: DynamoDB, Cassandra, BigTable.[1]
+
+## Design Patterns/Best Practices
+- **Log-Structured Storage**: Append-only commit log → periodic SSTable flush.[1]
+- **Consistent Hashing**: Virtual nodes proportional to server capacity.[1]
+- **Sloppy Quorum**: First W/R healthy replicas (hinted handoff).[1]
+- **Vector Clocks**: `<server,version>` tuples; prune old entries.[1]
+- **Merkle Trees**: Efficient replica sync (hash divergence detection).[1]
+
+## Advanced Topics
+- **Eventual Consistency**: Weak → eventual via anti-entropy (Merkle) + read repair.[1]
+- **Heterogeneity**: More virtual nodes for powerful servers.[1]
+- **Bloom Filter**: Probabilistic SSTable key existence (false positives OK).[1]
+- **Gossip Protocol**: Decentralized heartbeat propagation.[1]
+
+## Big Tech References
+- **Amazon Dynamo**: AP, vector clocks, sloppy quorum, hinted handoff.[1]
+- **Cassandra**: Decentralized, SSTables, quorum writes.[1]
+- **Google BigTable**: SSTable foundation.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: CAP choice?** A: AP (eventual consistency) for HA; CP for banks.[1]
+- **Q: Partitioning?** A: Consistent hashing (Ch5); clockwise N replicas.[1]
+- **Q: Strong consistency?** A: W+R>N (e.g., N=3,W=2,R=2).[1]
+- **Q: Conflict resolution?** A: Vector clocks detect siblings; client merges.[1]
+- **Q: Temp failure?** A: Sloppy quorum + hinted handoff.[1]
+- **Q: Permanent failure?** A: Merkle tree anti-entropy.[1]
+- **Q: Read path?** A: Mem → Bloom → SSTables.[1]
+
+## Key Terms & Keywords
+- Key-value store, CAP theorem (CP/AP), consistent hashing, quorum (W+R>N), vector clocks, sloppy quorum, hinted handoff, Merkle tree, gossip protocol, SSTables, Bloom filter, commit log, eventual consistency, anti-entropy, read repair.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/58516884-36d5-4599-80dd-63865699ee76/sd-chapter5.pdf)

@@ -1,0 +1,47 @@
+Chapter 2 covers back-of-the-envelope (BOTE) estimation fundamentals for system design interviews, focusing on scalability basics like data units, latencies, availability, and practical examples like Twitter QPS/storage.[1]
+
+## Key Topics Section-Wise
+- **Power of Two**: Binary data units (bit → byte → KB → MB → GB → TB → PB → EB → ZB) for accurate volume calculations; ASCII char = 1 byte (8 bits).[1]
+- **Latency Numbers**: Jeff Dean's 2010 baselines (L1 cache 0.5ns, RAM 100ns, disk seek 10ms, etc.) with 2020 visualization; key insights: memory fast/disk slow, compress before network.[1]
+- **Availability Numbers**: "Nines" (99.9% = ~9hrs/year downtime); SLAs from AWS/Google/Azure at 99.9%+.[1]
+- **Example: Twitter Estimation**: 300M MAU → 150M DAU → 3500 QPS (peak 7000); media storage 55PB over 5 years.[1]
+- **Tips**: Round/approximate, write assumptions/units, practice common calcs (QPS, storage, servers).[1]
+
+## Tradeoffs
+| Aspect | Pros | Cons/Limitations |
+|--------|------|-----------------|
+| **Precision vs Speed** [1] | Rounding simplifies interview math (100K/10=10K) | Over-approximation risks unrealistic designs |
+| **BOTE vs Exact** [1] | Quick feasibility check; focuses process over result | Outdated latencies (e.g., Dean's 2010 numbers faster now) |
+| **High Availability** [1] | More nines = better uptime (99.99%=~5min/year) | Exponential cost/complexity (5 nines needs heavy redundancy) |
+
+## Components/Tools/Frameworks
+- **Visualization Tool**: Colin Scott's interactive latency viewer (accounts for time progression).[1]
+- **SLA Metrics**: AWS Compute SLA, Google Compute Engine SLA, Azure SLA summary.[1]
+
+## Design Patterns/Best Practices
+- **Estimation Process**: State assumptions → calculate step-by-step → label units → round aggressively.
+- **QPS Formula**: DAU × actions/day ÷ (24×3600) × peak factor (e.g., 2x).
+- **Storage**: Daily volume × retention × growth factor.
+- **Avoid Disk Seeks**: Favor memory/cache; compress for network.
+- **Write Assumptions**: Clarifies reasoning; units prevent errors (KB vs MB).
+
+## Advanced Topics
+- **Time-Adjusted Latencies**: 2020 viz shows SSDs closing disk gap; inter-DC network still slow (~150ms).[1]
+- **SLA Correlations**: Table mapping nines to annual downtime (4 nines=52min, 5 nines=5min).[1]
+
+## Big Tech References
+- **Google (Jeff Dean)**: Original latency numbers (2010); "Pro Tip: Use BOTE for design choice" (HighScalability blog).[1]
+- **Cloud Providers**: AWS/Google/Azure SLAs benchmark 99.9%+ uptime commitments.[1]
+
+## Interview Cheat Sheet (Q&A)
+- **Q: What's BOTE?** A: Quick estimates using assumptions + common numbers to validate designs (process > precision).[1]
+- **Q: Key latencies?** A: L1 0.5ns, RAM 100ns, SSD 150μs, disk seek 10ms, pack A→B 200ms.[1]
+- **Q: Twitter QPS?** A: 300M MAU ×50% DAU ×2 tweets/day ÷86.4K sec ×2 peak =7K QPS.[1]
+- **Q: 1PB storage?** A: 1024TB = 1M GB; daily 30TB media ×365×5yrs=55PB.[1]
+- **Q: 99.9% vs 99.99%?** A: 9hrs vs 52min annual downtime; more nines = redundancy cost.[1]
+- **Q: Estimation tips?** A: Round (100K/10), units (MB), assumptions first, peak factor 2x.[1]
+
+## Key Terms & Keywords
+- Back-of-the-envelope (BOTE), power of two (KB=1024B), latency numbers (ns/μs/ms), nines (99.9%/SLA), QPS (queries/sec), peak QPS, DAU (daily active users), MAU (monthly active users), storage estimation (PB/EB), rounding/approximation, assumptions/units.[1]
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/87136738/c70055d1-27f7-4138-8787-cbdb9f46c424/sd-chapter2.pdf)

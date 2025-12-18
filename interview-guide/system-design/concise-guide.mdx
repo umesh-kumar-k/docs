@@ -1,0 +1,88 @@
+**System Design Complete Guide 2025** emphasizes **trade-off thinking**: Scalability/Reliability/Performance/Maintainability/Cost. Framework: Clarify reqs → Boundaries → High-level → Data model → Scale/reliability → Trade-offs → Security/observability.[1]
+
+## Key Topics Section-Wise
+**Core Concepts**
+- **Scalability**: Vertical (CPU/RAM) vs Horizontal (add servers).[1]
+- **Reliability/Availability**: Redundancy, replication, failover.[1]
+- **Consistency**: CAP theorem (pick 2/3: C/A/P).[1]
+- **Performance**: Latency (single req) vs Throughput (reqs/sec).[1]
+
+**Building Blocks**
+```
+Load Balancer + Cache + Sharding = Scale Foundation
+├── LB: Distribute traffic
+├── Cache: Redis/CDN (hot data)
+└── Shard: Split DB by user/region
+```
+
+**Design Framework (7 Steps)**
+1. **Requirements**: Functional + non-functional (scale/latency).
+2. **Boundaries**: Core vs out-of-scope.
+3. **High-level**: Clients → LB → App servers → DB/Cache/Queues.
+4. **Data model**: SQL (relations) vs NoSQL (scale).
+5. **Scale plan**: Caching/sharding/replication.
+6. **Trade-offs**: Explicitly discuss alternatives.
+7. **Security/observability**: Auth + monitoring.[1]
+
+## Case Studies
+| System | Key Decisions | Scale Techniques |
+|--------|---------------|------------------|
+| **TinyURL** | KV DB + hash IDs | CDN cache + consistent hashing |
+| **WhatsApp** | WebSocket + Kafka | Cassandra persistence |
+| **Uber** | Geo-index + microservices | Redis location + region partitioning |
+
+## Design Patterns
+```
+1. Async Communication: Microservices + Kafka/RabbitMQ
+2. Event-Driven: Decouple producer/consumer
+3. Graceful Degradation: Failover + circuit breakers
+```
+
+## Best Practices
+**Interview Flow**
+```
+5min: Clarify reqs ("DAU? Latency? Edge cases?")
+10min: High-level boxes/arrows
+15min: Deep dive (DB choice + scale)
+10min: Trade-offs ("Why SQL? What if NoSQL?")
+5min: Security/monitoring recap
+```
+
+**Communication**
+- **Narrate**: "Choosing Redis for hot data because..."
+- **Visual**: Boxes (services) + arrows (data flow).
+- **Trade-offs**: Always mention alternatives + why not.
+
+## Advanced Topics
+**Database Matrix**
+| Workload | SQL | NoSQL | Specialty |
+|----------|-----|-------|-----------|
+| Relations/ACID | ✅ | ❌ | - |
+| Unstructured/Scale | ❌ | ✅ | - |
+| Geo | Postgres GiST | Mongo Geo | Redis GEO |
+| Graphs | - | - | Neo4j |
+
+**Observability Stack**
+```
+Metrics: Prometheus/Grafana (p99 latency)
+Logs: ELK stack
+Alerts: PagerDuty (SLO breaches)
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "Scale to 10M DAU?"**  
+A: "LB → App servers (auto-scale) → Sharded DB + Redis cache."
+
+**Q: "DB choice?"**  
+A: "SQL: ACID/relations. NoSQL: Scale/flex. Hybrid common."
+
+**Q: "Failure mode?"**  
+A: "Circuit breaker + failover + 99.99% = 52min/year downtime."
+
+**Q: "Why horizontal scale?"**  
+A: "Infinite growth vs vertical hardware limits."
+
+## Key Terms & Keywords
+- System Design framework (7 steps), vertical/horizontal scaling, CAP theorem, latency/throughput, load balancing/caching/sharding, microservices/event-driven, graceful degradation, observability (metrics/logs/alerts), SQL vs NoSQL matrix, TinyURL/WhatsApp/Uber case studies, trade-off discussion.[1]
+
+[1](https://www.systemdesignhandbook.com/guides/system-design/)

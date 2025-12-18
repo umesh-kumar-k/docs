@@ -1,0 +1,118 @@
+**Kafka Deep Dive**: **Distributed log** (brokers + partitions + topics). Producers → Topics → Consumers (pull model, groups). Scales via partitions (hash(key)%N). Use for async, order, decoupling.[1]
+
+## Key Topics Section-Wise
+**Basic Architecture**
+```
+Producers → Topics (Partitions) → Brokers → Consumers (Groups)
+- Brokers: Servers storing/serving data
+- Partitions: Ordered immutable logs (parallelism)
+- Topics: Logical partition groups
+```
+
+**How Kafka Works**
+**Producer Flow**:
+```
+1. Hash(key) % num_partitions → Partition
+2. Metadata → Broker assignment
+3. Append-only log (immutable)
+```
+
+**Consumer Flow**:
+```
+Pull model (consumer controls rate)
+- Offset commit (processed marker)
+- Rebalance on failure (partition redistribution)
+```
+
+## Code Examples (Node.js)
+**Producer**[1]
+```javascript
+const producer = kafka.producer()
+await producer.send({
+  topic: 'my_topic',
+  messages: [{ key: 'key1', value: 'Hello Kafka!' }]
+})
+```
+
+**Consumer**[1]
+```javascript
+const consumer = kafka.consumer({ groupId: 'my-group' })
+await consumer.subscribe({ topic: 'my_topic' })
+await consumer.run({
+  eachMessage: ({ message }) => console.log(message.value.toString())
+})
+```
+
+## When to Use Kafka
+```
+✅ Async processing (YouTube transcoding)
+✅ Ordered processing (Ticketmaster queue)
+✅ Decouple producer/consumer (microservices)
+✅ Real-time streams (Ad aggregator)
+✅ Pub/sub (FB Live comments)
+```
+
+## Scalability & Fault Tolerance
+**Scaling**:
+```
+Add brokers + partitions (hash(key)%N)
+Hot partitions: Random/no-key, salting, compound keys
+Backpressure: Slow producer on high lag
+```
+
+**Fault Tolerance**:
+```
+Leader/follower replicas (ISR sync)
+Offset management (no dup/miss)
+Rebalancing (consumer down → redistribute)
+```
+
+## Performance Optimizations
+```javascript
+Producer: retries:5, idempotent:true, batch:{maxSize:16384}
+Consumer: Compression (GZIP)
+Retention policies
+```
+
+## Design Patterns
+```
+1. Partition by key (order guarantee)
+2. Consumer groups (parallel processing)
+3. Pull vs Push (consumer control)
+4. Exactly-once (idempotent + offsets)
+```
+
+## Best Practices
+**Partitioning**:
+```
+Good key: Even distribution (userId+region)
+Bad key: Hot partition (adId only)
+No key: Random (lose order)
+```
+
+**Error Handling**:
+```
+Producer: retry:5 + idempotent
+Consumer: Dead letter queue + offset commit
+```
+
+## Interview Cheat Sheet (Q&A)
+**Q: "Kafka vs RabbitMQ?"**  
+A: "Kafka: Durable log (replay). RabbitMQ: Queue (consume=delete)."[1]
+
+**Q: "Scale 1M msg/sec?"**  
+A: "100 brokers × 10 partitions. Hash(key)%10."[1]
+
+**Q: "Consumer failure?"**  
+A: "Offsets committed. Rebalance redistributes partitions."[1]
+
+**Q: "Exactly-once?"**  
+A: "Idempotent producer + committed offsets."[1]
+
+**Q: "Hot partition?"**  
+A: "Salt key (adId+random) or compound (adId+region)."[1]
+
+## Key Terms & Keywords
+- Kafka brokers/partitions/topics, producers/consumers/groups, partition hash(key)%N, leader/follower replicas (ISR), pull model/offsets/rebalancing, idempotent producer, batching/compression, hot partitions (salting/compound keys), retention policies, exactly-once semantics.[1]
+
+[1](https://www.hellointerview.com/learn/system-design/deep-dives/kafka)
