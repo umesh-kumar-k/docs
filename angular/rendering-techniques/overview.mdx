@@ -1,0 +1,342 @@
+Angular supports three main **rendering** strategies (CSR, SSG, SSR) plus hydration (full and incremental) that you combine into hybrid rendering per route for performance, SEO, and cost trade‑offs. Below is a structured, skimmable, architect‑level summary with Q&A and keyword list.[1][2][3]
+
+***
+
+## Core rendering strategies
+
+### Client‑Side Rendering (CSR)
+
+- Definition  
+  - HTML is rendered entirely in the browser after JavaScript bundles download and execute.[2]
+  - Default behavior for Angular apps.[2]
+
+- When to use  
+  - Dashboards, admin panels, rich internal tools.[3]
+  - Real‑time apps and complex client‑side state where SEO is not critical.[3]
+
+- Trade‑offs  
+  - SEO: Poor – content not visible until JS executes.[3]
+  - Initial load: Slower – must download, parse, execute JS first.[3]
+  - Interactivity: Very fast after load (no server round‑trip).[3]
+  - Server: Minimal work, mostly static asset hosting.[2][3]
+  - Complexity: Simplest model, can assume browser APIs and use browser‑only libraries.[2][3]
+
+- Architect angle / example  
+  - Public marketing site is static → not ideal for CSR; internal analytics SPA → CSR is usually sufficient.[3]
+
+***
+
+### Static Site Generation / Prerendering (SSG)
+
+- Definition  
+  - Pages pre‑rendered at build time into static HTML per route, then hydrated and run as a SPA on the client.[2][3]
+  - Implemented via `RenderMode.Prerender` and Angular’s prerender pipeline.[2]
+
+- When to use  
+  - Marketing, landing pages, docs, blogs.[3]
+  - Product catalogs or content that is mostly stable and not per‑user.[2][3]
+
+- Trade‑offs  
+  - SEO: Excellent – crawlers see full HTML immediately.[2][3]
+  - Initial load: Fastest – static HTML served, CDN‑friendly.[3][2]
+  - Server: Can be pure static hosting / CDN; no Node runtime required if `outputMode: "static"`.[2]
+  - Builds: Longer – generates all HTML at build time; many routes can inflate artifact size and deploy time.[3][2]
+  - Updates: Need rebuild + redeploy for content changes.[3]
+
+- Advanced SSG features  
+  - `ServerRoute.renderMode = RenderMode.Prerender` per path in `app.routes.server.ts`.[2]
+  - `getPrerenderParams()` to enumerate parameterized routes (e.g., `/post/:id`) at build time using DI (`inject(PostService)`).[2]
+  - `PrerenderFallback` strategies: `Server` (default), `Client`, `None` for non‑pre‑rendered paths.[2]
+
+- Example  
+  - Blog route `post/:id` uses SSG with `getPrerenderParams()` that pulls all ids from a CMS.[2]
+
+***
+
+### Server‑Side Rendering (SSR)
+
+- Definition  
+  - Server generates HTML for the initial request of a route, sends fully rendered HTML, then Angular hydrates and takes over as SPA.[3][2]
+
+- When to use  
+  - E‑commerce product pages (dynamic price/inventory).[3]
+  - News feeds, social media, frequently changing content.[3]
+  - Personalized content per user (auth‑based).[3]
+
+- Trade‑offs  
+  - SEO: Excellent – full HTML from the server.[2][3]
+  - Initial load: Fast – user waits mainly for server render latency, not JS execution.[2][3]
+  - Interactivity: Delayed until hydration finishes.[3]
+  - Server: Must run Angular on each initial request → higher CPU, infra cost.[2][3]
+  - Libraries: Cannot rely directly on browser globals during server render; must write server‑compatible components.[2]
+
+- SSR setup / configuration  
+  - Enable hybrid rendering: `ng new --ssr` or `ng add @angular/ssr`.[2]
+  - Server routes via `ServerRoute[]` in `app.routes.server.ts` using `RenderMode.Server | Client | Prerender`.[2]  
+  - Register with `provideServerRendering(withRoutes(serverRoutes))` and optional `withAppShell(AppShellComponent)`.[2]
+
+- Server behavior / example  
+  - `/` → `RenderMode.Client` (pure CSR), `/about` → `RenderMode.Prerender`, `/profile` → `RenderMode.Server`, `**` → fallback SSR for everything else.[2]
+
+***
+
+### Hybrid rendering & decision matrix
+
+- Hybrid rendering  
+  - Mix CSR, SSG, SSR across routes to optimize UX and cost per page.[3][2]
+  - Typical pattern: marketing/docs via SSG, account/product pages via SSR, dashboards via CSR.[3]
+
+- Angular decision matrix (core rules)  
+  - SEO + static content → SSG (fastest, CDN, cheap).[3]
+  - SEO + dynamic content → SSR (fresh data on first request).[3]
+  - No SEO, high interactivity → CSR (simpler, no server).[3]
+  - Mixed → hybrid (route‑level `RenderMode` selection).[2][3]
+
+***
+
+## Hydration (full and incremental)
+
+### Full hydration
+
+- Definition & importance  
+  - Hydration re‑attaches Angular to server‑rendered HTML, reusing DOM, state, and transfer‑cached data instead of re‑creating everything.[1][3]
+  - Improves Core Web Vitals (FID, LCP, CLS) and avoids visible flicker from destroy+re‑render.[1]
+
+- Enabling hydration  
+  - SSR is a prerequisite; hydration works only with SSR.[1][3]
+  - Use `provideClientHydration()` in `bootstrapApplication(AppComponent, { providers: [...] })` and ensure the same provider is included in the server bootstrap.[1]
+  - For NgModules, add `provideClientHydration()` to root `AppModule.providers`.[1]
+
+- Verifying hydration  
+  - Dev console shows hydration stats (components, nodes hydrated).[1]
+  - Angular DevTools shows hydration status and highlights mismatch sources.[1]
+
+- Event replay  
+  - Problem: SSR content is visible before hydration, but event listeners are not yet attached; user clicks can be lost.[1]
+  - Solution: `provideClientHydration(withEventReplay())` captures events (e.g., `click`, `mouseover`, `focusin`) pre‑hydration and replays them after hydration completes.[1][3]
+  - Incremental hydration implicitly enables event replay, so `withEventReplay()` is not needed once incremental hydration is on.[3]
+
+***
+
+### Hydration constraints & pitfalls
+
+- DOM structure consistency  
+  - Server and client DOM must match exactly (including Angular‑generated whitespace and comment nodes).[1][3]
+  - HTML must not be altered between server render and client hydration (e.g., external scripts modifying DOM early).[1]
+
+- Direct DOM manipulation  
+  - Using `window/document`, `innerHTML`, `outerHTML`, `appendChild`, moving nodes, or direct DOM libraries (e.g., D3) can break hydration (DOM mismatch errors).[1][3]
+  - Prefer Angular constructs and platform‑agnostic APIs; where impossible, selectively opt‑out via `ngSkipHydration`.[1]
+
+- `ngSkipHydration`  
+  - Use `<app-example ngSkipHydration />` or host binding `{ ngSkipHydration: 'true' }` to skip hydration of a component subtree.[1]
+  - Component behaves like old SSR (destroy + re‑render), losing hydration benefits; treat as a tactical workaround, not a default.[1]
+  - Only valid on component host nodes; placing on other elements is invalid.[1]
+
+- Valid HTML structure  
+  - Avoid patterns where browsers auto‑fix DOM (e.g., `<table>` without `<tbody>`, `<div>` inside `<p>`, nested `<a>` tags) because server vs client DOM can diverge.[1]
+  - Use an HTML validator if unsure.[1]
+
+- Whitespaces and Zone.js  
+  - Keep `preserveWhitespaces` = `false` (default) and match it across server (`tsconfig.server.json`) and client (`tsconfig.app.json`) builds.[1]
+  - Custom or noop Zone.js is not fully supported; hydration depends on Zone’s “stable” signal timing.[1]
+
+- i18n  
+  - By default, components with i18n blocks skip hydration.[1]
+  - To hydrate them, add `withI18nSupport()` to `provideClientHydration()`.[1]
+
+- Application stability  
+  - Hydration runs only after the app reports stability; long timeouts, unresolved promises, or pending microtasks can delay it (or cause “Application remains unstable” after 10s).[1]
+
+***
+
+### Incremental hydration
+
+- Concept & motivation  
+  - Incremental hydration allows sections of the app to remain dehydrated and only hydrate them “incrementally” when needed via triggers.[2][3]
+  - Reduces initial JS bundle and work, improving FID and CLS without sacrificing UX.[3]
+
+- Enabling  
+  - Requires SSR and full hydration already configured.[3]
+  - Use `provideClientHydration(withIncrementalHydration())` instead of just `provideClientHydration()`.[3]
+  - Automatically enables event replay; remove `withEventReplay()` if previously configured.[3]
+
+- How it works with `@defer`  
+  - Add `hydrate` triggers to `@defer` blocks to define hydration boundaries.[3]
+  - On SSR, Angular loads dependencies and renders the main `@defer` content (no placeholder), so above‑the‑fold content doesn’t layout‑shift.[3]
+  - On client, the same content is initially dehydrated; when a hydrate trigger fires, Angular fetches deferred dependencies and hydrates that subtree, then replays queued events.[3]
+
+- Hydrate triggers types  
+  - `hydrate on` (built‑in triggers).[3]
+    - `hydrate on idle` – when browser is idle (`requestIdleCallback`).  
+    - `hydrate on viewport` – when element enters viewport (Intersection Observer).  
+    - `hydrate on interaction` – on `click` / `keydown` for target element.  
+    - `hydrate on hover` – on `mouseover` / `focusin`.  
+    - `hydrate on immediate` – right after non‑deferred content finishes rendering.  
+    - `hydrate on timer(500ms)` – after a duration.[3]
+  - `hydrate when`  
+    - Hydrates when an expression becomes truthy (in parent component context).[3]
+    - Only triggers if this is the top‑most dehydrated `@defer`; nested dehydrated parents must be hydrated first.[3]
+  - `hydrate never`  
+    - Keeps initial SSR content static (never hydrated on first load) for that subtree.[3]
+    - Applies only to initial SSR load; subsequent pure client‑side navigation still uses normal `@defer` triggers (e.g., `on viewport`).[3]
+
+- Hydrate vs regular triggers  
+  - Hydrate triggers apply only for initial SSR load; regular `@defer` triggers (e.g., `on idle`) govern later client‑side navigations.[3]
+  - Example: `@defer (on idle; hydrate on interaction) { <example-cmp /> }` ⇒ initial SSR load hydrates on interaction; later CSR navigations load `example-cmp` on idle.[3]
+
+- Nested `@defer` blocks  
+  - Hydration flows from top‑most dehydrated parent to child when a nested block is triggered.[3]
+  - Example: hover on child triggers hydration of parent `@defer` then child `@defer` in order.[3]
+
+- Constraints  
+  - Same as full hydration: no unsupported DOM manipulation, valid HTML, and no conflicting `preserveWhitespaces` configuration.[1][3]
+
+***
+
+## Server‑compatible components & platform abstractions
+
+- Avoiding browser globals on server  
+  - Do not use `window`, `document`, `navigator`, `location`, or DOM methods directly in code that runs on the server.[2][1]
+  - Use hooks `afterNextRender` / `afterEveryRender` for browser‑only behaviors that should run post‑render on client only.[2][1]
+
+- Example: scrollHeight in a server‑safe way  
+  - `afterNextRender(() => { console.log(this.contentRef().nativeElement.scrollHeight); });` ensures DOM access only on browser.[2]
+
+- Platform‑specific providers (pattern)  
+  - Define an abstract service (e.g., `AnalyticsService`) and provide separate browser and server implementations.[2]
+  - Use DI overrides in `app.config.ts` vs `app.config.server.ts` to swap implementation per platform.[2]
+
+- Document and meta/meta‑data  
+  - Use `DOCUMENT` token via DI rather than global `document` to manage canonical links or meta tags in a platform‑agnostic way.[2]
+  - Combine with `Meta` service for SEO metadata.[2]
+
+- Request/Response access in SSR  
+  - Tokens: `REQUEST` (Web API `Request`), `RESPONSE_INIT` (`ResponseInit`), and `REQUEST_CONTEXT` to read headers/cookies, set status, and pass extra context.[2]
+  - These tokens are `null` in CSR and SSG, so guard usage accordingly.[2]
+
+- HttpClient transfer cache  
+  - SSR caches outgoing `GET`/`HEAD` responses; browser uses this cache during hydration to avoid duplicate HTTP calls.[1][2]
+  - Configurable via `withHttpTransferCacheOptions(...)` in `provideClientHydration()`: can include headers, enable idempotent POSTs, filter endpoints, or disable caching globally with `withNoHttpTransferCache()`.[2]
+
+***
+
+## Node & non‑Node SSR infrastructure
+
+- Node.js SSR  
+  - `@angular/ssr/node` supplies `AngularNodeAppEngine`, `createNodeRequestHandler`, `writeResponseToNodeResponse` to integrate with Express or similar.[2]
+  - Angular CLI dev server uses a request handler exported from `server.ts` (e.g., `reqHandler = createNodeRequestHandler(app)`).[2]
+
+- Non‑Node platforms  
+  - `AngularAppEngine` and `createRequestHandler` using standard Web API `Request`/`Response` provide a runtime‑agnostic SSR engine.[2]
+  - Useful for edge runtimes, serverless environments, or custom HTTP stacks.[2]
+
+***
+
+## Design patterns & best practices
+
+### Design patterns
+
+- **Hybrid rendering strategy**  
+  - Route‑level selection of `RenderMode` (Client/Server/Prerender) based on page SEO, dynamism, and personalization requirements.[2][3]
+
+- **Platform abstraction pattern**  
+  - Abstract services (e.g., analytics, storage) with browser/server implementations swapped via DI providers instead of `isPlatformBrowser` checks in templates.[1][2]
+
+- **SSR + hydration + transfer cache pattern**  
+  - Use SSR for HTML, Hydration for interactivity, and HttpTransferCache for data to avoid double fetching and reduce TTFB and LCP.[1][2]
+
+- **Incremental hydration with deferrable views**  
+  - Use `@defer` boundaries plus hydrate triggers to control when different parts of the page become interactive.[3]
+
+### Best practices (architect level)
+
+- Strategy selection  
+  - Default to SSG for static, SEO‑critical surfaces; SSR for dynamic/SEO; CSR for internal / app‑like areas.[2][3]
+  - Avoid SSR for content that is fully static or not SEO‑relevant to minimize server cost.[2][3]
+
+- Server‑compatible code  
+  - Eliminate direct DOM access in shared code; push DOM work into browser‑only hooks (e.g., `afterNextRender`) or feature‑flagged services.[1][2]
+  - Avoid `isPlatformBrowser` in templates to prevent server/client render divergence and hydration layout shifts.[1][2]
+
+- Hydration correctness  
+  - Keep DOM stable between server and client; ensure HTML validity and avoid third‑party scripts that mutate DOM before hydration.[1]
+  - Use `ngSkipHydration` sparingly as a temporary escape hatch for problematic components or third‑party libraries like D3.[1]
+
+- Performance & caching  
+  - Enable HttpClient transfer cache and tune with `withHttpTransferCacheOptions` to include relevant headers and endpoints while avoiding sensitive auth headers.[2]
+  - Consider `outputMode: "static"` for fully static apps to deploy only to CDNs and maximize scalability.[2]
+
+- Observability & debugging  
+  - Monitor Core Web Vitals (LCP, FID, CLS) before/after switching strategies, and use DevTools hydration overlay to debug mismatches.[1]
+  - Log SSR errors and mismatches in the Node/non‑Node handlers to track layout or DOM issues.[1][2]
+
+***
+
+## Interview cheat sheet (Q&A style)
+
+**Q1. What are the main Angular rendering strategies and when would you use each?**  
+A1. CSR for internal/interactive apps without SEO needs, SSG for SEO‑sensitive static content, SSR for SEO‑sensitive dynamic or personalized content; combine them via hybrid rendering at route level.[3][2]
+
+**Q2. Explain hybrid rendering in Angular.**  
+A2. Hybrid rendering configures per‑route `RenderMode` (Client, Server, Prerender) so each page uses the optimal strategy; for example, `/` via SSG, `/product/:id` via SSR, `/admin` via CSR.[3][2]
+
+**Q3. How would you implement per‑route rendering modes?**  
+A3. Define `ServerRoute[]` in `app.routes.server.ts` with `renderMode` per path and register them with `provideServerRendering(withRoutes(serverRoutes))`; use `RenderMode.Server`, `Client`, and `Prerender` as needed.[2]
+
+**Q4. What is hydration and why is it important?**  
+A4. Hydration reuses server‑rendered DOM and data on the client, attaching event listeners without re‑rendering, improving LCP, FID, CLS, and avoiding flicker compared to destroying and rebuilding the DOM.[1][3]
+
+**Q5. How do you enable SSR and hydration in a new Angular project?**  
+A5. Scaffold with `ng new --ssr`, which sets up SSR and prerendering; ensure `provideClientHydration()` is configured in bootstrap (and server bootstrap) to enable hydration.[1][2]
+
+**Q6. What are common causes of hydration mismatch errors and how do you handle them?**  
+A6. Direct DOM manipulation, invalid HTML structure, differing server vs client templates, third‑party scripts modifying DOM, mismatched `preserveWhitespaces`; fix the code, or temporarily annotate components with `ngSkipHydration` as an escape hatch.[1]
+
+**Q7. How does HttpClient transfer cache work in SSR?**  
+A7. On server, HttpClient caches responses for eligible requests and serializes them into the SSR HTML; on hydration, the browser reuses cached responses instead of issuing duplicate requests, configurable via `withHttpTransferCacheOptions`.[2]
+
+**Q8. Describe a pattern for server‑compatible DOM access in Angular SSR.**  
+A8. Use DI tokens like `DOCUMENT` and `Meta`, and only access DOM inside `afterNextRender` or `afterEveryRender` hooks, which run in browser only; avoid direct `document`/`window` in shared code.[1][2]
+
+**Q9. What is incremental hydration and how does it relate to `@defer`?**  
+A9. Incremental hydration keeps parts of the SSR page dehydrated and hydrates them later when `hydrate` triggers on `@defer` blocks fire (e.g., `hydrate on viewport`), enabling smaller initial JS and better performance for above‑the‑fold content.[3]
+
+**Q10. Explain the difference between `hydrate on` triggers and `on` triggers in `@defer` blocks.**  
+A10. `hydrate` triggers control when already‑rendered SSR content becomes interactive on first load, while regular `on` triggers control when code is loaded and rendered in later client‑side navigations.[3]
+
+**Q11. What does `hydrate never` do and when is it appropriate?**  
+A11. `hydrate never` keeps SSR output static (no hydration) for the initial page load, useful for content that never needs interactivity, but the same `@defer` still loads normally on later CSR navigations.[3]
+
+**Q12. How do you access HTTP request/response in SSR code?**  
+A12. Use DI tokens `REQUEST`, `RESPONSE_INIT`, and `REQUEST_CONTEXT` from `@angular/core` to read headers, cookies, URLs and to set status/headers dynamically during SSR.[2]
+
+**Q13. When would you choose `outputMode: "static"`?**  
+A13. When you want a fully static deployment (only SSG, no SSR server runtime), suitable for docs, marketing, or other content that can be fully pre‑rendered and served from a CDN.[2]
+
+**Q14. How do you integrate Angular SSR into an existing Node.js backend?**  
+A14. Instantiate `AngularNodeAppEngine`, create a request handler with `createNodeRequestHandler` or call `.handle(req)`, then convert the Angular `Response` to Node’s `res` with `writeResponseToNodeResponse` in an Express middleware.[2]
+
+**Q15. What are best practices for mixing third‑party DOM libraries (e.g., D3) with hydration?**  
+A15. Prefer Angular‑managed wrappers; if DOM manipulation can’t be avoided and causes mismatches, isolate those components and mark them with `ngSkipHydration`, or defer script execution until after hydration with `afterNextRender`.[1]
+
+***
+
+## Keywords & important terms (for quick skim)
+
+- **Rendering strategies**: CSR, SSR, SSG/Prerender, Hybrid rendering.[3][2]
+- **Configuration**: `RenderMode.Client`, `RenderMode.Server`, `RenderMode.Prerender`, `ServerRoute`, `provideServerRendering`, `withRoutes`, `withAppShell`, `outputMode: "static"`.[2]
+- **SSR infra**: `@angular/ssr`, `@angular/ssr/node`, `AngularNodeAppEngine`, `AngularAppEngine`, `createNodeRequestHandler`, `createRequestHandler`, `writeResponseToNodeResponse`.[2]
+- **Hydration**: `provideClientHydration`, full hydration, Event replay, `withEventReplay`, Core Web Vitals (LCP, FID, CLS), Hydration mismatch, Application stability.[1][3]
+- **Incremental hydration**: `withIncrementalHydration`, `@defer`, hydrate triggers (`hydrate on idle`, `hydrate on viewport`, `hydrate on interaction`, `hydrate on hover`, `hydrate on immediate`, `hydrate on timer`), `hydrate when`, `hydrate never`, nested `@defer`.[3]
+- **SSR safety**: Server‑compatible components, `afterNextRender`, `afterEveryRender`, `DOCUMENT` token, `Meta` service, avoiding `window`/`document` directly, avoiding `isPlatformBrowser` in templates.[1][2]
+- **Transfer cache**: HttpClient SSR caching, `HttpTransferCacheOptions`, `withHttpTransferCacheOptions`, `withNoHttpTransferCache`, `transferCache` request option, `HTTP_TRANSFER_CACHE_ORIGIN_MAP`.[2]
+- **Platform DI tokens**: `REQUEST`, `RESPONSE_INIT`, `REQUEST_CONTEXT`.[2]
+- **Hydration constraints**: Direct DOM manipulation, `ngSkipHydration`, valid HTML structure, `preserveWhitespaces`, Zone.js stability, i18n hydration (`withI18nSupport`).[1][3]
+- **Use‑case mapping**: Marketing/landing/docs, blogs, catalogs, news feeds, social media, e‑commerce, internal tools, dashboards, real‑time apps.[3][2]
+
+If you want, a next step can be a 1–2 page MDX “crib sheet” formatted exactly in your Obsidian/Mintlify style, with emphasized items for spaced repetition.
+
+[1](https://angular.dev/guide/routing/rendering-strategies)
+[2](https://angular.dev/guide/ssr)
+[3](https://angular.dev/guide/hydration)

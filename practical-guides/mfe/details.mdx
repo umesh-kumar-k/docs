@@ -1,0 +1,919 @@
+# **Fixed Income Processing Suite: Microfrontend UI Transformation Guide**
+
+## **High-Level Overview**
+Transforming your Angular monolith into a microfrontend architecture involves breaking the single UI bundle into independently deployable, domain-aligned applications. Each microfrontend owns its domain (Admin, Trading, Portfolio, etc.) while sharing common dependencies and maintaining a unified user experience. This enables:
+- Independent team development and deployment
+- Incremental upgrades
+- Technology flexibility per domain
+- Reduced build/test cycles
+
+## **Deep Dive: Microfrontend Architecture Patterns**
+
+### **Approach 1: Build-Time Composition (Recommended for Banking)**
+- **Nx Monorepo with Module Federation**: Keep all microfrontends in one repository but build independently
+- **Shared Design System**: Extract your customized Angular Material into a shared library
+- **Lazy Loading**: Microfrontends load on-demand based on user navigation
+
+### **Approach 2: Runtime Composition**
+- **Webpack Module Federation**: Dynamic loading of remote microfrontends at runtime
+- **Single-spa**: Meta-framework orchestrating multiple framework microfrontends
+- **Iframes**: Simple isolation (already used for BI dashboards)
+
+## **Technology Stack for UI Microfrontends**
+
+### **Core Framework Options**
+
+| **Tool/Framework** | **Description** | **Why for Your Use Case** |
+|-------------------|----------------|--------------------------|
+| **Angular + Module Federation** | Native Angular solution using Webpack 5 | Best fit for existing Angular codebase, gradual migration |
+| **Single-spa** | Framework-agnostic microfrontend orchestrator | Future flexibility for mixed frameworks |
+| **NX Monorepo** | Smart, fast monorepo build system | Excellent Angular support, dependency graph visualization |
+| **Bit.dev** | Component-driven development platform | Good for sharing components across teams |
+| **Web Components** | Native browser custom elements | Maximum isolation, framework independence |
+
+### **Recommended Stack (Based on Your Context)**
+```
+Primary: Angular 14+ with Module Federation
+Build System: NX Monorepo with affected commands
+State Management: NgRx with shared/domain-specific stores
+UI Consistency: Shared Angular Material library package
+Testing: Jest (unit), Cypress (E2E per microfrontend), Storybook (components)
+Styling: SCSS + CSS Custom Properties for theming
+Routing: Angular Router with lazy loading of microfrontends
+```
+
+## **Implementation Details**
+
+### **Step 1: Domain Identification & Segmentation**
+```
+1. Authentication Microfrontend (SSO, MySettings)
+2. Administration Microfrontend (User/Department/Profile maintenance)
+3. Portfolio Microfrontend (Safekeeping reports, cashflow)
+4. Trading Microfrontend (Trade submission)
+5. Configuration Microfrontend (Report/Service configuration)
+6. Core/Shell Application (Navigation, layout, shared services)
+```
+
+### **Step 2: Repository Strategy**
+
+#### **Option A: Monorepo (Recommended)**
+```bash
+apps/
+├── shell/           # Main container app
+├── auth/            # Authentication microfrontend
+├── admin/           # Administration microfrontend
+├── portfolio/       # Portfolio reports microfrontend
+├── trading/         # Trading microfrontend
+├── config/          # Configuration microfrontend
+libs/
+├── design-system/   # Shared Angular Material components
+├── shared/          # Utilities, models, services
+├── auth-data-access/# Shared auth logic
+tools/               # Build scripts, generators
+```
+
+**Pros:**
+- Single dependency management
+- Easy code sharing and refactoring
+- Consistent tooling and versions
+- Simplified CI/CD for initial transition
+
+**Cons:**
+- Single point of failure for builds
+- Can become large and unwieldy
+- Requires discipline to maintain boundaries
+
+#### **Option B: Multi-Repo**
+```
+- fixed-income-shell (separate repo)
+- fixed-income-auth (separate repo)
+- fixed-income-admin (separate repo)
+- fixed-income-portfolio (separate repo)
+- fixed-income-shared-libs (separate npm package)
+```
+
+**Pros:**
+- Maximum team autonomy
+- Independent versioning and releases
+- Clear ownership boundaries
+
+**Cons:**
+- Dependency management complexity
+- Version mismatch issues
+- Cross-repo changes are difficult
+- Duplication of tooling/config
+
+### **Step 3: Module Federation Configuration**
+```javascript
+// webpack.config.js for Shell App
+const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
+
+module.exports = {
+  plugins: [
+    new ModuleFederationPlugin({
+      name: "shell",
+      remotes: {
+        auth: "auth@http://localhost:4201/remoteEntry.js",
+        admin: "admin@http://localhost:4202/remoteEntry.js",
+        portfolio: "portfolio@http://localhost:4203/remoteEntry.js",
+      },
+      shared: {
+        "@angular/core": { singleton: true, eager: true },
+        "@angular/common": { singleton: true, eager: true },
+        "@angular/router": { singleton: true, eager: true },
+        "@angular/material": { singleton: true, eager: true },
+      },
+    }),
+  ],
+};
+```
+
+### **Step 4: Routing Integration**
+```typescript
+// Shell App Routing
+const routes: Routes = [
+  {
+    path: 'auth',
+    loadChildren: () => 
+      import('auth/Module').then(m => m.AuthModule)
+  },
+  {
+    path: 'admin',
+    loadChildren: () => 
+      import('admin/Module').then(m => m.AdminModule)
+  },
+  {
+    path: 'portfolio',
+    loadChildren: () => 
+      import('portfolio/Module').then(m => m.PortfolioModule)
+  },
+  // Fallback to legacy monolith during transition
+  { 
+    path: '**', 
+    loadChildren: () => 
+      import('./legacy/legacy.module').then(m => m.LegacyModule) 
+  }
+];
+```
+
+## **Testing Strategy**
+
+| **Test Type** | **Tools** | **Scope** | **Responsibility** |
+|--------------|-----------|-----------|-------------------|
+| **Unit Tests** | Jest, Karma | Individual components/services | Each microfrontend team |
+| **Component Tests** | Storybook + TestBed | UI components in isolation | Shared library team |
+| **Integration Tests** | Cypress | Microfrontend interactions | Cross-team coordination |
+| **E2E Tests** | Cypress | Critical user journeys | QA/Testing team |
+| **Visual Regression** | Percy, Chromatic | UI consistency across microfrontends | Design system team |
+| **Contract Tests** | Pact | API contracts between frontend/backend | Each domain team |
+
+## **Deployment Pipeline Changes**
+
+### **Current → Target Pipeline**
+```
+BEFORE: Single build → Single .zip → Deploy all
+AFTER: Independent builds → Separate artifacts → Coordinated deployment
+```
+
+### **Jenkins Pipeline Example**
+```groovy
+// Shell App Pipeline
+pipeline {
+  agent any
+  stages {
+    stage('Build Shell') {
+      steps { sh 'nx build shell' }
+    }
+    stage('Build Shared Libs') {
+      steps { sh 'nx build design-system' }
+    }
+    stage('Deploy Shell') {
+      steps { sh './deploy-shell.sh' }
+    }
+  }
+}
+
+// Microfrontend Pipeline (e.g., Portfolio)
+pipeline {
+  agent any
+  stages {
+    stage('Build Portfolio MF') {
+      steps { sh 'nx build portfolio' }
+    }
+    stage('Run Tests') {
+      steps { 
+        sh 'nx test portfolio'
+        sh 'nx e2e portfolio-e2e'
+      }
+    }
+    stage('Deploy Portfolio') {
+      // Deploy to CDN or separate path
+      steps { sh './deploy-portfolio.sh' }
+    }
+  }
+}
+```
+
+## **Shared Dependencies Strategy**
+
+### **Version Management**
+```json
+{
+  "sharedDependencies": {
+    "@angular/*": "~14.2.0",  // Pinned versions
+    "@angular/material": "^14.2.0",
+    "rxjs": "~7.5.0"
+  },
+  "microfrontendDependencies": {
+    "auth": "1.x.x",  // Semantic versioning
+    "design-system": "2.x.x"
+  }
+}
+```
+
+### **Design System Implementation**
+```typescript
+// Shared library structure
+shared-design-system/
+├── src/
+│   ├── components/     # Reusable UI components
+│   ├── styles/         # SCSS variables, mixins
+│   ├── tokens/         # Design tokens (colors, spacing)
+│   └── services/       # Common services
+├── package.json
+└── ng-package.json
+```
+
+## **Glossary & Key Concepts**
+
+| **Term** | **Explanation** |
+|----------|----------------|
+| **Microfrontend** | Independently deployable frontend application representing a business subdomain |
+| **Module Federation** | Webpack 5 feature allowing runtime sharing of modules between independent builds |
+| **Shell Application** | Container application that orchestrates microfrontend loading and routing |
+| **Remote Entry** | Manifest file exposing a microfrontend's available modules |
+| **Design System** | Reusable component library ensuring UI consistency across microfrontends |
+| **Monorepo** | Single repository containing multiple projects with shared tooling |
+| **Nx Affected** | Build system command that only rebuilds changed projects and dependencies |
+| **Lazy Loading** | Loading code only when needed, reducing initial bundle size |
+| **Shared Dependency** | Library (like Angular) shared across microfrontends to avoid duplication |
+| **Federated Modules** | Modules that can be loaded across application boundaries at runtime |
+
+## **Alternative Tools & Solutions**
+
+| **Category** | **Primary Choice** | **Alternative** | **Trade-offs** |
+|-------------|-------------------|----------------|----------------|
+| **Build System** | Nx | Lerna, TurboRepo | Nx has better Angular integration, Lerna is more generic |
+| **Module Federation** | Webpack 5 | SystemJS, Import Maps | Webpack is standard but complex, SystemJS is simpler but less performant |
+| **State Management** | NgRx | Akita, RxJS State Management | NgRx is verbose but predictable, Akita is simpler but less Angular-specific |
+| **UI Library** | Angular Material | Clarity, PrimeNG | Material is familiar but heavy, Clarity is lighter but less complete |
+| **Testing** | Cypress + Jest | Playwright + Vitest | Cypress is mature, Playwright is faster and multi-browser |
+| **Component Catalog** | Storybook | Bit.dev, Fractal | Storybook is industry standard, Bit enables component sharing across repos |
+
+## **Trade-offs & Considerations**
+
+### **Performance Trade-offs**
+- **Initial Load**: Microfrontends increase initial payload (shared dependencies)
+- **Runtime Performance**: Module Federation adds runtime overhead
+- **Caching**: Better caching per microfrontend vs. monolithic bundle
+
+### **Development Experience**
+- **Positive**: Independent teams, faster builds, focused codebases
+- **Negative**: Cross-cutting changes, version mismatches, debugging complexity
+
+### **Banking-Specific Concerns**
+1. **Security**: Ensure CSP headers allow module federation
+2. **Compliance**: Audit trails must span microfrontend boundaries
+3. **Data Consistency**: Financial data must sync across microfrontends
+4. **Availability**: Shell app is single point of failure
+
+## **Migration Strategy**
+
+### **Phase 1: Preparation (2-4 weeks)**
+1. Set up Nx monorepo structure
+2. Extract design system to shared library
+3. Configure Module Federation POC with one microfrontend
+
+### **Phase 2: Incremental Extraction (3-6 months)**
+1. Extract Authentication (least dependencies)
+2. Extract MySettings
+3. Extract Administration
+4. Extract Portfolio/Trading domains
+
+### **Phase 3: Optimization (Ongoing)**
+1. Implement independent deployment pipelines
+2. Add performance monitoring per microfrontend
+3. Establish cross-team coordination processes
+
+## **Monitoring & Observability**
+
+```typescript
+// Cross-microfrontend monitoring
+const monitoring = {
+  performance: 'Real User Monitoring (RUM) per microfrontend',
+  errors: 'Centralized error tracking (Sentry/LogRocket)',
+  analytics: 'User journey tracking across microfrontends',
+  logs: 'Correlation IDs for requests across boundaries'
+};
+```
+
+## **Recommended First Steps**
+
+1. **Create Proof of Concept**: Extract MySettings to a microfrontend
+2. **Set up Nx Workspace**: `npx create-nx-workspace@latest fixed-income`
+3. **Configure Module Federation**: Follow Angular official documentation
+4. **Establish Governance**: Define microfrontend boundaries and APIs
+5. **Train Team**: Angular Module Federation patterns and Nx CLI
+
+This approach maintains your investment in Angular while enabling the benefits of microfrontend architecture. The key is incremental migration with careful attention to shared dependencies and user experience consistency.
+
+# **Microfrontend Implementation Strategy for Fixed Income Processing Suite**
+
+## **1. Which Domains Should We Split First? (Priority Order)**
+
+### **Strategic Prioritization Criteria:**
+- **Lowest Dependencies**: Fewest cross-domain dependencies
+- **Highest Business Value**: Most critical to users
+- **Clear Boundaries**: Well-defined domain scope
+- **Team Readiness**: Team expertise and availability
+
+### **Recommended Splitting Order:**
+
+| **Priority** | **Domain** | **Why Split First** | **Complexity** |
+|-------------|------------|-------------------|---------------|
+| **#1** | **MySettings & Profile Management** | • Isolated functionality<br />• Low dependencies<br />• Simple data model<br />• Users interact frequently | Low |
+| **#2** | **Authentication & SSO** | • Foundation for other MFEs<br />• Clear security boundary<br />• Can be deployed independently<br />• Required by all other domains | Medium |
+| **#3** | **Administration Module** (User/Dept/Profile maintenance) | • Admin-only functionality<br />• Clear user segmentation<br />• Can evolve independently<br />• Lower risk than trading features | Medium |
+| **#4** | **Portfolio Reports** (Safekeeping, Cashflow) | • High business value<br />• Data-intensive but isolated<br />• Users spend significant time here<br />• Can optimize performance separately | High |
+| **#5** | **Configuration Module** (Report/Service config) | • Implementation team focused<br />• Lower user traffic<br />• Can innovate without affecting core | Medium |
+| **#6** | **Trading Module** (Trade submission) | • Highest complexity<br />• Critical path<br />• Requires careful testing<br />• Save for when team has experience | Very High |
+| **#7** | **BI Visualization Module** (Already in iframe) | • Keep as is initially<br />• Convert to proper MFE later<br />• Already demonstrates MFE concept | Low |
+
+### **Incremental Migration Path:**
+```
+Phase 1: MySettings + Auth → Independent MFEs
+Phase 2: Admin + Configuration → Expand admin domain
+Phase 3: Portfolio Reports → Business-critical extraction
+Phase 4: Trading Module → Final, most complex
+```
+
+## **2. Designing Contracts Between Host and Remotes in Module Federation**
+
+### **Contract Design Principles:**
+1. **Explicit over Implicit**: Clearly define what's shared
+2. **Versioning**: Support backward compatibility
+3. **Minimal Surface Area**: Share only what's necessary
+4. **Type Safety**: Use TypeScript interfaces consistently
+
+### **Implementation Patterns:**
+
+#### **Pattern A: Shared Library Contracts (Recommended)**
+```typescript
+// shared-contracts library (published as npm package or monorepo lib)
+export interface User {
+  id: string;
+  name: string;
+  roles: string[];
+}
+
+export interface AuthServiceContract {
+  login(credentials: Credentials): Observable<User>;
+  logout(): void;
+  getCurrentUser(): User | null;
+}
+
+export interface NavigationContract {
+  navigateToPortfolio(): void;
+  navigateToTrade(tradeId: string): void;
+}
+
+export const CONTRACT_TOKENS = {
+  AUTH_SERVICE: new InjectionToken<AuthServiceContract>('AuthServiceContract'),
+  NAVIGATION_SERVICE: new InjectionToken<NavigationContract>('NavigationContract'),
+};
+```
+
+#### **Pattern B: Declarative Remote Configuration**
+```typescript
+// host-app/webpack.config.js
+new ModuleFederationPlugin({
+  name: 'shell',
+  remotes: {
+    auth: `auth@${getRemoteUrl('auth')}/remoteEntry.js`,
+    portfolio: `portfolio@${getRemoteUrl('portfolio')}/remoteEntry.js`,
+  },
+  exposes: {
+    './SharedServices': './src/app/shared/services/index.ts',
+    './SharedContracts': './src/app/shared/contracts/index.ts',
+  },
+  shared: {
+    '@angular/core': { singleton: true, strictVersion: true },
+    '@angular/common': { singleton: true, strictVersion: true },
+    '@shared/contracts': { singleton: true, strictVersion: '1.0.0' },
+  },
+});
+```
+
+#### **Pattern C: Dynamic Contract Loading**
+```typescript
+// Shell App - Contract Registry Service
+@Injectable({ providedIn: 'root' })
+export class ContractRegistry {
+  private contracts = new Map<string, any>();
+  
+  async loadContract<T>(remoteName: string, contractName: string): Promise<T> {
+    const remote = await import(/* webpackIgnore: true */ remoteName);
+    return remote.getExposedModule<T>(contractName);
+  }
+  
+  registerContract(key: string, implementation: any) {
+    this.contracts.set(key, implementation);
+  }
+  
+  getContract<T>(key: string): T {
+    return this.contracts.get(key);
+  }
+}
+```
+
+#### **Pattern D: Message-Based Communication**
+```typescript
+// Shared Event Bus for cross-MFE communication
+export class CrossMFEEventBus {
+  private subject = new Subject<MFEEvent>();
+  
+  emit(event: MFEEvent) {
+    this.subject.next(event);
+  }
+  
+  listen(eventType: string): Observable<MFEEvent> {
+    return this.subject.pipe(
+      filter(event => event.type === eventType)
+    );
+  }
+}
+
+// Contract Definition for Events
+export interface MFEEvent {
+  type: 'USER_UPDATED' | 'PORTFOLIO_CHANGED' | 'TRADE_SUBMITTED';
+  payload: any;
+  source: string;
+  timestamp: Date;
+}
+```
+
+### **Best Practices for Contracts:**
+1. **API-First Design**: Define contracts before implementation
+2. **Semantic Versioning**: Use proper versioning for shared contracts
+3. **Deprecation Strategy**: Support old versions during transition
+4. **Documentation**: Swagger/OpenAPI for REST, JSDoc for TypeScript
+
+## **3. Benefits of Nx Monorepo vs Separate Repos**
+
+### **Nx Monorepo Advantages for Financial Applications:**
+
+| **Benefit** | **Why It Matters for Your Portal** |
+|------------|-----------------------------------|
+| **Single Dependency Graph** | All teams see the same Angular/package versions, critical for financial compliance |
+| **Atomic Changes** | Cross-MFE changes (e.g., security updates) can be made in one commit/PR |
+| **Shared Tooling** | Consistent linting, testing, building across all MFEs |
+| **Code Sharing** | Easy to extract shared libraries (design system, contracts, utilities) |
+| **Affected Commands** | `nx affected:build` only rebuilds changed MFEs and dependencies |
+| **Simplified CI/CD** | Single pipeline with intelligent caching and parallel execution |
+| **Consistent Standards** | Enforce security, accessibility, and coding standards centrally |
+| **Easier Refactoring** | IDE can refactor across MFEs safely |
+| **Unified Documentation** | Single source of truth for architecture decisions |
+
+### **Separate Repos Advantages:**
+
+| **Benefit** | **When to Consider** |
+|------------|---------------------|
+| **Team Autonomy** | When teams work completely independently with different release cycles |
+| **Scalability** | Organization grows beyond 10+ teams working on same product |
+| **Technology Freedom** | Different MFEs need different tech stacks |
+| **Clear Ownership** | No accidental cross-repo changes |
+| **Independent Deploys** | True independent deployment without coordination |
+
+### **Recommendation for Your Portal:**
+**Use Nx Monorepo** because:
+1. **Financial Compliance**: Need synchronized security updates
+2. **Shared Design System**: Banking UIs require strict consistency
+3. **Small-Medium Team**: Likely < 8 teams working on portal
+4. **Angular Focus**: All teams use same framework
+5. **Incremental Migration**: Easier to extract from monolith
+
+### **Nx Workspace Structure:**
+```
+fixed-income-portal/
+├── apps/
+│   ├── shell/                 # Container application
+│   ├── auth-mfe/              # Authentication microfrontend
+│   ├── mysettings-mfe/        # User settings microfrontend
+│   ├── admin-mfe/             # Administration microfrontend
+│   ├── portfolio-mfe/         # Portfolio reports microfrontend
+│   ├── trading-mfe/           # Trading microfrontend
+│   └── legacy-monolith/       # Remaining monolith during transition
+├── libs/
+│   ├── shared/               # Shared utilities, models
+│   ├── design-system/        # Angular Material customization
+│   ├── auth/                 # Auth contracts & services
+│   ├── contracts/            # Cross-MFE interfaces
+│   └── testing/              # Shared test utilities
+├── tools/                    # Custom scripts, generators
+├── nx.json                   # Nx configuration
+└── workspace.json            # Project configuration
+```
+
+## **4. Step-by-Step Migration from Angular Monolith to Module Federation**
+
+### **Phase 0: Preparation (Week 1-2)**
+1. **Analyze Dependencies**: 
+   ```bash
+   npm ls --depth=10  # Map current dependencies
+   ng build --stats-json  # Analyze bundle composition
+   ```
+
+2. **Set up Nx Workspace**:
+   ```bash
+   npx create-nx-workspace@latest fixed-income-portal \
+     --preset=angular \
+     --style=scss \
+     --packageManager=npm \
+     --appName=shell
+   ```
+
+3. **Move Existing Code into Nx**:
+   ```bash
+   # Create libs from existing shared code
+   nx g @nrwl/angular:lib shared
+   nx g @nrwl/angular:lib design-system
+   
+   # Copy existing shared components/services to libs
+   ```
+
+### **Phase 1: Extract First Microfrontend - MySettings (Week 3-4)**
+1. **Create MFE Structure**:
+   ```bash
+   nx g @nrwl/angular:app mysettings-mfe \
+     --mfe=true \
+     --mfeType=remote \
+     --port=4201 \
+     --host=shell
+   ```
+
+2. **Configure Module Federation**:
+   ```javascript
+   // apps/mysettings-mfe/webpack.config.js
+   const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
+   
+   module.exports = (config) => {
+     config.plugins.push(
+       new ModuleFederationPlugin({
+         name: "mysettings",
+         filename: "remoteEntry.js",
+         exposes: {
+           "./Module": "./apps/mysettings-mfe/src/app/mysettings/mysettings.module.ts",
+         },
+         shared: share({
+           "@angular/core": { singleton: true, strictVersion: true },
+           "@angular/common": { singleton: true, strictVersion: true },
+           "@angular/router": { singleton: true, strictVersion: true },
+           ...sharedMappings.getDescriptors()
+         })
+       })
+     );
+     return config;
+   };
+   ```
+
+3. **Extract MySettings Components**:
+   ```typescript
+   // Move from monolith to MFE
+   // 1. Identify MySettings components in current app
+   // 2. Move to apps/mysettings-mfe/src/app/
+   // 3. Update imports and routes
+   ```
+
+4. **Update Shell to Load Remotely**:
+   ```typescript
+   // apps/shell/src/app/app.routes.ts
+   const routes: Routes = [
+     {
+       path: 'mysettings',
+       loadChildren: () =>
+         import('mysettings/Module').then(m => m.MySettingsModule)
+     },
+     // Other routes still point to legacy
+     { 
+       path: '**', 
+       loadChildren: () =>
+         import('../legacy/legacy.module').then(m => m.LegacyModule) 
+     }
+   ];
+   ```
+
+### **Phase 2: Extract Authentication (Week 5-6)**
+1. **Create Auth Library**:
+   ```bash
+   nx g @nrwl/angular:lib auth
+   ```
+
+2. **Extract Auth Logic to Shared Library**:
+   ```typescript
+   // libs/auth/src/lib/auth.service.ts
+   @Injectable({ providedIn: 'root' })
+   export class AuthService {
+     // Move SSO logic here
+   }
+   ```
+
+3. **Create Auth MFE**:
+   ```bash
+   nx g @nrwl/angular:app auth-mfe --mfe=true --mfeType=remote --port=4202
+   ```
+
+### **Phase 3: Extract Administration Module (Week 7-8)**
+1. **Identify Admin Boundaries**:
+   - User management
+   - Department management
+   - Profile maintenance
+   - Report configuration
+
+2. **Create Admin MFE**:
+   ```bash
+   nx g @nrwl/angular:app admin-mfe --mfe=true --mfeType=remote --port=4203
+   ```
+
+### **Phase 4: Portfolio & Trading MFEs (Week 9-12)**
+1. **Extract Data-Intensive Components**:
+   - Cashflow reports
+   - Rate sensitivity analysis
+   - Safekeeping reports
+
+2. **Optimize Performance**:
+   ```typescript
+   // Use Angular's lazy loading within MFE
+   // Implement virtual scrolling for large datasets
+   // Cache portfolio data in IndexedDB
+   ```
+
+### **Phase 5: Finalize & Optimize (Week 13+)**
+1. **Remove Legacy Code**: Delete migrated components from monolith
+2. **Performance Testing**: Load testing across MFEs
+3. **Implement Caching Strategy**: CDN for remote entries
+4. **Monitoring Setup**: Track MFE loading performance
+
+## **5. Best Practices for Sharing Authentication and SSO Across MFEs**
+
+### **Pattern 1: Centralized Auth Service (Recommended)**
+
+#### **Implementation:**
+```typescript
+// libs/auth/src/lib/auth-core.service.ts
+@Injectable()
+export class AuthCoreService {
+  private authState = new BehaviorSubject<AuthState>(null);
+  private tokenRefreshInterval: any;
+  
+  constructor(private http: HttpClient) {}
+  
+  // Centralized login - all MFEs use this
+  login(credentials: Credentials): Observable<User> {
+    return this.http.post<AuthResponse>('/api/auth/login', credentials).pipe(
+      tap(response => {
+        this.storeTokens(response);
+        this.startTokenRefresh();
+      }),
+      map(response => response.user)
+    );
+  }
+  
+  // Shared token management
+  private storeTokens(response: AuthResponse) {
+    localStorage.setItem('access_token', response.accessToken);
+    localStorage.setItem('refresh_token', response.refreshToken);
+    this.authState.next({ user: response.user, isAuthenticated: true });
+  }
+  
+  // Automatic token refresh
+  private startTokenRefresh() {
+    this.tokenRefreshInterval = setInterval(() => {
+      this.refreshToken().subscribe();
+    }, 14 * 60 * 1000); // Refresh 1 minute before expiry (15 min tokens)
+  }
+}
+
+// Shell App - Provide at root level
+@NgModule({
+  providers: [
+    { provide: AUTH_SERVICE, useClass: AuthCoreService }
+  ]
+})
+export class ShellModule {}
+```
+
+#### **Pattern 2: Auth Guard with Cross-MFE Communication**
+```typescript
+// Shared auth guard
+@Injectable({ providedIn: 'root' })
+export class AuthGuard implements CanActivate {
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private eventBus: CrossMFEEventBus
+  ) {}
+  
+  canActivate(route: ActivatedRouteSnapshot): Observable<boolean> {
+    return this.authService.isAuthenticated().pipe(
+      tap(isAuthenticated => {
+        if (!isAuthenticated) {
+          // Emit event so shell can show login
+          this.eventBus.emit({
+            type: 'AUTH_REQUIRED',
+            payload: { returnUrl: route.url.join('/') },
+            source: route.routeConfig.path
+          });
+        }
+      })
+    );
+  }
+}
+```
+
+#### **Pattern 3: SSO Integration Strategy**
+```typescript
+// SSO Service handling both native and external SSO
+@Injectable()
+export class SSOService {
+  private ssoStrategy: SSOStrategy;
+  
+  constructor(private config: ConfigService) {
+    // Determine SSO method based on configuration
+    this.ssoStrategy = this.createStrategy(config.ssoProvider);
+  }
+  
+  private createStrategy(provider: string): SSOStrategy {
+    switch(provider) {
+      case 'okta':
+        return new OktaStrategy();
+      case 'azure-ad':
+        return new AzureADStrategy();
+      case 'ping':
+        return new PingFederateStrategy();
+      default:
+        return new NativeAuthStrategy();
+    }
+  }
+  
+  // Single sign-on entry point used by all MFEs
+  initiateSSO(): Observable<AuthResult> {
+    return this.ssoStrategy.authenticate();
+  }
+  
+  // Handle SSO callback (for OAuth flows)
+  handleCallback(params: any): Observable<User> {
+    return this.ssoStrategy.handleCallback(params);
+  }
+}
+```
+
+#### **Pattern 4: Cross-MFE Auth State Synchronization**
+```typescript
+// Using BroadcastChannel API for tab/window sync
+export class AuthStateSynchronizer {
+  private channel = new BroadcastChannel('auth_state');
+  
+  constructor(private authService: AuthService) {
+    // Listen for auth changes from other tabs
+    this.channel.onmessage = (event) => {
+      if (event.data.type === 'LOGIN') {
+        this.authService.syncLogin(event.data.payload);
+      }
+      if (event.data.type === 'LOGOUT') {
+        this.authService.logout();
+      }
+    };
+    
+    // Broadcast local auth changes
+    this.authService.authState$.subscribe(state => {
+      this.channel.postMessage({
+        type: state.isAuthenticated ? 'LOGIN' : 'LOGOUT',
+        payload: state.user
+      });
+    });
+  }
+}
+```
+
+### **Best Practices for Authentication in Microfrontends:**
+
+1. **Single Source of Truth**:
+   ```typescript
+   // Shell app owns auth state, MFEs consume via shared service
+   // Never store auth state in individual MFE localStorage
+   ```
+
+2. **Token Sharing Strategy**:
+   ```typescript
+   // Store tokens in shell's domain
+   document.cookie = "token=xyz; domain=.yourbank.com; path=/";
+   // All MFEs on *.yourbank.com can access
+   ```
+
+3. **Secure Communication**:
+   ```typescript
+   // Use HTTP interceptors in shell that add tokens to all requests
+   @Injectable()
+   export class AuthInterceptor implements HttpInterceptor {
+     intercept(req: HttpRequest<any>, next: HttpHandler) {
+       const token = this.authService.getToken();
+       const authReq = req.clone({
+         headers: req.headers.set('Authorization', `Bearer ${token}`)
+       });
+       return next.handle(authReq);
+     }
+   }
+   ```
+
+4. **SSO Flow Across MFEs**:
+   ```
+   1. User clicks login in any MFE
+   2. Redirects to shell/login route
+   3. Shell handles SSO flow
+   4. Shell redirects back to original MFE with token
+   5. All MFEs receive auth state update via shared service
+   ```
+
+5. **Role-Based Access Control**:
+   ```typescript
+   // Centralized RBAC service
+   @Injectable()
+   export class RBACService {
+     private userRoles: string[];
+     
+     canAccess(feature: string, mfe: string): boolean {
+       const requiredRole = this.getRequiredRole(feature, mfe);
+       return this.userRoles.includes(requiredRole);
+     }
+     
+     // Define access matrix
+     private getRequiredRole(feature: string, mfe: string): string {
+       const matrix = {
+         'portfolio': {
+           'view-reports': 'PORTFOLIO_VIEWER',
+           'download-reports': 'PORTFOLIO_DOWNLOAD'
+         },
+         'trading': {
+           'submit-trades': 'TRADER',
+           'view-trades': 'TRADE_VIEWER'
+         }
+       };
+       return matrix[mfe][feature];
+     }
+   }
+   ```
+
+### **Security Considerations:**
+
+1. **CSRF Protection**: All MFEs use same anti-CSRF tokens
+2. **CSP Headers**: Configure to allow Module Federation
+3. **Token Storage**: HttpOnly cookies for production
+4. **Session Management**: Centralized session timeout
+5. **Audit Logging**: All auth events logged centrally
+
+### **Migration Path for Authentication:**
+```
+Week 1-2: Extract auth logic to shared library
+Week 3-4: Create auth MFE for login/logout UI
+Week 5-6: Implement SSO integration in shell
+Week 7-8: Add cross-MFE auth synchronization
+Week 9+: Security hardening and penetration testing
+```
+
+This approach ensures secure, consistent authentication across all microfrontends while maintaining the user experience and security standards required for a financial application.
+
+### **Key Implementation Checklist:**
+✅ **Start with** MySettings → Auth → Admin → Portfolio → Trading  
+✅ **Use Nx Monorepo** for financial compliance and consistency  
+✅ **Design explicit contracts** using shared TypeScript interfaces  
+✅ **Centralize authentication** in shell with shared auth service  
+✅ **Follow incremental migration** (12-16 week timeline)
+
+### **Critical Success Factors:**
+1. **Domain Boundaries** - Clear ownership per business capability
+2. **Shared Design System** - Banking UI consistency is non-negotiable
+3. **Contract Governance** - Versioned interfaces between MFEs
+4. **Performance Budget** - Track MFE bundle sizes (aim for < 500KB each)
+5. **Security First** - SSO integration before extracting trading features
+
+### **Common Pitfalls to Document:**
+- ❌ Avoid duplicating auth state across MFEs
+- ❌ Don't let MFEs directly import each other's code
+- ❌ Don't skip contract versioning strategy
+- ❌ Avoid mixing deployment strategies during transition
+
+### **Monitoring Metrics to Track:**
+- MFE load times (P95 < 3s)
+- Cross-MFE navigation latency
+- Shared dependency version consistency
+- Build times per MFE vs. monolith

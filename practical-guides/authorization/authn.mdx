@@ -1,0 +1,920 @@
+Your current SAML‑based flow (IdP redirect → SAML assertion → browser redirect → app validation) is enterprise‑standard but rigid for SPAs and microfrontends; migrating to OIDC gives you JWT tokens (ID/access/refresh), silent renew, and easy token sharing across shell + remotes without SAML parsing complexity.[1][2][3][4][5]
+
+***
+
+## 1. High‑level migration path
+
+- **Target**: OIDC Authorization Code Flow with PKCE (Proof Key for Code Exchange) for SPAs.  
+  - User → shell app → IdP redirect → code → shell exchanges code for tokens → tokens stored securely → shell shares auth state with MFEs via DI and observables.  
+  - Tokens: **ID Token** (identity info), **Access Token** (API calls), **Refresh Token** (silent renew).[3][5][6]
+
+- **IdP evolution**  
+  - Configure WSO2 as an OIDC provider (it supports this natively); register your app as an OIDC client alongside SAML for gradual migration.  
+  - Keep MFA (Twilio) unchanged; OIDC flows support MFA prompts.
+
+- **Microfrontend fit**  
+  - Shell owns all auth flows (login, logout, refresh); remotes consume shared auth state via Module Federation singletons.[2]
+  - Tokens stay in shell’s memory (or secure storage); MFEs get read‑only access via a shared Auth API.
+
+***
+
+## 2. Deep dive: OIDC flows and token handling
+
+### 2.1 OIDC Authorization Code Flow + PKCE (recommended for Angular SPAs)
+
+- Flow steps  
+  1. User hits `/login` in shell → redirect to IdP with `client_id`, `redirect_uri`, `scope=openid profile email offline_access`, `response_type=code`, `code_challenge` (PKCE).  
+  2. IdP authenticates (with MFA via Twilio) → redirects back to shell with auth code.  
+  3. Shell POSTs code + `code_verifier` to IdP’s `/token` endpoint → receives **ID Token** (JWT with user claims), **Access Token** (JWT for APIs), **Refresh Token** (opaque/long‑lived).  
+  4. Shell stores tokens (memory or secure storage) and sets session state.  
+  5. Shell shares state with MFEs via shared Auth service (observables like `user$`, `isAuthenticated$`).[5][6][3]
+
+- PKCE importance  
+  - Protects against code interception in public clients (SPAs); replaces client secret.[3][5]
+
+### 2.2 Token types and usage
+
+- **ID Token** (JWT)  
+  - Contains user identity (sub, name, email, firm, roles/entitlements, MFA status); validated by shell for session setup.  
+  - **Never** sent to backend APIs.
+
+- **Access Token** (JWT or opaque)  
+  - Sent to your Jersey/Spring APIs for authorization; include scopes like `reports:read`, `trades:write`.  
+  - Short‑lived (15–60 min); refreshed silently.
+
+- **Refresh Token** (opaque)  
+  - Shell uses to get new access/ID tokens without user re‑login; rotate frequently for security.
+
+### 2.3 Microfrontend token sharing
+
+- Shell provides a **shared Auth service** (Angular service in a shared lib):  
+  - `user$: Observable<User>`, `isAuthenticated$: Observable<boolean>`, `permissions$: Observable<string[]>`, `logout()`.  
+  - Remotes inject and subscribe; Module Federation shares the service as a singleton.[2]
+- Tokens never leave shell; remotes call shell APIs or use shared state for UI decisions.
+
+***
+
+## 3. Technologies and tools
+
+### 3.1 Angular OIDC libraries
+
+- **angular-auth-oidc-client** (recommended)  
+  - Handles full OIDC flow, PKCE, silent renew, token validation, custom claims (your entitlements/roles).  
+  - Supports microfrontends; configure once in shell, share via DI.[5]
+  - Example config:  
+    ```
+    {
+      issuer: 'https://your-wso2.com/realms/your-realm',
+      clientId: 'fipsuite-angular',
+      redirectUri: window.location.origin + '/',
+      scope: 'openid profile email offline_access',
+      responseType: 'code',
+      silentRenew: true,
+      useRefreshToken: true
+    }
+    ```
+
+- **angular-oauth2-oidc** (alternative)  
+  - Similar feature set; good JWKS support for token validation.[6]
+
+### 3.2 IdP and backend
+
+- **WSO2**  
+  - Already your IdP; enable OIDC client alongside SAML; supports MFA, custom claims (entitlements/profiles), refresh tokens.[1]
+  - Extract entitlements/roles into ID Token claims for front‑end use.
+
+- **Backend updates (Jersey/Spring)**  
+  - Validate JWT access tokens using WSO2’s public JWKS endpoint.  
+  - Use libraries like `jjwt` (Java) or `spring-security-oauth2-resource-server`.
+
+- **SaaS IdPs (if replacing WSO2)**  
+  - **Auth0**, **Okta**, **Ping Identity**, **Azure AD B2B** – enterprise banking support, MFA, custom claims, OIDC‑native.[7][2]
+  - Auth0 has specific Module Federation + Angular examples.[2]
+
+***
+
+## 4. Alternative solutions and trade‑offs
+
+### Approach A: Dual SAML + OIDC (gradual migration)
+
+- Idea  
+  - Keep WSO2 SAML running; add OIDC client and redirect new users/devices to OIDC while legacy stays on SAML.  
+  - Unified session handling in shell.
+
+- Pros  
+  - Zero downtime; test OIDC in parallel.  
+  - Fits regulated environments with slow change cycles.
+
+- Cons  
+  - Dual code paths increase complexity.
+
+### Approach B: Full OIDC with hosted IdP (Auth0/Okta)
+
+- Pros  
+  - Rich MFA (Twilio + biometrics), analytics, social logins (future‑proof), excellent Angular SDKs.  
+  - Faster innovation than self‑hosted WSO2.
+
+- Cons  
+  - Vendor lock‑in, compliance audits, data residency.
+
+### Approach C: Custom PKCE + session cookies (minimal change)
+
+- Idea  
+  - Shell handles PKCE code exchange → sets secure HttpOnly session cookie → backend validates session.  
+  - No JWTs in Angular.
+
+- Pros  
+  - Tokens never exposed to client; simpler than JWT validation.  
+  - Works with current WSO2 SAML setup.
+
+- Cons  
+  - Loses stateless API benefits; no standard OIDC tooling.
+
+**Recommended: angular-auth-oidc-client + WSO2 OIDC client + PKCE flow.** Balances modern SPA patterns with your existing IdP and microfrontend needs.[1][5][2]
+
+***
+
+## 5. Glossary / keywords (1–2 lines)
+
+- **OIDC (OpenID Connect)** – Identity layer on OAuth 2.0; issues ID tokens proving user identity; standard for SPAs and APIs.[6][3][5]
+- **OAuth 2.0 Authorization Code Flow + PKCE** – Secure SPA flow using a one‑time code exchanged for tokens; PKCE prevents code interception.[3][5]
+- **ID Token** – JWT containing user identity claims (sub, name, email, roles); validated by client only, not sent to APIs.  
+- **Access Token** – JWT or opaque string for API authorization; scoped to resources/actions.  
+- **Refresh Token** – Long‑lived token for silently obtaining new access/ID tokens without re‑login.  
+- **Issuer (iss)** – IdP’s base URL (e.g., WSO2 realm); used to validate tokens and fetch JWKS.  
+- **Client ID** – Unique ID for your Angular app registered in IdP.  
+- **Redirect URI** – Shell app URL where IdP sends auth code or tokens post‑login.  
+- **JWKS (JSON Web Key Set)** – IdP endpoint publishing public keys for JWT signature validation.[6]
+- **Silent Renew** – Automatic refresh of access/ID tokens using iframe to IdP’s auth endpoint without user interaction.[5]
+- **Scope** – Permissions requested (e.g., `openid profile email offline_access` for ID/access/refresh tokens).  
+- **Custom Claims** – App‑specific data (your entitlements, firm type) embedded in ID/access tokens.  
+- **Auth Facade** – Shared Angular service providing observables (`user$`, `isAuthenticated$`) to remotes without exposing tokens.[2]
+
+***
+
+## 6. Microfrontend specifics
+
+- **Shell owns tokens**: Login/logout/refresh all happen in shell; tokens stored in shell’s memory or secure storage (e.g., `sessionStorage` for ID/access, `localStorage` for refresh with caveats).  
+- **Shared Auth service**: In a shared Nx lib, injected via DI; Module Federation ensures singleton instance across shell/remotes.[2]
+- **Logout**: Shell triggers IdP logout endpoint (`/end_session`) + clears local tokens + notifies remotes via shared observable.  
+- **API calls**: Remotes use shell’s HttpInterceptor or shared API service to attach access token to requests.
+
+**Authorization Code Flow with PKCE** is the best fit for your Angular microfrontend application, as it's the OAuth 2.0 / OIDC standard for public clients (SPAs) and directly supports token sharing, silent renew, and your MFA requirements.[1][2][3]
+
+***
+
+## Why Authorization Code + PKCE (not others)
+
+### Primary choice: Authorization Code Flow + PKCE
+
+| Flow | Why it fits your app | Why not |
+|------|----------------------|---------|
+| **Authorization Code + PKCE** | ✅ SPA‑standard; shell redirects to WSO2 → gets code → exchanges for ID/access/refresh tokens securely.<br />✅ PKCE protects against code theft (no client secret needed).<br />✅ Supports MFA (Twilio) prompts at IdP.<br />✅ Silent renew via refresh token.<br />✅ Tokens shared easily with MFEs via shell service.<br />**Perfect for your microfrontend shell.** | ❌ None – this *is* the modern SPA flow. |[1][2]
+
+### Flows that DON'T fit
+
+| Flow | Why it doesn't fit |
+|------|--------------------|
+| **Implicit Flow** | ❌ Deprecated (RFC 6819); exposes tokens in URL fragments (security risk).<br />❌ No refresh tokens; forces full re‑login on expiry. |
+| **Client Credentials** | ❌ For machine‑to‑machine (services); not for user login. |
+| **Resource Owner Password** | ❌ Deprecated; requires storing passwords (never do this). |
+| **Hybrid Flow** | ❌ Overkill for pure SPA; mixes code + token responses unnecessarily. |
+
+***
+
+## How it works concretely for your suite
+
+```
+1. User → Shell app (/login)
+↓
+2. Shell → WSO2 redirect (client_id=fipsuite, scope=openid profile entitlements, response_type=code, code_challenge=PKCE)
+↓ MFA via Twilio if needed
+3. WSO2 → Shell redirect (code=abc123)
+↓
+4. Shell POST code + code_verifier → WSO2 /token → ID Token (user + entitlements), Access Token, Refresh Token
+↓
+5. Shell stores tokens, emits user$ observable → MFEs (Admin, Reports, etc.) subscribe & show relevant UI
+↓
+6. API calls: remotes → shell HttpInterceptor → attach Access Token → Jersey/Spring backend
+↓ Silent renew: refresh token → new access/ID tokens
+```
+
+**Key wins for microfrontends:**
+- Shell centralizes all token logic; remotes get clean `user$`, `permissions$` observables via shared service.[4]
+- No token duplication or parsing in MFEs.  
+- Works with your existing WSO2 IdP (just configure OIDC client).
+
+**Implementation:** Use `angular-auth-oidc-client` library in shell – handles 90% of the flow automatically.[2]
+
+This is the flow every modern Angular SPA (including banking portals) uses today.
+
+
+[1](https://stackoverflow.com/questions/48670520/migrating-from-saml-to-openid-connect)
+[2](https://auth0.com/blog/micro-frontends-with-angular-module-federation-and-auth0/)
+[3](https://mojoauth.com/oauth2-oidc/implement-oauth2-oidc-with-angular/)
+[4](https://curity.io/blog/modernize-saml-web-architectures-the-right-way/)
+[5](https://www.npmjs.com/package/angular-auth-oidc-client)
+[6](https://dev-academy.com/angular-authentication-with-openid-connect/)
+[7](https://www.netcetera.com/stories/news/digital-identity-in-banking.html)
+[8](https://help.sap.com/docs/authorization-and-trust-management-service/authorization-and-trust-management/migration-from-saml-trust-to-openid-connect-trust-with-identity-authentication)
+[9](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-iam/reconfiguring-iam-for-enterprise-managed-users/migrating-from-saml-to-oidc)
+[10](https://docs.retool.com/sso/guides/saml-to-oidc)
+[11](https://www.loginradius.com/blog/identity/oidc-authentication-security)
+[12](https://learn.microsoft.com/en-us/entra/identity-platform/tutorial-single-page-apps-angular-prepare-app)
+[13](https://www.silverfort.com/glossary/oidc-openid-connect/)
+[14](https://openid.net/developers/certified-openid-connect-implementations/)
+[15](https://stackoverflow.com/questions/62236062/angular-9-authentication-with-angular-oauth2-oidc)
+
+
+
+[1](https://mojoauth.com/oauth2-oidc/implement-oauth2-oidc-with-angular/)
+[2](https://www.npmjs.com/package/angular-auth-oidc-client)
+[3](https://dev-academy.com/angular-authentication-with-openid-connect/)
+[4](https://auth0.com/blog/micro-frontends-with-angular-module-federation-and-auth0/)
+
+# **Modern Authentication Strategy Evolution for Fixed Income Portal**
+
+## **High-Level Overview**
+
+Your current **SAML-based WSO2 Identity Provider** setup needs to evolve to support modern microfrontend architecture with OAuth 2.1/OIDC standards. This transition enables better security, improved user experience, and microfrontend compatibility.
+
+### **Current State Analysis:**
+- **Protocol**: SAML 2.0 (XML-based, redirect-heavy)
+- **Flow**: SP-initiated SSO with WSO2 as IdP
+- **MFA**: Email/SMS via Twilio integrated at IdP
+- **Tokens**: SAML assertions (short-lived, browser-mediated)
+
+### **Target State Vision:**
+```
+SAML (Current) → OIDC/OAuth 2.1 (Modern)
+┌─────────────┐    ┌────────────────────┐
+│ WSO2 IdP    │    │ WSO2 as OIDC IdP   │
+│ SAML 2.0    │ →  │ OAuth 2.1 / OIDC   │
+│ Redirects   │    │ Token-based        │
+└─────────────┘    └────────────────────┘
+        ↓                    ↓
+┌─────────────┐    ┌────────────────────┐
+│ Angular     │    │ Angular Shell +    │
+│ Monolith    │ →  │ Microfrontends     │
+│ SP          │    │ Token Management   │
+└─────────────┘    └────────────────────┘
+```
+
+## **Deep Dive: OIDC/OAuth 2.1 for Microfrontends**
+
+### **Why Migrate from SAML to OIDC for MFEs?**
+
+| **Aspect** | **SAML (Current)** | **OIDC/OAuth 2.1 (Target)** |
+|------------|-------------------|----------------------------|
+| **Protocol** | XML-based, SOAP-like | JSON-based, RESTful |
+| **Flow** | Redirect-heavy, POST bindings | Flexible flows (PKCE, Implicit) |
+| **Tokens** | SAML assertions (opaque) | JWT tokens (self-contained) |
+| **Mobile/SPA** | Poor support | Excellent SPA support |
+| **Microfrontends** | Challenging (shared sessions) | Perfect fit (token sharing) |
+| **Performance** | Multiple redirects | Fewer round trips |
+| **Security** | XML security issues | Modern crypto, PKCE |
+
+### **Key OIDC Concepts for Your Migration:**
+
+1. **Access Tokens**: Short-lived JWTs for API authorization (15-30 min)
+2. **ID Tokens**: JWT containing user identity claims
+3. **Refresh Tokens**: Long-lived for obtaining new access tokens
+4. **PKCE (Proof Key for Code Exchange)**: Essential for SPAs
+
+## **Architecture: OIDC for Microfrontends**
+
+### **Recommended Flow: Authorization Code Flow with PKCE**
+
+```
+┌──────────┐      ┌─────────────┐      ┌────────────┐      ┌───────────┐
+│  User    │─────>│ Angular     │─────>│ WSO2 OIDC  │─────>│ Twilio    │
+│          │      │ Shell       │      │ IdP        │      │ MFA       │
+└──────────┘      └─────────────┘      └────────────┘      └───────────┘
+     │                   │                    │                    │
+     │                   │                    │                    │
+     │<──────────────────│<───────────────────│<───────────────────│
+     │    Redirect with  │     Auth Code      │   MFA Complete     │
+     │    Auth Code      │                    │                    │
+     │                   │                    │                    │
+┌──────────┐      ┌─────────────┐      ┌────────────┐      ┌───────────┐
+│  User    │<─────│ Angular     │<─────│ WSO2 OIDC  │      │           │
+│          │      │ Shell       │      │ IdP        │      │           │
+└──────────┘      └─────────────┘      └────────────┘      └───────────┘
+                           │                    │
+                           │ Exchange Code      │
+                           │ for Tokens         │
+                           │───────────────────>│
+                           │                    │
+                           │ Access + ID +      │
+                           │ Refresh Tokens     │
+                           │<───────────────────│
+                           │                    │
+                    ┌─────────────┐      ┌────────────┐
+                    │ Distribute  │─────>│ Micro-     │
+                    │ Tokens to   │      │ frontends  │
+                    │ MFEs        │      │            │
+                    └─────────────┘      └────────────┘
+```
+
+## **Technology Stack Options**
+
+### **Category 1: WSO2 Evolution Path**
+
+#### **Option A: Upgrade WSO2 Identity Server**
+```yaml
+WSO2 IS 5.11 (Current SAML) → WSO2 IS 6.0+ (OIDC/OAuth 2.1)
+- Enable OIDC Identity Provider feature
+- Configure OAuth 2.1 grant types
+- Maintain existing SAML for legacy during transition
+- Upgrade Twilio integration to support OIDC MFA
+```
+
+#### **Option B: WSO2 Asgard (API-driven)**
+```yaml
+Use WSO2's modern API-driven authentication:
+- WSO2 Identity Server as OIDC Provider
+- WSO2 API Manager as OAuth 2.1 gateway
+- Identity Apps for admin portal
+- Keep Twilio integration via adaptive authentication
+```
+
+### **Category 2: Commercial OIDC Providers**
+
+| **Provider** | **Strengths** | **Cost** | **Migration Effort** |
+|-------------|--------------|---------|---------------------|
+| **Okta** | Excellent MFA, SPA support | High | Medium (good SAML bridge) |
+| **Auth0** | Developer-friendly, great docs | Medium | Low (easy SAML to OIDC) |
+| **Azure AD** | Enterprise integration, M365 | Medium-High | Medium |
+| **Ping Identity** | Financial services focus | High | Medium |
+| **Keycloak** | Open source, flexible | Low | High (self-hosted) |
+
+### **Category 3: Cloud-Native Solutions**
+
+| **Solution** | **Best For** | **Banking Suitability** |
+|-------------|-------------|------------------------|
+| **AWS Cognito** | AWS-centric deployments | Good if on AWS |
+| **Google Identity** | Cloud-first organizations | Moderate |
+| **FusionAuth** | Self-hosted commercial | Good |
+| **Ory** | Open source, modern | Good |
+
+## **Recommended Path: WSO2 OIDC with Angular OAuth Libraries**
+
+### **Why Stick with WSO2 (Enhanced):**
+1. **Existing Investment**: Already licensed and configured
+2. **Familiarity**: Team knows WSO2 administration
+3. **Compliance**: Already approved for financial use
+4. **Incremental Migration**: Can run SAML and OIDC simultaneously
+
+## **Implementation Details**
+
+### **Phase 1: WSO2 OIDC Configuration**
+
+#### **1.1 Configure WSO2 as OIDC Identity Provider**
+```xml
+<!-- WSO2 IS 6.0+ OIDC Service Provider Configuration -->
+<ServiceProvider>
+  <ApplicationName>FixedIncomePortal</ApplicationName>
+  <Description>Fixed Income Processing Suite OIDC Client</Description>
+  <InboundAuthenticationConfig>
+    <InboundAuthenticationRequestConfigs>
+      <InboundAuthenticationRequestConfig>
+        <InboundAuthKey>fixed-income-portal-client</InboundAuthKey>
+        <InboundAuthType>oauth2</InboundAuthType>
+        <Properties>
+          <Property Name="oauthConsumerSecret">encrypted-secret</Property>
+          <Property Name="oauthVersion">2.0</Property>
+          <Property Name="callbackUrl">https://portal.yourbank.com/auth/callback</Property>
+          <Property Name="grantTypes">authorization_code refresh_token</Property>
+          <Property Name="pkceMandatory">true</Property>
+          <Property Name="pkceSupportPlain">false</Property>
+          <Property Name="publicClient">true</Property>
+          <Property Name="accessTokenExpiryTime">900</Property> <!-- 15 min -->
+          <Property Name="refreshTokenExpiryTime">2592000</Property> <!-- 30 days -->
+          <Property Name="idTokenExpiryTime">900</Property>
+        </Properties>
+      </InboundAuthenticationRequestConfig>
+    </InboundAuthenticationRequestConfigs>
+  </InboundAuthenticationConfig>
+</ServiceProvider>
+```
+
+#### **1.2 Configure Adaptive MFA with Twilio**
+```javascript
+// WSO2 Adaptive Authentication Script
+var onLoginRequest = function(context) {
+  executeStep(1, {
+    onSuccess: function (context) {
+      // Check if user requires MFA
+      var user = context.steps[1].subject;
+      var isHighRisk = checkRisk(context);
+      var isNewDevice = checkDevice(context);
+      
+      if (isHighRisk || isNewDevice) {
+        executeStep(2, {
+          // Twilio MFA Step
+          authenticator: 'TwilioSMSOTP',
+          onSuccess: function (context) {
+            // Continue to OIDC token issuance
+          }
+        });
+      }
+    }
+  });
+};
+```
+
+### **Phase 2: Angular Authentication Library**
+
+#### **2.1 Choose Angular OIDC Library**
+
+| **Library** | **Pros** | **Cons** | **Recommendation** |
+|------------|---------|---------|-------------------|
+| **angular-auth-oidc-client** | Most popular, maintained | Configuration complexity | **RECOMMENDED** |
+| **@azure/msal-angular** | Microsoft ecosystem | Azure-specific | If using Azure AD |
+| **okta-angular** | Okta-specific | Vendor lock-in | If choosing Okta |
+| **@manfredsteyer/angular-oauth2-oidc** | Lightweight | Less features | Good alternative |
+| **Custom Implementation** | Full control | High maintenance | Not recommended |
+
+#### **2.2 Shell Application Auth Service**
+```typescript
+// apps/shell/src/app/core/auth/auth.service.ts
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private tokenRefreshTimer: any;
+  
+  constructor(
+    private oidcSecurityService: OidcSecurityService,
+    private mfeCoordinator: MFECoordinatorService
+  ) {
+    this.configureOIDC();
+    this.setupAutoRefresh();
+  }
+  
+  private configureOIDC() {
+    const config = {
+      authority: 'https://idp.yourbank.com/oauth2/token',
+      clientId: 'fixed-income-portal-client',
+      redirectUrl: window.location.origin + '/auth/callback',
+      postLogoutRedirectUri: window.location.origin,
+      scope: 'openid profile email offline_access',
+      responseType: 'code',
+      silentRenew: true,
+      silentRenewUrl: window.location.origin + '/silent-renew.html',
+      renewTimeBeforeTokenExpiresInSeconds: 60,
+      useRefreshToken: true,
+      ignoreNonceAfterRefresh: true,
+      // PKCE configuration
+      customParamsAuthRequest: {
+        code_challenge_method: 'S256',
+        code_challenge: this.generateCodeChallenge(),
+      },
+      // WSO2-specific
+      customParamsCodeRequest: {
+        client_secret: environment.oauthClientSecret,
+      },
+    };
+    
+    this.oidcSecurityService.checkAuth().subscribe(({ isAuthenticated, userData, accessToken }) => {
+      if (isAuthenticated) {
+        this.distributeTokensToMFEs(accessToken);
+        this.startTokenRefresh();
+      }
+    });
+  }
+  
+  // Distribute tokens to all loaded microfrontends
+  private distributeTokensToMFEs(accessToken: string) {
+    this.mfeCoordinator.getAllMFEs().forEach(mfe => {
+      mfe.setAuthToken(accessToken);
+    });
+    
+    // Also store in shared location for late-loaded MFEs
+    window.sessionStorage.setItem('shared_access_token', accessToken);
+  }
+  
+  private startTokenRefresh() {
+    // Automatically refresh token before expiry
+    this.tokenRefreshTimer = setInterval(() => {
+      this.oidcSecurityService.refreshSession().subscribe();
+    }, 14 * 60 * 1000); // 14 minutes (tokens expire in 15)
+  }
+}
+```
+
+#### **2.3 Cross-MFE Token Sharing Strategy**
+```typescript
+// Shared token management for microfrontends
+@Injectable()
+export class CrossMFEAuthCoordinator {
+  private authChannel = new BroadcastChannel('auth_tokens');
+  private tokenStore = new EncryptedStorage('portal_tokens');
+  
+  constructor() {
+    // Listen for token updates from shell
+    this.authChannel.onmessage = (event) => {
+      if (event.data.type === 'TOKEN_UPDATE') {
+        this.handleNewToken(event.data.token);
+      }
+      if (event.data.type === 'LOGOUT') {
+        this.clearAllTokens();
+      }
+    };
+    
+    // Check for existing tokens on MFE load
+    this.checkStoredTokens();
+  }
+  
+  private handleNewToken(token: string) {
+    // Store encrypted token
+    this.tokenStore.set('access_token', token);
+    
+    // Update HTTP interceptor
+    this.updateAuthHeader(token);
+    
+    // Notify all components of new token
+    this.tokenSubject.next(token);
+  }
+  
+  // Method for MFEs to request current token
+  getCurrentToken(): Promise<string> {
+    return this.tokenStore.get('access_token');
+  }
+  
+  // Shell calls this to broadcast to all MFEs
+  broadcastTokenUpdate(token: string) {
+    this.authChannel.postMessage({
+      type: 'TOKEN_UPDATE',
+      token: token,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+```
+
+### **Phase 3: HTTP Interceptor for All MFEs**
+
+```typescript
+// Shared library: libs/shared/http-interceptors/src/lib/auth.interceptor.ts
+@Injectable()
+export class AuthInterceptor implements HttpInterceptor {
+  private excludedEndpoints = ['/assets/', '/auth/', '/silent-renew'];
+  
+  constructor(
+    private authCoordinator: CrossMFEAuthCoordinator,
+    private router: Router
+  ) {}
+  
+  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    // Skip auth for excluded endpoints
+    if (this.isExcluded(req.url)) {
+      return next.handle(req);
+    }
+    
+    return from(this.authCoordinator.getCurrentToken()).pipe(
+      switchMap(token => {
+        if (token) {
+          const cloned = req.clone({
+            setHeaders: {
+              Authorization: `Bearer ${token}`,
+              'X-Portal-Client': 'fixed-income-mfe'
+            }
+          });
+          return next.handle(cloned);
+        } else {
+          // No token - trigger auth flow
+          this.triggerAuthentication();
+          return throwError(() => new Error('No authentication token'));
+        }
+      }),
+      catchError(error => {
+        if (error.status === 401) {
+          // Token expired, trigger refresh
+          this.refreshTokenAndRetry(req, next);
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+  
+  private refreshTokenAndRetry(
+    originalRequest: HttpRequest<any>,
+    next: HttpHandler
+  ): Observable<HttpEvent<any>> {
+    return this.authCoordinator.refreshToken().pipe(
+      switchMap(newToken => {
+        const cloned = originalRequest.clone({
+          setHeaders: { Authorization: `Bearer ${newToken}` }
+        });
+        return next.handle(cloned);
+      }),
+      catchError(refreshError => {
+        // Refresh failed - redirect to login
+        this.router.navigate(['/auth/login'], {
+          queryParams: { returnUrl: this.router.url }
+        });
+        return throwError(() => refreshError);
+      })
+    );
+  }
+}
+```
+
+### **Phase 4: Silent Renew and Token Management**
+
+#### **4.1 Silent Renew HTML**
+```html
+<!-- silent-renew.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Silent Renew</title>
+  <script src="https://unpkg.com/oidc-client-ts/dist/oidc-client-ts.min.js"></script>
+</head>
+<body>
+  <script>
+    new Oidc.UserManager({ response_mode: 'query' })
+      .signinSilentCallback()
+      .catch(error => {
+        console.error('Silent renew failed:', error);
+        // Notify parent window
+        window.parent.postMessage({
+          type: 'SILENT_RENEW_FAILED'
+        }, window.location.origin);
+      });
+  </script>
+</body>
+</html>
+```
+
+#### **4.2 Token Refresh Service**
+```typescript
+@Injectable()
+export class TokenRefreshService {
+  private refreshInProgress = false;
+  private refreshSubject = new Subject<string>();
+  
+  constructor(
+    private http: HttpClient,
+    private config: AuthConfigService
+  ) {}
+  
+  refreshToken(): Observable<string> {
+    if (this.refreshInProgress) {
+      // Wait for ongoing refresh
+      return this.refreshSubject.asObservable().pipe(
+        take(1)
+      );
+    }
+    
+    this.refreshInProgress = true;
+    
+    const refreshToken = this.getStoredRefreshToken();
+    const body = new HttpParams()
+      .set('grant_type', 'refresh_token')
+      .set('refresh_token', refreshToken)
+      .set('client_id', this.config.clientId);
+    
+    return this.http.post<TokenResponse>(
+      this.config.tokenEndpoint,
+      body.toString(),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      }
+    ).pipe(
+      tap(response => {
+        this.storeTokens(response);
+        this.refreshSubject.next(response.access_token);
+        this.refreshInProgress = false;
+      }),
+      catchError(error => {
+        this.refreshInProgress = false;
+        this.refreshSubject.error(error);
+        return throwError(() => error);
+      })
+    );
+  }
+  
+  private storeTokens(response: TokenResponse) {
+    // Encrypt and store
+    const encryptedAccess = this.encrypt(response.access_token);
+    const encryptedRefresh = this.encrypt(response.refresh_token);
+    
+    sessionStorage.setItem('enc_access', encryptedAccess);
+    localStorage.setItem('enc_refresh', encryptedRefresh);
+    
+    // Broadcast to MFEs
+    this.broadcastTokenUpdate(response.access_token);
+  }
+}
+```
+
+## **Alternative Implementation Approaches**
+
+### **Option A: Backend-for-Frontend (BFF) Pattern**
+```yaml
+Recommended for enhanced security:
+- Shell app talks to BFF (Node.js/Spring Boot)
+- BFF handles OIDC flow, stores tokens server-side
+- MFEs get session cookies instead of handling tokens
+- Better protection against token theft
+```
+
+### **Option B: Token Handler Pattern**
+```yaml
+Alternative for SPAs:
+- Use token-handler library (by Curity)
+- Tokens stored in secure, HTTP-only cookies
+- JavaScript library handles token renewal
+- No token exposure to JavaScript
+```
+
+### **Option C: CloudFront + Lambda@Edge**
+```yaml
+For AWS deployments:
+- CloudFront as reverse proxy
+- Lambda@Edge validates tokens
+- Microfrontends never see raw tokens
+- Centralized token validation
+```
+
+## **Migration Strategy**
+
+### **Phase 0: Preparation (2 Weeks)**
+1. **Upgrade WSO2** to version supporting OIDC/OAuth 2.1
+2. **Configure OIDC Client** in WSO2 alongside existing SAML SP
+3. **Create Audit Logging** for both SAML and OIDC flows
+
+### **Phase 1: Dual-Running (4 Weeks)**
+1. **Implement OIDC in Shell** but keep SAML as primary
+2. **Run A/B Testing** with internal users on OIDC
+3. **Compare Session Behavior** between SAML and OIDC
+
+### **Phase 2: Gradual Cutover (6 Weeks)**
+```typescript
+// Gradual migration strategy
+const migrationStrategy = {
+  week1: {
+    users: 'internal_team',
+    method: 'oidc',
+    fallback: 'saml'
+  },
+  week2: {
+    users: 'lead_bank_admins',
+    method: 'oidc',
+    fallback: 'saml'
+  },
+  week3: {
+    users: 'correspondent_bank_1',
+    method: 'oidc',
+    fallback: 'saml'
+  },
+  // Continue weekly rollout
+};
+```
+
+### **Phase 3: Full OIDC (2 Weeks)**
+1. **Disable SAML** for all users
+2. **Monitor Error Rates** and performance
+3. **Update Documentation** and runbooks
+
+## **Security Considerations**
+
+### **SPA-Specific Security Measures:**
+```typescript
+const securityConfig = {
+  // Prevent token leakage
+  storage: {
+    accessToken: 'sessionStorage', // Cleared on tab close
+    refreshToken: 'encryptedLocalStorage',
+    state: 'memoryOnly'
+  },
+  
+  // Token validation
+  validation: {
+    validateIssuer: true,
+    validateAudience: true,
+    validateExpiration: true,
+    validateSignature: true,
+    clockSkew: 300 // 5 minutes
+  },
+  
+  // Attack prevention
+  prevention: {
+    pkce: true, // Mandatory for SPAs
+    state: true, // CSRF protection
+    nonce: true, // Replay protection
+    strictRedirectUri: true
+  }
+};
+```
+
+### **Financial Services Enhancements:**
+1. **Step-up Authentication**: For high-value transactions
+2. **Transaction Signing**: Separate approval flows
+3. **Device Binding**: Prevent token export
+4. **Behavioral Biometrics**: Additional risk analysis
+
+## **Performance Optimization**
+
+### **Token Management Optimizations:**
+```typescript
+class OptimizedTokenService {
+  // Token caching strategy
+  private cache = new LRUCache<string, CachedToken>({
+    max: 1000,
+    ttl: 14 * 60 * 1000 // 14 minutes
+  });
+  
+  // Batch token validation
+  async validateTokens(tokens: string[]): Promise<ValidationResult[]> {
+    const uniqueTokens = [...new Set(tokens)];
+    return await this.batchValidate(uniqueTokens);
+  }
+  
+  // Predictive token refresh
+  schedulePredictiveRefresh(userPattern: UserBehavior) {
+    // Refresh token before expected next use
+    const nextUse = this.predictNextActivity(userPattern);
+    const refreshTime = nextUse - (2 * 60 * 1000); // 2 minutes before
+    setTimeout(() => this.refreshToken(), refreshTime);
+  }
+}
+```
+
+## **Monitoring and Alerting**
+
+### **Key Metrics to Monitor:**
+```yaml
+authentication_metrics:
+  success_rate: "> 99.9%"
+  mfa_completion_rate: "> 95%"
+  token_refresh_success: "> 99%"
+  login_latency_p95: "< 3s"
+  silent_renew_success: "> 98%"
+  
+security_metrics:
+  failed_attempts: "alert if > 5/min"
+  token_theft_detected: "immediate alert"
+  unusual_location: "alert and require step-up"
+  device_change: "alert and MFA"
+```
+
+## **Trade-offs and Considerations**
+
+### **Advantages of OIDC Migration:**
+1. **Better MFE Support**: Token sharing between microfrontends
+2. **Improved UX**: Fewer redirects, silent renew
+3. **Mobile Ready**: Native app support
+4. **Standardized**: Industry standard, better libraries
+5. **Flexible MFA**: Adaptive authentication flows
+
+### **Challenges:**
+1. **Token Management Complexity**: Refresh, storage, validation
+2. **SPA Security Concerns**: Token theft vulnerabilities
+3. **Migration Risk**: Authentication is critical path
+4. **Browser Compatibility**: Silent renew iframe issues
+5. **State Management**: More complex than SAML sessions
+
+### **Mitigation Strategies:**
+```yaml
+risk_mitigation:
+  token_theft:
+    - Use short-lived access tokens (15 min)
+    - Bind tokens to device fingerprint
+    - Monitor token usage patterns
+    
+  migration_risk:
+    - Run dual systems during transition
+    - Feature flag for authentication method
+    - Rollback plan ready
+    
+  performance:
+    - Implement token caching
+    - Use HTTP/2 for token endpoints
+    - Batch token validation
+```
+
+## **Recommended Implementation Stack**
+
+```yaml
+authentication_stack:
+  identity_provider: "WSO2 Identity Server 6.0+"
+  protocol: "OIDC with OAuth 2.1"
+  flow: "Authorization Code with PKCE"
+  angular_library: "angular-auth-oidc-client"
+  token_storage: "Encrypted sessionStorage + BroadcastChannel"
+  mfa_integration: "WSO2 Adaptive Auth with Twilio"
+  security_addons:
+    - "Token binding to device"
+    - "Step-up authentication for trading"
+    - "Behavioral analytics integration"
+  monitoring:
+    - "OpenTelemetry for auth flows"
+    - "SIEM integration for security events"
+    - "Real-time dashboard for auth metrics"
+```
+
+This migration strategy maintains your investment in WSO2 while modernizing to support microfrontends and providing a better user experience. The phased approach minimizes risk while delivering tangible benefits throughout the migration process.

@@ -1,0 +1,1052 @@
+# Angular Rendering Strategies - Senior Architect Interview Guide
+
+## Table of Contents
+1. [Rendering Strategies Overview](#1-rendering-strategies-overview)
+2. [Server-Side Rendering (SSR)](#2-server-side-rendering-ssr)
+3. [Hydration](#3-hydration)
+4. [Incremental Hydration](#4-incremental-hydration)
+5. [Design Patterns](#5-design-patterns)
+6. [Best Practices](#6-best-practices)
+7. [Advanced Topics](#7-advanced-topics)
+8. [Interview Cheat Sheet (Q&A)](#8-interview-cheat-sheet-qa)
+9. [Key Terms & Keywords Reference](#9-key-terms--keywords-reference)
+
+---
+
+## 1. Rendering Strategies Overview
+
+### Three Primary Rendering Strategies
+
+#### 1.1 Client-Side Rendering (CSR)
+- **Definition**: Angular's default rendering mode where content renders entirely in browser after JavaScript loads
+- **Key Characteristics**:
+  - Simplest development model
+  - Minimal server configuration needed
+  - No SEO capability until JS executes
+  - Slower initial load (download + parse + execute JS first)
+  - Immediate interactivity once loaded
+
+**Trade-offs Matrix**:
+```
+SEO: Poor (content not visible to crawlers)
+Initial Load: Slower (must download JS first)
+Interactivity: Immediate after load
+Server Needs: Minimal
+Complexity: Simplest
+```
+
+**Use Cases**:
+- ✅ Interactive dashboards and admin panels
+- ✅ Real-time applications
+- ✅ Internal tools (no SEO requirement)
+- ✅ Complex client-side state management
+- ❌ Public-facing content requiring SEO
+- ❌ Performance-critical initial loads
+
+#### 1.2 Static Site Generation (SSG/Prerendering)
+- **Definition**: Pre-renders pages at build time into static HTML files
+- **Key Characteristics**:
+  - HTML generated during build process
+  - Server sends pre-built HTML for initial page load
+  - After hydration, runs entirely in browser like SPA
+  - Subsequent navigation happens client-side
+  - No additional server rendering after initial load
+
+**Trade-offs Matrix**:
+```
+SEO: Excellent (full HTML available immediately)
+Initial Load: Fastest (pre-generated HTML)
+Interactivity: After hydration completes
+Server Needs: None for serving (CDN-friendly)
+Build Time: Longer (generates all pages upfront)
+Content Updates: Requires rebuild and redeploy
+```
+
+**Use Cases**:
+- ✅ Marketing pages and landing pages
+- ✅ Blog posts and documentation
+- ✅ Product catalogs with stable content
+- ✅ Content that doesn't change per-user
+- ❌ User-specific content
+- ❌ Frequently changing data
+- ❌ Real-time information
+
+#### 1.3 Server-Side Rendering (SSR)
+- **Definition**: Generates HTML on server for initial request, providing dynamic content with good SEO
+- **Key Characteristics**:
+  - Server renders HTML for initial request
+  - After hydration, app runs in browser like traditional SPA
+  - Subsequent navigation and API calls happen client-side
+  - No additional server rendering after initial load
+
+**Trade-offs Matrix**:
+```
+SEO: Excellent (full HTML for crawlers)
+Initial Load: Fast (immediate content visibility)
+Interactivity: Delayed until hydration
+Server Needs: Requires server infrastructure
+Personalization: Full access to user context
+Server Costs: Higher (renders on each initial request)
+```
+
+**Use Cases**:
+- ✅ E-commerce product pages (dynamic pricing/inventory)
+- ✅ News sites and social media feeds
+- ✅ Personalized content changing frequently
+- ❌ Static content (use SSG instead)
+- ❌ When server costs are primary concern
+
+### Decision Matrix
+
+| Requirement | Strategy | Reason |
+|------------|----------|--------|
+| SEO + Static content | SSG | Pre-rendered HTML, fastest load |
+| SEO + Dynamic content | SSR | Fresh content on initial request |
+| No SEO + Interactivity | CSR | Simplest, no server needed |
+| Mixed requirements | Hybrid | Different strategies per route |
+
+---
+
+## 2. Server-Side Rendering (SSR)
+
+### 2.1 Setup & Configuration
+
+#### Enable SSR (New Project)
+```bash
+ng new --ssr
+```
+
+#### Add SSR to Existing Project
+```bash
+ng add @angular/ssr
+```
+
+**Important**: By default, Angular prerenders entire application and generates server file. To disable and create fully static app, set `outputMode` to `static`.
+
+### 2.2 Server Routing Configuration
+
+#### Key Interface: `ServerRoute`
+```typescript
+// app.routes.server.ts
+import { RenderMode, ServerRoute } from '@angular/ssr';
+
+export const serverRoutes: ServerRoute[] = [
+  {
+    path: '',
+    renderMode: RenderMode.Client, // CSR for home
+  },
+  {
+    path: 'about',
+    renderMode: RenderMode.Prerender, // SSG for about
+  },
+  {
+    path: 'profile',
+    renderMode: RenderMode.Server, // SSR for profile
+  },
+  {
+    path: '**',
+    renderMode: RenderMode.Server, // SSR for all other routes
+  },
+];
+```
+
+#### Register Server Routes
+```typescript
+// app.config.server.ts
+import { provideServerRendering, withRoutes } from '@angular/ssr';
+import { serverRoutes } from './app.routes.server';
+
+const serverConfig: ApplicationConfig = {
+  providers: [
+    provideServerRendering(withRoutes(serverRoutes)),
+  ],
+};
+```
+
+### 2.3 Render Modes
+
+| Mode | Description | API Reference |
+|------|-------------|---------------|
+| **RenderMode.Server** | Renders on server for each request | `RenderMode.Server` |
+| **RenderMode.Client** | Renders in browser (default Angular) | `RenderMode.Client` |
+| **RenderMode.Prerender** | Prerenders at build time (SSG) | `RenderMode.Prerender` |
+
+### 2.4 Setting Headers & Status Codes
+
+```typescript
+export const serverRoutes: ServerRoute[] = [
+  {
+    path: 'profile',
+    renderMode: RenderMode.Server,
+    headers: {
+      'X-My-Custom-Header': 'some-value',
+    },
+    status: 201,
+  },
+];
+```
+
+### 2.5 Redirects
+
+**SSR**: Uses standard HTTP redirects (301, 302)
+**SSG**: Implements "soft redirects" using `<meta http-equiv="refresh">` tags
+
+### 2.6 Customizing Build-Time Prerendering (SSG)
+
+#### Parameterized Routes
+```typescript
+export const serverRoutes: ServerRoute[] = [
+  {
+    path: 'post/:id',
+    renderMode: RenderMode.Prerender,
+    async getPrerenderParams() {
+      const dataService = inject(PostService);
+      const ids = await dataService.getIds(); // ['1', '2', '3']
+      return ids.map((id) => ({id})); // /post/1, /post/2, /post/3
+    },
+  },
+];
+```
+
+**Important**: `getPrerenderParams` runs at build-time only. Must not rely on browser or server-specific APIs.
+
+**Note**: `inject()` must be used synchronously, cannot be invoked after `await` statements.
+
+#### Catch-all Routes
+```typescript
+{
+  path: 'post/:id/**',
+  renderMode: RenderMode.Prerender,
+  async getPrerenderParams() {
+    return [
+      {id: '1', '**': 'foo/3'}, // /post/1/foo/3
+      {id: '2', '**': 'bar/4'}, // /post/2/bar/4
+    ];
+  },
+}
+```
+
+#### Fallback Strategies
+
+```typescript
+import { PrerenderFallback } from '@angular/ssr';
+
+{
+  path: 'post/:id',
+  renderMode: RenderMode.Prerender,
+  fallback: PrerenderFallback.Client, // Options: Server (default), Client, None
+  async getPrerenderParams() {
+    return [{id: 1}, {id: 2}, {id: 3}];
+  },
+}
+```
+
+**Fallback Options**:
+- **Server**: Falls back to SSR (default)
+- **Client**: Falls back to CSR
+- **None**: No fallback, Angular won't handle unprerendered paths
+
+### 2.7 Authoring Server-Compatible Components
+
+#### Avoid Direct DOM Access
+```typescript
+import { Component, viewChild, afterNextRender } from '@angular/core';
+
+@Component({
+  selector: 'my-cmp',
+  template: `<span #content>{{ ... }}</span>`,
+})
+export class MyComponent {
+  contentRef = viewChild.required<ElementRef>('content');
+  
+  constructor() {
+    afterNextRender(() => {
+      // Safe - only runs in browser
+      console.log('height: ' + this.contentRef().nativeElement.scrollHeight);
+    });
+  }
+}
+```
+
+**Key Lifecycle Hooks**:
+- `afterEveryRender()`: Executes only in browser, skipped on server
+- `afterNextRender()`: Executes only in browser, skipped on server
+
+**Important**: Avoid `isPlatformBrowser` in templates with `@if` - causes hydration mismatches and layout shifts.
+
+### 2.8 Platform-Specific Service Implementations
+
+#### Abstract Service Pattern
+```typescript
+// Service interface
+export abstract class AnalyticsService {
+  abstract trackEvent(name: string): void;
+}
+
+// Browser implementation
+@Injectable()
+export class BrowserAnalyticsService implements AnalyticsService {
+  trackEvent(name: string): void {
+    // Browser-based third-party analytics
+  }
+}
+
+// Server implementation
+@Injectable()
+export class ServerAnalyticsService implements AnalyticsService {
+  trackEvent(name: string): void {
+    // Server-side logging
+  }
+}
+
+// app.config.ts (browser)
+export const appConfig: ApplicationConfig = {
+  providers: [{provide: AnalyticsService, useClass: BrowserAnalyticsService}],
+};
+
+// app.config.server.ts (server)
+const serverConfig: ApplicationConfig = {
+  providers: [{provide: AnalyticsService, useClass: ServerAnalyticsService}],
+};
+```
+
+### 2.9 Accessing Server Context via DI
+
+#### Key Tokens
+```typescript
+import { inject, REQUEST, RESPONSE_INIT, REQUEST_CONTEXT } from '@angular/core';
+
+@Component({
+  selector: 'app-my-component',
+  template: `<h1>My Component</h1>`,
+})
+export class MyComponent {
+  constructor() {
+    const request = inject(REQUEST); // Web API Request object
+    const responseInit = inject(RESPONSE_INIT); // ResponseInit for headers/status
+    const context = inject(REQUEST_CONTEXT); // Additional context
+    
+    console.log(request?.url);
+  }
+}
+```
+
+**Important**: These tokens are `null` in:
+- Build processes
+- Browser rendering (CSR)
+- Static site generation (SSG)
+- Route extraction in development
+
+#### Accessing Document via DI
+```typescript
+import { Injectable, inject, DOCUMENT } from '@angular/core';
+
+@Injectable({providedIn: 'root'})
+export class CanonicalLinkService {
+  private readonly document = inject(DOCUMENT);
+  
+  setCanonical(href: string): void {
+    const link = this.document.createElement('link');
+    link.rel = 'canonical';
+    link.href = href;
+    this.document.head.appendChild(link);
+  }
+}
+```
+
+**Note**: For meta tags, use Angular's `Meta` service.
+
+### 2.10 HttpClient Caching
+
+#### Default Behavior
+- Caches outgoing network requests when running on server
+- Serialized and transferred to browser in initial HTML
+- Browser reuses cache instead of making new HTTP requests during initial render
+- Cache stops once application becomes stable
+
+#### Configuring Cache Options
+```typescript
+import { 
+  provideClientHydration, 
+  withHttpTransferCacheOptions 
+} from '@angular/platform-browser';
+
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideClientHydration(
+      withHttpTransferCacheOptions({
+        includeHeaders: ['ETag', 'Cache-Control'],
+        filter: (req) => !req.url.includes('/api/profile'),
+        includePostRequests: true,
+        includeRequestsWithAuthHeaders: false,
+      }),
+    ),
+  ],
+});
+```
+
+**Configuration Options**:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `includeHeaders` | Which headers to include in cached entries | None |
+| `includePostRequests` | Cache POST requests (for GraphQL queries) | false |
+| `includeRequestsWithAuthHeaders` | Cache requests with auth headers | false |
+| `filter` | Custom function to exclude specific requests | Includes all GET/HEAD |
+
+**Default Caching**: All `HEAD` and `GET` requests without `Authorization` or `Proxy-Authorization` headers.
+
+#### Per-Request Overrides
+```typescript
+// Include specific headers
+http.get('/api/profile', {
+  transferCache: {includeHeaders: ['CustomHeader']}
+});
+
+// Disable caching for specific request
+httpClient.get('/api/sensitive-data', {
+  transferCache: false
+});
+```
+
+#### Disable Caching Globally
+```typescript
+import { 
+  provideClientHydration, 
+  withNoHttpTransferCache 
+} from '@angular/platform-browser';
+
+bootstrapApplication(AppComponent, {
+  providers: [provideClientHydration(withNoHttpTransferCache())],
+});
+```
+
+### 2.11 Generating Fully Static Application
+
+```json
+// angular.json
+{
+  "projects": {
+    "your-app": {
+      "architect": {
+        "build": {
+          "options": {
+            "outputMode": "static"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Result**: Generates pre-rendered HTML without server file or Node.js requirement.
+
+### 2.12 Server Configuration
+
+#### Node.js Implementation
+```typescript
+// server.ts
+import {
+  AngularNodeAppEngine,
+  createNodeRequestHandler,
+  writeResponseToNodeResponse,
+} from '@angular/ssr/node';
+import express from 'express';
+
+const app = express();
+const angularApp = new AngularNodeAppEngine();
+
+app.use('*', (req, res, next) => {
+  angularApp
+    .handle(req)
+    .then((response) => {
+      if (response) {
+        writeResponseToNodeResponse(response, res);
+      } else {
+        next();
+      }
+    })
+    .catch(next);
+});
+
+export const reqHandler = createNodeRequestHandler(app);
+```
+
+#### Non-Node.js Implementation
+```typescript
+// server.ts
+import { AngularAppEngine, createRequestHandler } from '@angular/ssr';
+
+const angularApp = new AngularAppEngine();
+
+export const reqHandler = createRequestHandler(async (req: Request) => {
+  const res: Response | null = await angularApp.render(req);
+  // ...
+});
+```
+
+---
+
+## 3. Hydration
+
+### 3.1 What is Hydration?
+
+**Definition**: Process that restores server-side rendered application on client by:
+- Reusing server-rendered DOM structures
+- Persisting application state
+- Transferring application data retrieved by server
+- Avoiding re-creation of DOM nodes
+
+### 3.2 Why Hydration is Important
+
+**Performance Benefits**:
+- Avoids extra work to re-create DOM nodes
+- Matches existing DOM elements to application structure at runtime
+- Improves Core Web Vitals (CWV):
+  - Reduces First Input Delay (FID)
+  - Reduces Largest Contentful Paint (LCP)
+  - Reduces Cumulative Layout Shift (CLS)
+- Positive impact on SEO
+
+**Without Hydration**: Server-rendered apps destroy and re-render DOM, causing visible UI flicker and negatively impacting Core Web Vitals.
+
+### 3.3 Enabling Hydration
+
+#### Using Angular CLI
+Automatically included when enabling SSR via:
+```bash
+ng new --ssr
+# or
+ng add @angular/ssr
+```
+
+#### Manual Setup
+```typescript
+import {
+  bootstrapApplication,
+  provideClientHydration,
+} from '@angular/platform-browser';
+
+bootstrapApplication(AppComponent, {
+  providers: [provideClientHydration()]
+});
+```
+
+#### NgModules Setup
+```typescript
+import { provideClientHydration } from '@angular/platform-browser';
+import { NgModule } from '@angular/core';
+
+@NgModule({
+  declarations: [AppComponent],
+  bootstrap: [AppComponent],
+  providers: [provideClientHydration()],
+})
+export class AppModule {}
+```
+
+**Important**: Include `provideClientHydration()` in both client and server bootstrap configuration.
+
+### 3.4 Verifying Hydration
+
+**Browser Console**: Look for hydration stats message showing number of components and nodes hydrated.
+
+**Angular DevTools**: 
+- View hydration status of components
+- Enable overlay to indicate hydrated parts
+- Highlights components causing hydration mismatch errors
+
+### 3.5 Event Replay (v18+)
+
+**Purpose**: Captures events occurring before hydration completes and replays them post-hydration.
+
+#### Enable Event Replay
+```typescript
+import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
+
+bootstrapApplication(App, {
+  providers: [provideClientHydration(withEventReplay())],
+});
+```
+
+#### How Event Replay Works
+
+**Three Phases**:
+1. **Capturing User Interactions**: Records all interactions before hydration (clicks, native browser events)
+2. **Storing Events**: Event Contract keeps interactions in memory for later replay
+3. **Relaunch of Events**: After hydration completes, Angular re-invokes captured events
+
+**Supported Events**: Native browser events (click, mouseover, focusin, etc.)
+
+**Library**: Powered by JSAction
+
+**Note**: If incremental hydration enabled, event replay automatically enabled.
+
+### 3.6 Constraints
+
+#### Same DOM Structure Required
+- Server and client must generate identical DOM structure
+- Includes whitespaces and comment nodes
+- HTML produced by SSR must NOT be altered between server and client
+
+#### Direct DOM Manipulation
+**Problematic APIs**:
+- Accessing `document`
+- Querying specific elements
+- Using `appendChild` to inject nodes
+- Using `innerHTML` or `outerHTML`
+- Detaching and moving DOM nodes
+
+**Solution**: 
+- Refactor to use Angular APIs
+- Use `ngSkipHydration` attribute as temporary workaround
+- Prefer refactoring over skipping hydration
+
+#### Valid HTML Structure
+**Common Invalid Structures**:
+- `<table>` without `<tbody>` (browsers auto-create it, causing mismatch)
+- `<div>` inside `<p>`
+- `<a>` inside another `<a>`
+
+**Solution**: Always explicitly declare `<tbody>` in tables. Use HTML validators.
+
+#### Preserve Whitespaces Configuration
+**Recommended**: Use default `false` for `preserveWhitespaces`
+
+**Important**: Set consistently in `tsconfig.server.json` (server) and `tsconfig.app.json` (browser). Mismatched values break hydration.
+
+#### Custom or Noop Zone.js Not Yet Supported
+Hydration relies on Zone.js "stable" signal for serialization/cleanup timing. Custom Zone.js may trigger serialization too early/late.
+
+### 3.7 Handling Hydration Errors
+
+**Common Causes**:
+- Direct DOM manipulation
+- Invalid HTML structure
+- DOM mismatch between server and client
+
+**Error Reference**: Full hydration error documentation at `/errors`
+
+### 3.8 Skipping Hydration for Components
+
+#### Component-level Skip
+```typescript
+// In template
+<app-example ngSkipHydration />
+
+// As host binding
+@Component({
+  host: {ngSkipHydration: 'true'},
+})
+class ExampleComponent {}
+```
+
+**Effect**: 
+- Forces component to destroy and re-render (no hydration benefits)
+- Loses performance gains
+- Should be temporary workaround, not permanent solution
+
+**Important**: 
+- Only works on component host nodes
+- Angular throws error if added to other nodes
+- Adding to root component disables hydration for entire app
+- Components breaking hydration should be considered bugs
+
+### 3.9 Hydration Timing & Application Stability
+
+**Stability Requirement**: Hydration occurs only after application reports stability.
+
+**Stability Delayers**:
+- Timeouts and intervals
+- Unresolved promises
+- Pending microtasks
+
+**Error**: If app doesn't stabilize within 10 seconds, triggers "Application remains unstable" error (NG0506).
+
+**Solution**: Refactor to avoid delaying stability.
+
+### 3.10 I18N Support
+
+**Default**: Angular skips hydration for components with i18n blocks (re-renders from scratch).
+
+#### Enable I18N Hydration
+```typescript
+import {
+  bootstrapApplication,
+  provideClientHydration,
+  withI18nSupport,
+} from '@angular/platform-browser';
+
+bootstrapApplication(AppComponent, {
+  providers: [provideClientHydration(withI18nSupport())]
+});
+```
+
+### 3.11 Consistent Rendering Across Platforms
+
+**Best Practice**: Avoid `@if` blocks displaying different content on server vs client.
+
+**Problem**: Using `@if` with `isPlatformBrowser` causes:
+- Layout shifts
+- Negative impact on user experience
+- Degraded Core Web Vitals
+
+### 3.12 Third-Party Libraries with DOM Manipulation
+
+**Examples**: D3 charts, charting libraries
+
+**Issue**: May cause DOM mismatch errors with hydration enabled.
+
+**Solution**: Add `ngSkipHydration` to component using the library until refactor possible.
+
+### 3.13 Third-Party Scripts with DOM Manipulation
+
+**Examples**: Ad trackers, analytics
+
+**Issue**: Modify DOM before hydration, causing errors.
+
+**Solution**: 
+- Defer scripts until after hydration
+- Use `AfterNextRender` to delay script until post-hydration
+```typescript
+import { afterNextRender } from '@angular/core';
+
+afterNextRender(() => {
+  // Load third-party script here
+});
+```
+
+---
+
+## 4. Incremental Hydration
+
+### 4.1 What is Incremental Hydration?
+
+**Definition**: Advanced hydration allowing sections to remain dehydrated and incrementally trigger hydration as needed.
+
+**Foundation**: Builds on full application hydration, deferrable views (`@defer`), and event replay.
+
+### 4.2 Why Use Incremental Hydration?
+
+**Performance Benefits**:
+- Smaller initial bundles while maintaining comparable UX
+- Reduces First Input Delay (FID)
+- Reduces Cumulative Layout Shift (CLS)
+
+**Key Capability**: Use `@defer` blocks above the fold without layout shifts.
+- Before: `@defer` above fold caused placeholder → content swap → layout shift
+- With Incremental Hydration: Main template renders with no layout shift
+
+### 4.3 Enabling Incremental Hydration
+
+**Prerequisites**: SSR and hydration must be enabled first.
+
+```typescript
+import {
+  bootstrapApplication,
+  provideClientHydration,
+  withIncrementalHydration,
+} from '@angular/platform-browser';
+
+bootstrapApplication(AppComponent, {
+  providers: [provideClientHydration(withIncrementalHydration())]
+});
+```
+
+**Note**: Incremental Hydration automatically enables event replay. Remove `withEventReplay()` if present.
+
+### 4.4 How Incremental Hydration Works
+
+**Process**:
+1. Add `hydrate` triggers to `@defer` blocks (defines incremental hydration boundaries)
+2. During SSR: Angular loads defer block dependencies and renders main template (not `@placeholder`)
+3. During CSR: Dependencies stay deferred, content stays dehydrated until `hydrate` trigger fires
+4. On trigger: Defer block fetches dependencies and hydrates content
+5. Browser events before hydration are queued and replayed post-hydration
+
+### 4.5 Hydrate Triggers
+
+**Types**: `hydrate on`, `hydrate when`, `hydrate never`
+
+**Multiple Triggers**: Separate with semicolon (`;`). Hydration triggers when ANY trigger fires.
+
+#### 4.5.1 `hydrate on idle`
+Triggers when browser reaches idle state (based on `requestIdleCallback`).
+
+```typescript
+@defer (hydrate on idle) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+#### 4.5.2 `hydrate on viewport`
+Triggers when content enters viewport (uses Intersection Observer API).
+
+```typescript
+@defer (hydrate on viewport) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+#### 4.5.3 `hydrate on interaction`
+Triggers on user interaction (`click` or `keydown` events).
+
+```typescript
+@defer (hydrate on interaction) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+#### 4.5.4 `hydrate on hover`
+Triggers when mouse hovers (`mouseover` and `focusin` events).
+
+```typescript
+@defer (hydrate on hover) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+#### 4.5.5 `hydrate on immediate`
+Triggers immediately after non-deferred content finishes rendering.
+
+```typescript
+@defer (hydrate on immediate) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+#### 4.5.6 `hydrate on timer`
+Triggers after specified duration (ms or s).
+
+```typescript
+@defer (hydrate on timer(500ms)) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+#### 4.5.7 `hydrate when`
+Custom conditional expression. Triggers when condition becomes truthy.
+
+```typescript
+@defer (hydrate when condition) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+**Important**: `hydrate when` only triggers for top-most dehydrated `@defer` block. Parent must exist before condition can be evaluated.
+
+#### 4.5.8 `hydrate never`
+Content remains dehydrated indefinitely (becomes static content on initial render).
+
+```typescript
+@defer (on viewport; hydrate never) {
+  <large-cmp />
+} @placeholder {
+  <div>Large component placeholder</div>
+}
+```
+
+**Note**: 
+- Applies to initial render only
+- Subsequent client-side renders still fetch dependencies
+- Prevents hydration of entire nested subtree
+- No nested `hydrate` triggers fire underneath
+
+### 4.6 Hydrate Triggers with Regular Triggers
+
+**Dual Trigger Pattern**:
+```typescript
+@defer (on idle; hydrate on interaction) {
+  <example-cmp />
+} @placeholder {
+  <div>Example Placeholder</div>
+}
+```
+
+**Behavior**:
+- **Initial load**: `hydrate on interaction` applies
+- **Subsequent client-side renders**: `on idle` applies (e.g., after routerLink navigation)
+
+### 4.7 Nested `@defer` Blocks with Incremental Hydration
+
+**Hierarchical Hydration**: Hydrating child requires all parents to be hydrated.
+
+**Trigger Flow**: Top-most dehydrated `@defer` block hydrates first, then down to triggered child.
+
+```typescript
+@defer (hydrate on interaction) {
+  <parent-block-cmp />
+  @defer (hydrate on hover) {
+    <child-block-cmp />
+  } @placeholder {
+    <div>Child placeholder</div>
+  }
+} @placeholder {
+  <div>Parent Placeholder</div>
+}
+```
+
+**Example**: Hovering child triggers:
+1. Parent `@defer` with `<parent-block-cmp />` hydrates first
+2. Child `@defer` with `<child-block-cmp />` hydrates second
+
+### 4.8 Constraints
+
+Same constraints as full-application hydration:
+- Direct DOM manipulation limits
+- Valid HTML structure required
+- See [Hydration Constraints](#36-constraints) for details
+
+### 4.9 `@placeholder` Block Still Required
+
+**Required**: Yes, even with incremental hydration.
+
+**Reason**: `@placeholder` needed for subsequent client-side rendering.
+
+**Example**: Content not on initial load route. Navigation to that route renders like regular `@defer` block (shows `@placeholder`).
+
+---
+
+## 5. Design Patterns
+
+### 5.1 Hybrid Rendering Pattern
+**Description**: Use different rendering strategies per route based on requirements.
+
+**Implementation**:
+```typescript
+export const serverRoutes: ServerRoute[] = [
+  { path: '', renderMode: RenderMode.Client },        // CSR for SPA behavior
+  { path: 'about', renderMode: RenderMode.Prerender }, // SSG for static content
+  { path: 'product/:id', renderMode: RenderMode.Server }, // SSR for dynamic content
+];
+```
+
+**Benefits**:
+- Optimize each route independently
+- Balance performance, SEO, and server costs
+- Flexibility for varying content types
+
+### 5.2 Abstract Service Pattern for Platform-Specific Logic
+**Description**: Centralize platform-specific behavior in services rather than components.
+
+**Implementation**: See [Platform-Specific Service Implementations](#28-platform-specific-service-implementations)
+
+**Benefits**:
+- Clean separation of platform logic
+- Testable implementations
+- Single source of truth for platform behavior
+
+### 5.3 Incremental Hydration Boundary Pattern
+**Description**: Strategic use of `@defer` blocks to create hydration boundaries.
+
+**Implementation**:
+```typescript
+@defer (hydrate on viewport) {
+  <heavy-component /> // Loads only when visible
+} @placeholder {
+  <lightweight-skeleton />
+}
+```
+
+**Benefits**:
+- Reduces initial bundle size
+- Improves Time to Interactive (TTI)
+- Better perceived performance
+
+### 5.4 Progressive Enhancement Pattern
+**Description**: Render functional content on server, enhance with interactivity on client.
+
+**Example**:
+```typescript
+export class ProductComponent {
+  constructor() {
+    afterNextRender(() => {
+      // Add rich interactions only on client
+      this.initializeImageZoom();
+      this.setupGalleryCarousel();
+    });
+  }
+}
+```
+
+**Benefits**:
+- Core functionality works without JavaScript
+- Enhanced experience for capable browsers
+- Resilient to JS failures
+
+### 5.5 Event Replay Pattern
+**Description**: Capture and replay user events before hydration completes.
+
+**Implementation**: Enable via `withEventReplay()`
+
+**Benefits**:
+- No lost user interactions
+- Seamless user experience
+- Reduces perceived latency
+
+---
+
+## 6. Best Practices
+
+### 6.1 Rendering Strategy Selection
+
+**Rule 1**: Choose SSG for static content
+- Marketing pages, blogs, documentation
+- Content that doesn't change per-user
+- Fastest load times, best SEO
+
+**Rule 2**: Choose SSR for dynamic, personalized content
+- E-commerce with real-time pricing
+- User-specific dashboards
+- Frequently changing data
+
+**Rule 3**: Choose CSR for internal tools
+- No SEO requirement
+- Complex client-side state
+- Real-time interactivity
+
+**Rule 4**: Use Hybrid for mixed requirements
+- Different strategies per route
+- Optimize each route independently
+
+### 6.2 Server-Compatible Component Development
+
+**Do**: Use Angular APIs
+```typescript
+// Good
+afterNextRender(() => {
+  const height = this.elementRef.nativeElement.scrollHeight;
+});
+```
+
+**Don't**: Direct DOM manipulation
+```typescript
+// Bad
+document.querySelector('.my-element').appendChild(newNode);
+```
+
+**Do**: Use platform-specific service implementations
+```typescript
+// Good
+inject(AnalyticsService).trackEvent('action'); // Different implementation per platform
+```
+
+**Don't**: Use `isPlatformBrowser` in templates
+```typescript
+// Bad - causes hydration mismatches
+@if (isPlatformBrowser) {

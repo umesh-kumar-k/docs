@@ -59,7 +59,15 @@
           {
             "group": "Micro Frontends",
             "pages": [
-              "practical-guides/mfe/implementation"
+              "practical-guides/mfe/implementation",
+              "practical-guides/mfe/details"
+            ]
+          },
+          {
+            "group": "Misc",
+            "pages": [
+              "practical-guides/authorization/authn",
+              "practical-guides/authorization/authz"
             ]
           },
           {
@@ -407,8 +415,9 @@
             ]
           },
           {
-            "group": "Angular SSR",
+            "group": "Angular Rendering Techniques",
             "pages": [
+                "angular/rendering-techniques/overview",
                 "angular/ssr/overview"
             ]
           },
